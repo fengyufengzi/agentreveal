@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgentGuard</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="mark">AG</div>
+      <div>
+        <h1>AgentGuard</h1>
+        <p>AI Agent 安全配置中心</p>
+      </div>
+    </div>
+    <nav>
+      <button class="nav active" data-command="doctor">环境体检</button>
+      <button class="nav" data-command="scan">风险扫描</button>
+      <button class="nav" data-command="map">配置地图</button>
+      <button class="nav" data-command="provider">Provider</button>
+      <button class="nav" data-command="baselineBalanced">Baseline</button>
+    </nav>
+    <div class="sidebar-foot">
+      <button id="reportBtn" class="secondary">生成 HTML 报告</button>
+      <button id="openReportBtn" class="ghost">打开报告</button>
+    </div>
+  </aside>
+
+  <main>
+    <header class="topbar">
+      <div>
+        <h2 id="viewTitle">环境体检</h2>
+        <p id="viewSubtitle">查看本机已配置的 AI Coding Agent。</p>
+      </div>
+      <div class="actions">
+        <select id="baselineProfile" aria-label="Baseline profile">
+          <option value="baselineBalanced">balanced</option>
+          <option value="baselineSafe">safe</option>
+        </select>
+        <button id="refreshBtn">运行</button>
+      </div>
+    </header>
+
+    <section id="status" class="status idle">等待运行</section>
+    <section id="summary" class="summary"></section>
+    <section id="content" class="content"></section>
+    <details class="raw">
+      <summary>原始输出</summary>
+      <pre id="rawOutput"></pre>
+    </details>
+  </main>
+
+  <script src="./renderer.js"></script>
+</body>
+</html>

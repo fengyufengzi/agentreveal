@@ -1,0 +1,55 @@
+# AgentGuard PR 门禁 —— 示例 workflow（复制到你自己仓库的 .github/workflows/ 下使用）
+#
+# 作用：在每个 PR / push 上运行 `agentguard scan`，扫本机（CI runner）上被检出的
+#       AI Coding Agent 配置。存在「高危及以上」风险时 scan 以退出码 2 结束，
+#       让这一步失败，从而挡住 PR。
+#
+# 退出码约定（见 src/cli.ts）：
+#   0  = 未发现高危及以上风险（含无风险 / 仅中低危 / 仅提示）
+#   2  = 存在 high / critical 风险（含跨 Agent 关联项）
+#
+# 说明：AgentGuard 默认只读、证据全程脱敏，不会打印明文密钥；HTML/JSON 报告同样脱敏。
+name: AgentGuard Gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  agentguard:
+    name: AgentGuard security scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22 # scan/map 读取 CC Switch 的 SQLite 依赖 node:sqlite，需 ≥22
+
+      # 安装 AgentGuard。私有仓库需要一个只读 token 作为 AGENTGUARD_TOKEN。
+      - name: Download AgentGuard pilot package
+        env:
+          GH_TOKEN: ${{ secrets.AGENTGUARD_TOKEN }}
+        run: gh release download v0.0.5-pilot.1 --repo fengyufengzi/AgentGuard --pattern '*.tgz'
+
+      - name: Install AgentGuard
+        run: npm install -g ./agentguard-0.0.5-pilot.1.tgz
+
+      # 核心门禁：高危及以上 → 退出码 2 → 本步骤失败 → 挡 PR。
+      - name: Scan
+        run: agentguard scan
+
+      # 可选：无论通过与否都生成一份脱敏 HTML 报告并作为 artifact 存档，便于复盘。
+      - name: Generate HTML report
+        if: always()
+        run: agentguard report --format html --output agentguard-report.html
+
+      - name: Upload report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentguard-report
+          path: agentguard-report.html

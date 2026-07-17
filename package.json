@@ -1,0 +1,67 @@
+{
+  "name": "agentguard",
+  "version": "0.0.5-pilot.1",
+  "description": "面向多 Agent、多模型、多 Provider 的 AI Coding Agent 安全配置中心",
+  "type": "module",
+  "bin": {
+    "agentguard": "bin/agentguard"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "docs",
+    "examples"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "desktop": "npm run build && electron desktop/main.cjs",
+    "desktop:pack": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dir --arm64 --config electron-builder.yml --publish never",
+    "desktop:dist": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg --arm64 --config electron-builder.yml --publish never",
+    "dev": "tsc --watch",
+    "doctor": "node bin/agentguard doctor",
+    "sanitize": "node scripts/sanitize.mjs",
+    "sanitize:history": "node scripts/sanitize.mjs --history",
+    "sanitize:package": "node scripts/sanitize.mjs --package",
+    "sanitize:staged": "node scripts/sanitize.mjs --staged",
+    "test": "npm run build && node --test \"test/**/*.test.mjs\"",
+    "clean": "rm -rf dist",
+    "prepack": "npm run clean && npm run build"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "security",
+    "opencode",
+    "claude-code",
+    "codex",
+    "cc-switch",
+    "mcp"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^12.1.0",
+    "smol-toml": "^1.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "electron": "^43.1.0",
+    "electron-builder": "^26.15.3",
+    "typescript": "^5.5.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fengyufengzi/AgentGuard.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fengyufengzi/AgentGuard/issues"
+  },
+  "homepage": "https://github.com/fengyufengzi/AgentGuard#readme",
+  "author": {
+    "name": "huige",
+    "email": "wangmarsen@gmail.com",
+    "url": "https://github.com/fengyufengzi"
+  }
+}
