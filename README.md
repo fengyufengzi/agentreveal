@@ -25,70 +25,32 @@ AI Coding Agent 的安全配置。它扫描 **Claude Code / OpenCode / Codex / C
 
 ## 🚀 快速开始
 
-> 当前为 **Pilot 预发布版本（`0.0.5-pilot.1`）**，**暂不发布到 npm registry**。团队内部通过
-> 私有 GitHub Pre-release 的标准 npm tarball 安装；详见下方「🔒 安装方式」。
-
-> `0.0.5-pilot.1` 新增跨平台修复引导和 `risk accept/list/revoke/verify`。项目作用域、聚合任务完整条件、
-> 单任务验证、tarball 打包和 Release 资产回装均已完成，可用于受邀的 5–10 人私有 Pilot。
+> 当前为 **Pilot 预发布版本（`0.0.5-pilot.1`）**，仍在为第一次对外发布做准备。
+> 首次正式公开分发计划同时提供 npm CLI，以及完成 Developer ID 签名与 Apple 公证的 macOS 桌面版。
+> 当前仓库和安装资产尚未公开，请勿把开发构建当作正式发行版转发。
 
 **环境要求**：Node.js ≥ 22（`scan`/`map` 读取 CC Switch 的 SQLite 配置依赖
 `node:sqlite`；开发环境使用 Node 24+）。
 
-### 🔒 安装方式（GitHub Pre-release）
+### 从源码验证
 
 ```bash
-# 需要 GitHub CLI 已登录，并具备私有仓库访问权限
-gh release download v0.0.5-pilot.1 \
-  --repo fengyufengzi/AgentGuard \
-  --pattern 'agentguard-0.0.5-pilot.1.tgz'
-
-npm install -g ./agentguard-0.0.5-pilot.1.tgz
-agentguard --version
-```
-
-也可以从私有仓库的 Releases 页面下载 `.tgz`，再执行：
-
-```bash
-npm install -g ~/Downloads/agentguard-0.0.5-pilot.1.tgz
-```
-
-不再推荐 `npm install -g git+https://...`：npm 11 的全局 Git 依赖安装可能保留指向临时 clone
-的失效链接。Release tarball 已包含预编译 `dist/`，安装时不需要 TypeScript。
-
-如需从源码复现已发布的 `0.0.5-pilot.1`：
-
-```bash
-git clone --branch v0.0.5-pilot.1 --depth 1 https://github.com/fengyufengzi/AgentGuard.git
+git clone https://github.com/fengyufengzi/AgentGuard.git
 cd AgentGuard
-npm install
-npm run build
+npm ci
+npm test
 npm link
-
 agentguard --version
 ```
-
-> **为何暂不 `npm publish`？** 详见
-> [`docs/release-0.0.5-pilot.1.md`](docs/release-0.0.5-pilot.1.md)。简言之：API 仍在演进，
-> 团队内 GitHub Pre-release 分发已足够；等形态稳定再考虑公开发布。
-> **提示**：`agentguard` 这个 npm 包名目前仍可被占用——若团队后续决定发布，
-> 在首次 `npm publish` 之前请先确认这个名字未被他人抢注。
 
 ### Pilot 试用
 
-当前阶段优先验证现有能力，不继续扩 Agent 或建设 Dashboard：
+受邀试用者请先阅读快速开始，并只提交脱敏后的反馈：
 
 - 发给试用者：[`docs/pilot-quickstart.md`](docs/pilot-quickstart.md)
 - 试用后填写并回收：[`docs/pilot-feedback-form.md`](docs/pilot-feedback-form.md)
-- 试点负责人使用的完整流程和出口标准：[`docs/pilot-readiness.md`](docs/pilot-readiness.md)
-- 下一步行动报告开发计划：[`docs/development-plan-actionable-report.md`](docs/development-plan-actionable-report.md)
-- 修复助手与风险接受计划：[`docs/development-plan-remediation-and-acceptance.md`](docs/development-plan-remediation-and-acceptance.md)
-- 当前产品方向：[`docs/PRODUCT_DIRECTION.md`](docs/PRODUCT_DIRECTION.md)
 - 当前产品能力摘要：[`docs/product-capabilities.md`](docs/product-capabilities.md)
-- 总体开发计划：[`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md)
-- 文档状态与优先级：[`docs/DOCUMENT_STATUS.md`](docs/DOCUMENT_STATUS.md)
-- `0.0.5` 发布前加固与 Pilot 计划：[`docs/development-plan-0.0.5-hardening-and-pilot.md`](docs/development-plan-0.0.5-hardening-and-pilot.md)
-- 开源发布安全清单：[`docs/OPEN_SOURCE_RELEASE_CHECKLIST.md`](docs/OPEN_SOURCE_RELEASE_CHECKLIST.md)
-- `0.0.5-pilot.1` 未发布草案与 blocker：[`docs/release-0.0.5-pilot.1.md`](docs/release-0.0.5-pilot.1.md)
+- 结构化输出约定：[`docs/output-schema-v1.md`](docs/output-schema-v1.md)
 - 63 条规则处置矩阵：[`docs/rule-disposition-matrix.md`](docs/rule-disposition-matrix.md)
 
 试用记录不得包含完整配置、凭证或未脱敏内部信息。
@@ -449,15 +411,14 @@ npm run clean     # 删除 dist/
 `node:test` / `node:assert`；夹具在临时目录构造配置文件、用后清理；每个 adapter
 测试均含**隐私红线回归**（断言完整 findings 序列化中不含明文密钥）。
 
-仓库公开前还需完成 Git 历史和发布资产检查，详见
-[`docs/OPEN_SOURCE_RELEASE_CHECKLIST.md`](docs/OPEN_SOURCE_RELEASE_CHECKLIST.md)。安全问题请通过
+仓库公开前仍需完成 Git 历史、发布资产、CI 和仓库权限检查。安全问题请通过
 [`SECURITY.md`](SECURITY.md) 中的私密渠道报告，不要在公开 Issue 中粘贴真实配置或凭证。
 
 ---
 
 ## 📄 License
 
-MIT — 见 [`package.json`](./package.json)。
+MIT — 见 [`LICENSE`](LICENSE)。
 
 ---
 
