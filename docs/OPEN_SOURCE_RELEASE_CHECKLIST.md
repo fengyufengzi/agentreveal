@@ -2,7 +2,7 @@
 
 > 状态：Active
 >
-> 更新日期：2026-07-18
+> 更新日期：2026-07-21
 >
 > 目标：在仓库公开或发布 npm 包前，验证当前文件、可达 Git 历史、发布资产和社区入口均不暴露敏感信息。
 
@@ -12,7 +12,7 @@
 |---|---|---|
 | 当前受 Git 跟踪文件扫描 | 已通过 | `npm run sanitize`；包含危险产物路径并已接入 CI |
 | 暂存文件扫描 | 可用 | 提交前运行 `npm run sanitize:staged` |
-| 全部可达 Git 历史隐私扫描 | 未通过 | `npm run sanitize:history` 仍有 23 项已删除的身份/路径元数据命中 |
+| 公开候选全部可达 Git 历史隐私扫描 | 已通过 | 独立候选仓库只包含审核后的快照历史；`npm run sanitize:history` 已归零 |
 | GitHub Issue / Security 链接 | 已修正 | 已替换模板中的占位仓库地址 |
 | 独立第三方 secret scanner | 工具就绪，最终候选待扫 | Gitleaks v8.30.1 已复核当前树、历史、本地 tarball 和开发 DMG；`release:scan-assets` 会解包 tarball 与 DMG/app.asar，最终签名候选仍须重跑 |
 | npm 发布文件清单与内容扫描 | 已通过 | `npm run sanitize:package`；覆盖 `dist/` 和 source map |
@@ -20,7 +20,7 @@
 | CODEOWNERS 与贡献门禁 | 已就绪 | 已标记关键安全路径；公开仓库仍需启用 required review / branch protection |
 | 最终 tarball 重下载验证 | 待执行 | 仍需从最终 Release 资产重新下载、解包和安装 |
 
-在“全部可达 Git 历史扫描”归零前，不得把现有仓库直接切换为 Public。
+私有开发仓库仍有 23 项历史元数据命中，不得直接切换为 Public；正式公开面只使用已经归零的独立候选仓库。
 
 ## 2. 自动检查命令
 
@@ -70,8 +70,9 @@ npm run sanitize:history
 - 两次扫描均使用 `--redact=100`，临时报告保存在系统临时目录，不纳入 Git；
 - 最终 npm tarball 和 DMG 产生后仍须重新扫描，当前结果不能替代最终资产验证。
 
-Gitleaks 的 0 命中只表示其密钥规则未发现问题。内置 `sanitize:history` 仍有 23 项组织、邮箱、本机路径或
-个人项目标识命中，因此现有 Git 历史仍不得直接公开。
+Gitleaks 的 0 命中只表示其密钥规则未发现问题。私有开发仓库的内置 `sanitize:history` 仍有 23 项组织、
+邮箱、本机路径或个人项目标识命中，因此该历史不得直接公开；独立候选仓库仅导入审核后的当前树，当前
+全部可达历史已通过内置扫描。
 
 ## 3. Git 历史处理
 
@@ -96,9 +97,9 @@ Gitleaks 的 0 命中只表示其密钥规则未发现问题。内置 `sanitize:
 - [x] `npm pack` 清单只包含预期文件；`package:verify-install` 明确拒绝 `src/` / `test/`；
 - [x] 实际 `.tgz` 发布内容与 source map 通过 `sanitize:package` 检查；
 - [x] README、Desktop Demo 封面/视频和 CLI 输出示例均使用合成或脱敏样本；最终 Release Notes 仍待发布版本确认；
-- [ ] GitHub 仓库描述、主页、Discussions、Issue 模板和 Security Advisory 链接正确；
+- [x] GitHub 仓库描述、主页、Discussions、Issue 模板和 Security Advisory 链接正确；
 - [ ] CODEOWNERS 维护者账号有效，main 启用 required review、required checks 和禁止直接推送；
-- [ ] 作者姓名、公开邮箱和 GitHub noreply 邮箱经过本人确认；
+- [x] 作者姓名、GitHub 账号和个人 Gmail 作者邮箱经过本人确认；npm 包保留该个人邮箱；
 - [x] 当前树不包含公司域名、内部 IP、客户名称、工号、会议链接或内部截图；跟踪的图标与 Desktop Demo 均使用合成资产；
 - [x] `.env`、证书、私钥、调试日志、备份和本机报告未被 Git 跟踪，并由 `sanitize` 持续阻断；
 - [x] 使用独立 secret scanner 检查当前树和全部历史；
@@ -107,5 +108,5 @@ Gitleaks 的 0 命中只表示其密钥规则未发现问题。内置 `sanitize:
 
 ## 5. CI 边界
 
-CI 每次执行 `npm run sanitize`，用于阻止新的当前树泄漏。历史扫描暂不放入每次 CI，因为现有历史尚未清理，
-且它扫描所有可达 refs、成本更高。历史归零后，应在公开发布工作流或定期安全任务中增加该门禁。
+CI 每次执行 `npm run sanitize`，用于阻止新的当前树泄漏。候选历史已经归零；历史扫描因需要遍历所有可达
+refs、成本更高，公开前应加入发布工作流或定期安全任务，而不必在每个普通 PR 重复执行。
