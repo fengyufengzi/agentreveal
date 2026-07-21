@@ -8,6 +8,7 @@
  * - baseURL 属 endpoint 标识，可返回用于风险判定与展示。
  */
 import { readFileSync } from "node:fs";
+import { describeParseFailure } from "../../core/parse-failure.js";
 
 /** provider.<id> 中的自定义 Provider。 */
 export interface OcProvider {
@@ -32,6 +33,8 @@ export interface OcMcpServer {
 
 export interface OcData {
   configParsed: boolean;
+  /** 解析失败时的固定安全原因，不含底层异常原文。 */
+  parseFailureReason?: string;
   providers: OcProvider[];
   mcpServers: OcMcpServer[];
   /** permission.bash（"allow" | "ask" | "deny" 或对象）。 */
@@ -132,16 +135,18 @@ function parsePermission(cfg: Record<string, unknown>): {
 export function parseOpenCode(configPath: string): OcData {
   let cfg: Record<string, unknown> = {};
   let configParsed = false;
+  let parseFailureReason: string | undefined;
   try {
     cfg = asRecord(JSON.parse(readFileSync(configPath, "utf8")));
     configParsed = true;
-  } catch {
-    /* 结构损坏则按空处理 */
+  } catch (error) {
+    parseFailureReason = describeParseFailure(error, configPath, "JSON").reason;
   }
 
   const perm = parsePermission(cfg);
   return {
     configParsed,
+    parseFailureReason,
     providers: parseProviders(cfg),
     mcpServers: parseMcp(cfg),
     permissionBash: perm.bash,

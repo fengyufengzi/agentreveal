@@ -15,6 +15,7 @@ export interface CcProvider {
 /** 单个 app 的代理配置。 */
 export interface CcProxy {
     appType: string;
+    /** 代理服务已开启，且该 Agent 的 live 路由接管也已开启。 */
     enabled: boolean;
     listenAddress: string;
     listenPort: number;

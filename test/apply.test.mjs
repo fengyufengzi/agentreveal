@@ -4,6 +4,7 @@
  */
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -21,6 +22,10 @@ import {
   restoreBaselineBackup,
   restoreLatestBaselineBackup,
 } from "../dist/core/apply/index.js";
+import {
+  baselinePlanFingerprint,
+  buildBaselinePlan,
+} from "../dist/core/baseline/index.js";
 
 async function withOpenCode(config, fn) {
   const root = mkdtempSync(join(tmpdir(), "agentguard-apply-"));
@@ -55,6 +60,7 @@ test("apply: 创建备份后应用 OpenCode baseline，并可恢复", async () =
       const result = await applyBaseline("balanced", ctx);
 
       assert.ok(result.backupId);
+      assert.match(result.planFingerprint, /^[a-f0-9]{64}$/);
       assert.equal(result.files.length, 1);
       const applied = JSON.parse(readFileSync(configPath, "utf8"));
       assert.equal(applied.permission.bash, "ask");
@@ -104,8 +110,54 @@ test("apply: 原子写入和 restore 均保留原配置权限", async () => {
         "manifest.json"
       );
       const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+      const backupIgnore = join(ctx.cwd, ".agentguard", "backups", ".gitignore");
+      assert.match(readFileSync(backupIgnore, "utf8"), /AgentGuard backup safety/);
+      assert.equal(statSync(backupIgnore).mode & 0o777, 0o600);
       assert.equal(statSync(manifestPath).mode & 0o777, 0o600);
       assert.equal(statSync(manifest.files[0].backupPath).mode & 0o777, 0o600);
+    }
+  );
+});
+
+test("apply: 已确认预览变化后拒绝写入且不创建备份", async () => {
+  await withOpenCode(
+    { permission: "allow", share: "auto" },
+    async ({ ctx, configPath }) => {
+      const preview = await buildBaselinePlan("balanced", ctx);
+      const fingerprint = baselinePlanFingerprint(preview);
+      const changed = { permission: { bash: "allow" }, share: "manual" };
+      writeFileSync(configPath, JSON.stringify(changed, null, 2) + "\n");
+
+      await assert.rejects(
+        applyBaseline("balanced", ctx, { expectedPlanFingerprint: fingerprint }),
+        /与已确认预览不一致/
+      );
+      assert.deepEqual(JSON.parse(readFileSync(configPath, "utf8")), changed);
+      assert.equal(
+        existsSync(join(ctx.cwd, ".agentguard", "backups")),
+        false
+      );
+    }
+  );
+});
+
+test("backup: 已有忽略文件不能在保护规则后重新放行备份", async () => {
+  await withOpenCode(
+    { permission: { bash: "allow" } },
+    async ({ ctx }) => {
+      const root = join(ctx.cwd, ".agentguard", "backups");
+      mkdirSync(root, { recursive: true });
+      writeFileSync(
+        join(root, ".gitignore"),
+        "# AgentGuard backup safety\n*\n!.gitignore\n!accidental-export.json\n"
+      );
+      await applyBaseline("balanced", ctx);
+      assert.equal(
+        readFileSync(join(root, ".gitignore"), "utf8").endsWith(
+          "# AgentGuard backup safety\n*\n!.gitignore\n"
+        ),
+        true
+      );
     }
   );
 });

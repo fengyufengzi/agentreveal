@@ -10,6 +10,17 @@
 - `severity` 继续表示潜在影响；本表的 `priority` 表示用户行动顺序。
 - `observe` 是配置观察，不进入默认待修复数量。
 - `baseline` 表示 AgentGuard 已有带 dry-run、备份与回滚的整改能力，不等于所有 profile 都能完整解决。
+- 项目规则忽略不是普通 acceptance：只有 P2/P3、非 `fix` 且不属于凭证、执行权限、扫描盲区或
+  Provider 端点分类等高风险家族的规则可用；策略按当前项目 + Agent + ruleId 跨 taskId 变化生效。
+- `CLAUDE_PLAINTEXT_TOKEN` 的 macOS guided 路径会先要求备份：Desktop 使用“一键备份”，CLI 使用
+  `agentguard credential backup <task-id>`；随后给出 Keychain 与 Claude Code `apiKeyHelper` 命令，先存储
+  新凭证，再删除 `settings.json` / `settings.local.json` 中两个已知明文字段。CLI 恢复先只输出预览指纹，
+  需使用 `agentguard credential restore <backup-id> --confirm <fingerprint>` 二次确认；Desktop 验证统一使用
+  任务卡片的“复扫验证”。CC Switch 代理接管写入 Claude Code、Codex 或 Gemini CLI
+  live 配置的 `PROXY_MANAGED` 是非秘密鉴权占位符，不触发对应明文凭证 P0；`CCSWITCH_PROXY_ENABLED`
+  仅在全局代理服务与该 Agent 路由接管同时开启时生成，并展示 CC Switch、本地端口和真实上游。CC Switch
+  普通 Provider 的 Token 字段当前不解析环境变量名；`CCSWITCH_PLAINTEXT_KEY` 因此只提供轮换、原应用替换和
+  数据库/备份权限加固，不把变量名伪装成可用 Token，也不把权限缓解声明为彻底解决。
 
 | 规则 ID | 处置 | 优先级 | 置信度 | 修复方式 | 根因分组 |
 |---|---|---|---|---|---|
@@ -76,6 +87,23 @@
 | `XAGENT_SHARED_ENDPOINT` | review | P1 | medium | manual | `correlation.shared-endpoint` |
 | `PROJECT_SENSITIVE_FILE` | review | P1 | medium | manual | `project.sensitive-file` |
 | `PROJECT_SENSITIVE_SCAN_TRUNCATED` | review | P1 | high | none | `coverage.truncated` |
+
+所有 `coverage.parse` 任务都以配置文件 `path` 作为稳定实例身份。finding 只保留文件路径、固定安全原因和
+“已安全跳过”状态；底层解析器异常、堆栈和配置片段不得进入 evidence、终端、HTML 或任务 ID。
+
+## 项目级规则忽略矩阵
+
+当前允许项目级忽略的 18 条规则如下；其余规则一律不提供入口：
+
+`CLAUDE_LOCAL_BASE_URL`、`CLAUDE_API_KEY_HELPER`、`CLAUDE_HOOKS_PRESENT`、
+`CLAUDE_MCP_REMOTE`、`CLAUDE_MCP_STDIO`、`CODEX_MCP_REMOTE`、`CODEX_MCP_STDIO`、
+`CODEX_TRUSTED_PROJECTS`、`CODEX_LOCAL_PROXY`、`CCSWITCH_PROXY_ENABLED`、
+`OPENCODE_AUTOUPDATE_ON`、`OPENCODE_MCP_REMOTE`、`OPENCODE_MCP_LOCAL`、
+`GEMINI_MCP_REMOTE`、`GEMINI_MCP_STDIO`、`GEMINI_AUTH_MODE`、
+`OPENCLAW_AGENT_WORKSPACE_OVERLAP`、`OPENCLAW_SERVICE_ENV_PRESENT`。
+
+该列表由 `ruleIgnoreEligibility()` 基于机器矩阵推导并由测试锁定；规则 priority、disposition 或 family
+变化时必须重新审查资格。忽略记录不删除 finding，HTML 的技术证据区仍展示生成时的完整脱敏发现。
 
 ## Baseline 映射
 

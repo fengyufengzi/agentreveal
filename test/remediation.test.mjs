@@ -1,6 +1,18 @@
 /** 按操作系统生成整改命令的安全性与能力边界测试。 */
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import {
+  chmodSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { enrichFinding } from "../dist/core/action/index.js";
 import { buildRemediationGuide } from "../dist/core/remediation/index.js";
 
@@ -46,7 +58,7 @@ test("无法安全自动化的普通 finding 标为 guided，不生成伪 apply"
   assert.ok(guide.notes.some((note) => note.includes("不能单独证明")));
 });
 
-test("macOS 明文凭证引导使用 Keychain 和当前会话安全注入", () => {
+test("macOS Claude 明文凭证引导写入 Keychain、删除配置明文并设置 apiKeyHelper", () => {
   const secret = "sk-real-MUST-NOT-LEAK";
   const guide = buildRemediationGuide(
     finding("CLAUDE_PLAINTEXT_TOKEN", "secret", "high", {
@@ -62,11 +74,78 @@ test("macOS 明文凭证引导使用 Keychain 和当前会话安全注入", () =
   assert.equal(guide.mode, "guided");
   assert.ok(output.includes("security add-generic-password"));
   assert.ok(output.includes("security find-generic-password"));
-  assert.ok(output.includes("export ANTHROPIC_AUTH_TOKEN"));
+  assert.ok(output.includes("plutil -replace apiKeyHelper"));
+  assert.ok(output.includes("plutil -remove env.ANTHROPIC_AUTH_TOKEN"));
+  assert.ok(output.includes("plutil -remove env.ANTHROPIC_API_KEY"));
+  assert.ok(output.includes("settings.local.json"));
+  assert.ok(output.includes("chmod 600"));
+  assert.ok(!output.includes("export ANTHROPIC_AUTH_TOKEN"));
+  assert.deepEqual(guide.commands.map((item) => item.id), [
+    "macos-keychain",
+    "macos-claude-keychain-helper",
+    "macos-keychain-check",
+    "verify-scan",
+  ]);
   assert.ok(guide.notes.some((note) => note.includes("Keychain")));
   assert.ok(!JSON.stringify(guide).includes(secret));
   assert.ok(guide.commands.every((item) => item.completesRemediation === false));
 });
+
+test(
+  "macOS Claude 配置命令只删除两个明文字段，保留其它配置且不输出凭证",
+  { skip: process.platform !== "darwin" },
+  () => {
+    const configDir = mkdtempSync(join(tmpdir(), "agentguard-claude-remediation-"));
+    const settings = join(configDir, "settings.json");
+    const localSettings = join(configDir, "settings.local.json");
+    const authToken = "sk-ant-example-plaintext-placeholder";
+    const apiKey = "sk-ant-api-example-placeholder";
+    try {
+      mkdirSync(configDir, { recursive: true });
+      writeFileSync(
+        settings,
+        JSON.stringify({ env: { ANTHROPIC_AUTH_TOKEN: authToken, SAFE_FLAG: "1" }, theme: "dark" })
+      );
+      writeFileSync(
+        localSettings,
+        JSON.stringify({ env: { ANTHROPIC_API_KEY: apiKey }, permissions: { defaultMode: "default" } })
+      );
+      chmodSync(settings, 0o644);
+      chmodSync(localSettings, 0o644);
+
+      const guide = buildRemediationGuide(
+        finding("CLAUDE_PLAINTEXT_TOKEN", "secret", "high"),
+        { platform: "darwin" }
+      );
+      const configure = guide.commands.find(
+        (item) => item.id === "macos-claude-keychain-helper"
+      );
+      assert.ok(configure);
+
+      const result = spawnSync("/bin/sh", ["-c", configure.command], {
+        encoding: "utf8",
+        env: { ...process.env, CLAUDE_CONFIG_DIR: configDir },
+      });
+      assert.equal(result.status, 0, result.stderr);
+      assert.doesNotMatch(`${result.stdout}${result.stderr}`, new RegExp(`${authToken}|${apiKey}`));
+
+      const updated = JSON.parse(readFileSync(settings, "utf8"));
+      const updatedLocal = JSON.parse(readFileSync(localSettings, "utf8"));
+      assert.deepEqual(updated.env, { SAFE_FLAG: "1" });
+      assert.equal(updated.theme, "dark");
+      assert.deepEqual(updatedLocal.env, {});
+      assert.deepEqual(updatedLocal.permissions, { defaultMode: "default" });
+      assert.match(updated.apiKeyHelper, /security find-generic-password/);
+      assert.match(updatedLocal.apiKeyHelper, /AgentGuard\/CLAUDE_PLAINTEXT_TOKEN/);
+      assert.equal(statSync(settings).mode & 0o777, 0o600);
+      assert.equal(statSync(localSettings).mode & 0o777, 0o600);
+      assert.doesNotMatch(readFileSync(settings, "utf8"), new RegExp(authToken));
+      assert.doesNotMatch(readFileSync(localSettings, "utf8"), new RegExp(apiKey));
+    } finally {
+      rmSync(configDir, { recursive: true, force: true });
+    }
+  }
+);
 
 test("Linux 明文凭证引导使用 Secret Service 或进程级安全注入", () => {
   const guide = buildRemediationGuide(
@@ -129,15 +208,67 @@ test("Windows 仅为已知真实变量生成当前 PowerShell 进程注入", () 
   assert.ok(!output.includes("'User'"));
 });
 
-test("CC Switch 凭证只引导回原应用，不生成存储或迁移命令", () => {
+test("CC Switch 凭证提供权限加固命令，并明确不支持环境变量名替代 Token", () => {
   const guide = buildRemediationGuide(
     finding("CCSWITCH_PLAINTEXT_KEY", "secret", "high"),
     { platform: "darwin" }
   );
   assert.equal(guide.mode, "guided");
-  assert.deepEqual(guide.commands.map((item) => item.id), ["verify-scan"]);
+  assert.deepEqual(guide.commands.map((item) => item.id), [
+    "cc-switch-protect-storage",
+    "verify-scan",
+  ]);
+  assert.ok(commands(guide).includes('chmod 700 "$HOME/.cc-switch"'));
+  assert.ok(commands(guide).includes('chmod 600 "$HOME/.cc-switch/cc-switch.db"'));
+  assert.ok(commands(guide).includes("db_backup_*.db"));
+  assert.ok(!commands(guide).includes("security add-generic-password"));
   assert.ok(guide.notes.some((note) => note.includes("CC Switch 原应用")));
+  assert.ok(guide.notes.some((note) => note.includes("不解析环境变量名")));
+  assert.ok(guide.notes.some((note) => note.includes("不要把变量名当作 Token")));
 });
+
+test(
+  "CC Switch 权限命令只收紧目标目录、数据库和备份，不改文件内容",
+  { skip: process.platform === "win32" },
+  () => {
+    const home = mkdtempSync(join(tmpdir(), "agentguard-cc-switch-remediation-"));
+    const configDir = join(home, ".cc-switch");
+    const backupDir = join(configDir, "backups");
+    const database = join(configDir, "cc-switch.db");
+    const backup = join(backupDir, "db_backup_example.db");
+    try {
+      mkdirSync(backupDir, { recursive: true });
+      writeFileSync(database, "database-placeholder");
+      writeFileSync(backup, "backup-placeholder");
+      chmodSync(configDir, 0o755);
+      chmodSync(backupDir, 0o755);
+      chmodSync(database, 0o644);
+      chmodSync(backup, 0o644);
+
+      const guide = buildRemediationGuide(
+        finding("CCSWITCH_PLAINTEXT_KEY", "secret", "high"),
+        { platform: process.platform }
+      );
+      const protect = guide.commands.find(
+        (item) => item.id === "cc-switch-protect-storage"
+      );
+      const result = spawnSync("sh", ["-c", protect.command], {
+        encoding: "utf8",
+        env: { ...process.env, HOME: home },
+      });
+
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(statSync(configDir).mode & 0o777, 0o700);
+      assert.equal(statSync(backupDir).mode & 0o777, 0o700);
+      assert.equal(statSync(database).mode & 0o777, 0o600);
+      assert.equal(statSync(backup).mode & 0o777, 0o600);
+      assert.equal(readFileSync(database, "utf8"), "database-placeholder");
+      assert.equal(readFileSync(backup, "utf8"), "backup-placeholder");
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  }
+);
 
 test("observe finding 不生成修复命令", () => {
   const guide = buildRemediationGuide(
@@ -211,6 +342,11 @@ test("ActionTask 的安全存储名称包含稳定 taskId，避免同规则多�
     items: [item],
   };
   const guide = buildRemediationGuide(task, { platform: "darwin" });
+  assert.ok(
+    commands(guide).includes(
+      "agentguard credential backup task-123456789abc"
+    )
+  );
   assert.ok(commands(guide).includes("CLAUDE_PLAINTEXT_TOKEN_task-123456789abc"));
 });
 

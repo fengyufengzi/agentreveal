@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { isLikelyPlaceholder, scanText } from '../scripts/sanitize.mjs';
+import {
+  isLikelyPlaceholder,
+  scanForbiddenArtifactPaths,
+  scanText,
+} from '../scripts/sanitize.mjs';
 
 test('sanitize: 检出组织身份、未批准邮箱、本机路径和真实形态凭证', () => {
   const content = [
@@ -53,4 +57,40 @@ test('sanitize: placeholder 判断覆盖文档与测试常用占位值', () => {
   assert.equal(isLikelyPlaceholder('sk-xxx-your-key-redacted'), true);
   assert.equal(isLikelyPlaceholder('${OPENAI_API_KEY}'), true);
   assert.equal(isLikelyPlaceholder('actual-looking-random-9f7Q2mK4zP8'), false);
+});
+
+test('sanitize: 拒绝跟踪环境文件、密钥、日志、备份、本机报告和发布资产', () => {
+  const files = [
+    '.env',
+    'certs/developer-id.p12',
+    'logs/desktop.log',
+    '.agentguard/backups/config.backup',
+    'reports/agentguard-report.html',
+    'release/AgentGuard.dmg',
+  ];
+
+  assert.deepEqual(
+    new Set(scanForbiddenArtifactPaths(files).map((finding) => finding.ruleId)),
+    new Set([
+      'TRACKED_ENV_FILE',
+      'TRACKED_KEY_OR_CERTIFICATE',
+      'TRACKED_DEBUG_LOG',
+      'TRACKED_BACKUP',
+      'TRACKED_LOCAL_REPORT',
+      'TRACKED_RELEASE_ARCHIVE',
+    ]),
+  );
+});
+
+test('sanitize: 允许环境变量模板和报告实现源码', () => {
+  assert.deepEqual(
+    scanForbiddenArtifactPaths([
+      '.env.example',
+      'src/core/backup/index.ts',
+      'src/core/report/html-report.ts',
+      'test/desktop-diagnostics.test.mjs',
+      'docs/bug-report.md',
+    ]),
+    [],
+  );
 });

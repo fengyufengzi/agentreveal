@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { geminiAdapter } from "../dist/adapters/gemini/index.js";
+import { parseGemini } from "../dist/adapters/gemini/parse.js";
 
 async function withHome(fn) {
   const home = mkdtempSync(join(tmpdir(), "agentguard-gemini-"));
@@ -122,6 +123,28 @@ test("gemini deepScan: .env 明文密钥触发 high，${VAR} 引用不触发", a
   assert.equal(byId(ref, "GEMINI_PLAINTEXT_ENV_KEY"), undefined);
 });
 
+test("gemini deepScan: CC Switch PROXY_MANAGED 与 base URL 形成非秘密接管配置", async () => {
+  await withHome(async (home) => {
+    const dir = join(home, ".gemini");
+    mkdirSync(dir, { recursive: true });
+    const settingsPath = join(dir, "settings.json");
+    writeFileSync(settingsPath, "{}");
+    writeFileSync(
+      join(dir, ".env"),
+      "GOOGLE_GEMINI_BASE_URL=http://127.0.0.1:15721\nGEMINI_API_KEY=PROXY_MANAGED\nSAFE_FLAG=1\n"
+    );
+    const data = parseGemini(settingsPath, dir);
+    const findings = await geminiAdapter.deepScan(
+      { home, cwd: home, env: {} },
+      { agent: "gemini", displayName: "Gemini CLI", configFound: true, configPath: settingsPath }
+    );
+    assert.equal(data.baseUrl, "http://127.0.0.1:15721");
+    assert.equal(data.proxyManagedPlaceholderPresent, true);
+    assert.deepEqual(data.plaintextEnvKeys, []);
+    assert.equal(byId(findings, "GEMINI_PLAINTEXT_ENV_KEY"), undefined);
+  });
+});
+
 test("gemini deepScan: run_shell_command 无 sandbox → GEMINI_SHELL_NO_SANDBOX", async () => {
   const noSandbox = await scanGemini(
     JSON.stringify({ tools: { coreTools: ["run_shell_command"] } })
@@ -164,4 +187,7 @@ test("gemini deepScan: 坏 JSON → GEMINI_PARSE_FAILED(info)", async () => {
   const hit = byId(f, "GEMINI_PARSE_FAILED");
   assert.ok(hit);
   assert.equal(hit.severity, "info");
+  assert.equal(hit.evidence.reason, "JSON 格式无效");
+  assert.equal(hit.evidence.status, "已安全跳过");
+  assert.ok(!JSON.stringify(hit).includes("Unexpected"));
 });

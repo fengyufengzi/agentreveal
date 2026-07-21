@@ -39,7 +39,7 @@ test("enrichFinding 附加矩阵 action，并由 fixMode 推导 fixable", () => 
 test("DEEPSCAN_FAILED 使用保守的扫描完整性 action", () => {
   const enriched = enrichFinding({
     ...finding("DEEPSCAN_FAILED", "info"),
-    evidence: { error: "boom" },
+    evidence: { path: "/home/u/.agent/config.json", reason: "JSON 格式无效", status: "已安全跳过" },
   });
 
   assert.equal(enriched.action.disposition, "review");
@@ -47,6 +47,7 @@ test("DEEPSCAN_FAILED 使用保守的扫描完整性 action", () => {
   assert.equal(enriched.action.confidence, "high");
   assert.equal(enriched.action.fixMode, "guided");
   assert.equal(enriched.action.group.family, "scan-health");
+  assert.deepEqual(enriched.action.group.evidenceKeys, ["path"]);
   assert.equal(enriched.fixable, false);
   assert.ok(enriched.action.verification.some((step) => step.includes("DEEPSCAN_FAILED")));
 });

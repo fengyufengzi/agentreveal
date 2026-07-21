@@ -11,8 +11,9 @@ import { join } from "node:path";
  * @param {object} opts
  * @param {number} [opts.schemaVersion=10]
  * @param {Array<object>} [opts.providers] app_type,name,is_current,in_failover_queue,category,settings_config(obj)
- * @param {Array<object>} [opts.proxies] app_type,proxy_enabled,listen_address,listen_port,auto_failover_enabled
+ * @param {Array<object>} [opts.proxies] app_type,proxy_enabled,enabled,listen_address,listen_port,auto_failover_enabled
  * @param {boolean} [opts.withProxyTable=true] 是否创建 proxy_config 表（旧版可能没有）
+ * @param {boolean} [opts.withRouteEnabledColumn=true] 是否包含 per-app enabled 列
  * @returns {{ dbPath: string, cleanup: () => void }}
  */
 export function buildCcSwitchDb(opts = {}) {
@@ -21,6 +22,7 @@ export function buildCcSwitchDb(opts = {}) {
     providers = [],
     proxies = [],
     withProxyTable = true,
+    withRouteEnabledColumn = true,
   } = opts;
 
   const dir = mkdtempSync(join(tmpdir(), "ag-ccswitch-"));
@@ -58,22 +60,35 @@ export function buildCcSwitchDb(opts = {}) {
       CREATE TABLE proxy_config (
         app_type TEXT PRIMARY KEY,
         proxy_enabled INTEGER DEFAULT 0,
+        ${withRouteEnabledColumn ? "enabled INTEGER DEFAULT 0," : ""}
         listen_address TEXT,
         listen_port INTEGER,
         auto_failover_enabled INTEGER DEFAULT 0
       )
     `);
     const insX = db.prepare(
-      "INSERT INTO proxy_config (app_type,proxy_enabled,listen_address,listen_port,auto_failover_enabled) VALUES (?,?,?,?,?)"
+      withRouteEnabledColumn
+        ? "INSERT INTO proxy_config (app_type,proxy_enabled,enabled,listen_address,listen_port,auto_failover_enabled) VALUES (?,?,?,?,?,?)"
+        : "INSERT INTO proxy_config (app_type,proxy_enabled,listen_address,listen_port,auto_failover_enabled) VALUES (?,?,?,?,?)"
     );
     for (const x of proxies) {
-      insX.run(
+      const common = [
         x.app_type,
         x.proxy_enabled ? 1 : 0,
         x.listen_address ?? "127.0.0.1",
         x.listen_port ?? 15721,
-        x.auto_failover_enabled ? 1 : 0
-      );
+        x.auto_failover_enabled ? 1 : 0,
+      ];
+      if (withRouteEnabledColumn) {
+        insX.run(
+          common[0],
+          common[1],
+          (x.enabled ?? x.proxy_enabled) ? 1 : 0,
+          ...common.slice(2)
+        );
+      } else {
+        insX.run(...common);
+      }
     }
   }
 

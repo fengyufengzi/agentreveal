@@ -85,6 +85,22 @@ function verifyCommand(platform) {
         completesRemediation: false,
     };
 }
+function claudeCredentialBackupCommand(target, platform, ruleIds) {
+    if (platform !== "darwin" ||
+        !isActionTask(target) ||
+        !ruleIds.includes("CLAUDE_PLAINTEXT_TOKEN") ||
+        !/^task-[A-Za-z0-9_-]{6,128}$/.test(target.taskId)) {
+        return undefined;
+    }
+    return {
+        id: "claude-credential-backup",
+        label: "先备份 Claude Code 迁移涉及的设置文件",
+        command: `agentguard credential backup ${target.taskId}`,
+        shell: "sh",
+        kind: "backup",
+        completesRemediation: false,
+    };
+}
 function baselineCommands(platform, profile) {
     const shell = shellFor(platform);
     return [
@@ -107,7 +123,7 @@ function baselineCommands(platform, profile) {
         verifyCommand(platform),
     ];
 }
-function macSecretCommands(token, envName) {
+function macSecretCommands(token, envName, ruleIds) {
     const service = `AgentGuard/${token}`;
     const commands = [
         {
@@ -118,16 +134,18 @@ function macSecretCommands(token, envName) {
             kind: "store",
             completesRemediation: false,
         },
-        {
-            id: "macos-keychain-check",
-            label: "确认 Keychain 项可读取，但不打印凭证",
-            command: `security find-generic-password -a "$USER" -s '${service}' -w >/dev/null && printf 'Keychain item is readable\\n'`,
-            shell: "sh",
-            kind: "inspect",
-            completesRemediation: false,
-        },
     ];
-    if (envName) {
+    if (ruleIds.includes("CLAUDE_PLAINTEXT_TOKEN")) {
+        commands.push({
+            id: "macos-claude-keychain-helper",
+            label: "删除 Claude Code 配置中的明文，并改用 Keychain helper",
+            command: `AGENTGUARD_CLAUDE_DIR="\${CLAUDE_CONFIG_DIR:-$HOME/.claude}"; AGENTGUARD_HELPER='security find-generic-password -a "$USER" -s "${service}" -w'; for AGENTGUARD_FILE in "$AGENTGUARD_CLAUDE_DIR/settings.json" "$AGENTGUARD_CLAUDE_DIR/settings.local.json"; do [ -f "$AGENTGUARD_FILE" ] || continue; if /usr/bin/plutil -extract env.ANTHROPIC_AUTH_TOKEN raw -o - "$AGENTGUARD_FILE" >/dev/null 2>&1 || /usr/bin/plutil -extract env.ANTHROPIC_API_KEY raw -o - "$AGENTGUARD_FILE" >/dev/null 2>&1; then /usr/bin/plutil -replace apiKeyHelper -string "$AGENTGUARD_HELPER" "$AGENTGUARD_FILE" && { /usr/bin/plutil -remove env.ANTHROPIC_AUTH_TOKEN "$AGENTGUARD_FILE" 2>/dev/null || true; } && { /usr/bin/plutil -remove env.ANTHROPIC_API_KEY "$AGENTGUARD_FILE" 2>/dev/null || true; } && chmod 600 "$AGENTGUARD_FILE" && /usr/bin/plutil -lint "$AGENTGUARD_FILE"; fi; done; unset AGENTGUARD_CLAUDE_DIR AGENTGUARD_HELPER AGENTGUARD_FILE`,
+            shell: "sh",
+            kind: "configure",
+            completesRemediation: false,
+        });
+    }
+    else if (envName) {
         commands.push({
             id: "macos-session-inject",
             label: `从 Keychain 仅向当前终端会话注入 ${envName}`,
@@ -137,6 +155,14 @@ function macSecretCommands(token, envName) {
             completesRemediation: false,
         });
     }
+    commands.push({
+        id: "macos-keychain-check",
+        label: "确认 Keychain 项可读取，但不打印凭证",
+        command: `security find-generic-password -a "$USER" -s '${service}' -w >/dev/null && printf 'Keychain item is readable\\n'`,
+        shell: "sh",
+        kind: "inspect",
+        completesRemediation: false,
+    });
     return commands;
 }
 function linuxSecretCommands(token, envName) {
@@ -191,9 +217,23 @@ function isSecretFinding(ctx) {
 function isCcSwitchSecret(ctx) {
     return ctx.items.some(({ finding }) => finding.category === "secret" && finding.id.startsWith("CCSWITCH_"));
 }
-function secretCommands(platform, token, envName) {
+function ccSwitchPermissionCommands(platform) {
+    if (platform !== "darwin" && platform !== "linux")
+        return [];
+    return [
+        {
+            id: "cc-switch-protect-storage",
+            label: "收紧 CC Switch 数据库与备份权限",
+            command: `chmod 700 "$HOME/.cc-switch" && chmod 600 "$HOME/.cc-switch/cc-switch.db" && { [ ! -d "$HOME/.cc-switch/backups" ] || { chmod 700 "$HOME/.cc-switch/backups" && find "$HOME/.cc-switch/backups" -type f -name 'db_backup_*.db' -exec chmod 600 {} +; }; }`,
+            shell: "sh",
+            kind: "configure",
+            completesRemediation: false,
+        },
+    ];
+}
+function secretCommands(platform, token, envName, ruleIds) {
     if (platform === "darwin")
-        return macSecretCommands(token, envName);
+        return macSecretCommands(token, envName, ruleIds);
     if (platform === "linux")
         return linuxSecretCommands(token, envName);
     if (platform === "win32")
@@ -229,12 +269,22 @@ export function buildRemediationGuide(target, options = {}) {
     }
     const commands = [];
     if (isCcSwitchSecret(ctx)) {
-        notes.push("CC Switch 凭证存于应用数据库；请只在 CC Switch 原应用中清除、替换并轮换凭证，AgentGuard 不生成数据库迁移或写入命令。");
+        commands.push(...ccSwitchPermissionCommands(platform));
+        notes.push("CC Switch 普通 Provider 的 API Key/Token 输入框当前不解析环境变量名、${VAR} 或 {env:VAR}；不要把变量名当作 Token 填入，否则会鉴权失败。");
+        notes.push("请先创建独立、最小权限的新 Token，在 CC Switch 原应用中替换并测试，再撤销旧 Token。AgentGuard 只提供本机权限加固命令，不写数据库，也不把权限加固声称为已删除明文。");
     }
     else if (isSecretFinding(ctx)) {
-        commands.push(...secretCommands(platform, storageToken(target, ruleIds), realEnvironmentName(ruleIds)));
+        const credentialBackup = claudeCredentialBackupCommand(target, platform, ruleIds);
+        if (credentialBackup)
+            commands.push(credentialBackup);
+        commands.push(...secretCommands(platform, storageToken(target, ruleIds), realEnvironmentName(ruleIds), ruleIds));
         if (platform === "darwin") {
-            notes.push("macOS 优先使用 Keychain；存储后仍需配置受控 helper/launcher 读取。当前会话环境变量不会自动持久化。更新工具配置后删除并轮换原明文凭证。");
+            if (ruleIds.includes("CLAUDE_PLAINTEXT_TOKEN")) {
+                notes.push("Claude Code 官方支持 apiKeyHelper。CLI 用户应先执行任务对应的 credential backup；Desktop 用户点击一键备份。配置命令只处理实际包含明文字段的 settings.json/settings.local.json：设置 Keychain helper、删除 ANTHROPIC_AUTH_TOKEN/API_KEY，并保持文件为 0600；命令不会打印凭证。");
+            }
+            else {
+                notes.push("macOS 优先使用 Keychain；存储后仍需配置受控 helper/launcher 读取。当前会话环境变量不会自动持久化。更新工具配置后删除并轮换原明文凭证。");
+            }
         }
         else if (platform === "linux") {
             notes.push("Secret Service 需要 secret-tool 和已解锁的桌面密钥环；存储后仍需配置受控 helper/launcher 读取。无桌面服务时使用进程级安全注入。更新配置后轮换旧凭证。");

@@ -7,6 +7,7 @@
 export const OUTPUT_SCHEMA_VERSION = 1 as const;
 
 export type OutputCommand =
+  | "first-run"
   | "doctor"
   | "scan"
   | "provider.scan"
@@ -14,13 +15,21 @@ export type OutputCommand =
   | "report.json"
   | "baseline"
   | "backup"
+  | "credential.backup"
+  | "credential.restore"
   | "apply"
-  | "restore";
+  | "restore"
+  | "trust.add"
+  | "trust.list"
+  | "trust.remove"
+  | "ignore.add"
+  | "ignore.list"
+  | "ignore.remove";
 
-export function withOutputContract<T extends object>(
-  command: OutputCommand,
+export function withOutputContract<T extends object, C extends OutputCommand>(
+  command: C,
   payload: T
-): T & { schemaVersion: typeof OUTPUT_SCHEMA_VERSION; command: OutputCommand } {
+): T & { schemaVersion: typeof OUTPUT_SCHEMA_VERSION; command: C } {
   return {
     ...payload,
     schemaVersion: OUTPUT_SCHEMA_VERSION,

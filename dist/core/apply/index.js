@@ -2,7 +2,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { opencodeAdapter } from "../../adapters/opencode/index.js";
-import { buildBaselineEdits, } from "../baseline/index.js";
+import { baselinePlanFingerprint, buildBaselineEdits, } from "../baseline/index.js";
 import { createBackup, restoreBackup, latestBackup, readBackup } from "../backup/index.js";
 import { buildContext } from "../discovery/index.js";
 import { atomicWriteFile, fileMode } from "../fs-safety.js";
@@ -12,10 +12,21 @@ function renderJson(value) {
 function contentHash(path) {
     return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
-export async function applyBaseline(profile, ctx = buildContext()) {
+export async function applyBaseline(profile, ctx = buildContext(), options = {}) {
     const { edits, warnings } = await buildBaselineEdits(profile, ctx);
+    const files = edits.map((edit) => ({
+        agent: edit.agent,
+        configPath: edit.configPath,
+        changes: edit.changes,
+        diff: edit.diff,
+    }));
+    const planFingerprint = baselinePlanFingerprint({ profile, files });
+    if (options.expectedPlanFingerprint !== undefined &&
+        options.expectedPlanFingerprint !== planFingerprint) {
+        throw new Error("当前 baseline 计划与已确认预览不一致，请重新生成预览后再应用。");
+    }
     if (edits.length === 0) {
-        return { profile, backupId: "", files: [], warnings };
+        return { profile, planFingerprint, backupId: "", files: [], warnings };
     }
     for (const edit of edits) {
         if (contentHash(edit.configPath) !== edit.sourceHash) {
@@ -46,13 +57,9 @@ export async function applyBaseline(profile, ctx = buildContext()) {
     }
     return {
         profile,
+        planFingerprint,
         backupId: backup.id,
-        files: edits.map((edit) => ({
-            agent: edit.agent,
-            configPath: edit.configPath,
-            changes: edit.changes,
-            diff: edit.diff,
-        })),
+        files,
         warnings,
     };
 }

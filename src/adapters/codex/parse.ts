@@ -10,6 +10,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse as parseToml } from "smol-toml";
+import { describeParseFailure } from "../../core/parse-failure.js";
+import { isProxyManagedPlaceholder } from "../../core/proxy-managed.js";
 
 /** [model_providers.*] 中的一个自定义 Provider。 */
 export interface CodexModelProvider {
@@ -35,6 +37,8 @@ export interface CodexMcpServer {
 export interface CodexData {
   /** 主配置是否成功解析。 */
   configParsed: boolean;
+  /** 解析失败时的固定安全原因，不含底层异常原文。 */
+  parseFailureReason?: string;
   providers: CodexModelProvider[];
   /** 顶层 model_provider（当前激活的自定义 provider 名）。 */
   activeProvider?: string;
@@ -45,6 +49,8 @@ export interface CodexData {
   proxyUrl?: string;
   /** auth.json 中是否存在非空 OPENAI_API_KEY（原始密钥落盘）。 */
   apiKeyPresent: boolean;
+  /** auth.json 是否含 CC Switch 写入的非秘密接管占位符。 */
+  proxyManagedPlaceholderPresent: boolean;
   /** auth.json 的 auth_mode（如 "chatgpt" / "apikey"）。 */
   authMode?: string;
 }
@@ -110,17 +116,25 @@ function parseTrustedProjects(cfg: Record<string, unknown>): string[] {
 }
 
 /** 读取 auth.json：仅提取 auth_mode 与"是否存在原始 API Key"。绝不读取 token 值。 */
-function readAuth(baseDir: string): { apiKeyPresent: boolean; authMode?: string } {
+function readAuth(baseDir: string): {
+  apiKeyPresent: boolean;
+  proxyManagedPlaceholderPresent: boolean;
+  authMode?: string;
+} {
   try {
     const raw = JSON.parse(readFileSync(join(baseDir, "auth.json"), "utf8"));
     const rec = asRecord(raw);
     const key = rec.OPENAI_API_KEY;
     return {
-      apiKeyPresent: typeof key === "string" && key.trim().length > 0,
+      apiKeyPresent:
+        typeof key === "string" &&
+        key.trim().length > 0 &&
+        !isProxyManagedPlaceholder(key),
+      proxyManagedPlaceholderPresent: isProxyManagedPlaceholder(key),
       authMode: str(rec.auth_mode),
     };
   } catch {
-    return { apiKeyPresent: false };
+    return { apiKeyPresent: false, proxyManagedPlaceholderPresent: false };
   }
 }
 
@@ -139,21 +153,24 @@ export function parseCodex(configPath: string, baseDir: string): CodexData {
 
   let cfg: Record<string, unknown> = {};
   let configParsed = false;
+  let parseFailureReason: string | undefined;
   try {
     cfg = asRecord(parseToml(readFileSync(configPath, "utf8")));
     configParsed = true;
-  } catch {
-    /* TOML 损坏或版本不兼容 → 按空处理，仍返回 auth 信息 */
+  } catch (error) {
+    parseFailureReason = describeParseFailure(error, configPath, "TOML").reason;
   }
 
   return {
     configParsed,
+    parseFailureReason,
     providers: parseProviders(cfg),
     activeProvider: str(cfg.model_provider),
     mcpServers: parseMcpServers(cfg),
     trustedProjects: parseTrustedProjects(cfg),
     proxyUrl: str(asRecord(cfg.network).proxy_url),
     apiKeyPresent: auth.apiKeyPresent,
+    proxyManagedPlaceholderPresent: auth.proxyManagedPlaceholderPresent,
     authMode: auth.authMode,
   };
 }

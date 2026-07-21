@@ -1,0 +1,39 @@
+AgentGuard
+本机运行 · 默认只读 · 不自动上传
+
+实际连接链路
+  OpenCode: relay.demo-example.net/v1
+
+行动摘要
+  必须处理 2 · 建议确认 1 · 信息提示 1 · 已接受 0 · 项目忽略 0
+
+建议先完成（最多 3 项）
+  1. [P0/高危] permission.bash = allow
+     OpenCode · task-11d850220f7e
+     为什么：Bash 无需确认即可执行任意宿主机命令。
+     下一步：使用 baseline，或手动把 permission.bash 改为 ask/受限规则。
+     预览全部 baseline 变更：agentguard baseline --profile balanced --dry-run
+     确认预览后，带备份应用：agentguard apply --profile balanced --backup
+     处置后验证当前任务：agentguard risk verify task-11d850220f7e
+     确认暂不处理并保留审计：agentguard risk accept task-11d850220f7e --reason "填写真实接受原因" --expires YYYY-MM-DD --confirm
+  2. [P1/中危] permission 全部设为 allow
+     OpenCode · task-02184ae4224b
+     为什么：整体 allow 会让编辑、网络和命令工具全部免确认。
+     下一步：使用 baseline 改为显式分项权限；safe 会全面询问，balanced 优先收紧 Bash。
+     预览全部 baseline 变更：agentguard baseline --profile balanced --dry-run
+     确认预览后，带备份应用：agentguard apply --profile balanced --backup
+     处置后验证当前任务：agentguard risk verify task-02184ae4224b
+     确认暂不处理并保留审计：agentguard risk accept task-02184ae4224b --reason "填写真实接受原因" --confirm
+  3. [P2/中危] 自定义模型端点：project-relay
+     OpenCode · task-b5c3aeeac782
+     为什么：自定义模型端点会接收源码上下文，需确认实际归属。
+     下一步：核对端点所有者、TLS 和数据政策；不可信则改回官方端点。
+     处置后验证当前任务：agentguard risk verify task-b5c3aeeac782
+     确认暂不处理并保留审计：agentguard risk accept task-b5c3aeeac782 --reason "填写真实接受原因" --confirm
+     确认自建或内部 Provider：agentguard trust add "relay.demo-example.net" --kind trusted --reason "填写端点所有者、用途和核实依据"
+
+继续查看
+  生成完整 HTML 行动报告：agentguard report --format html
+  查看完整配置地图：agentguard map
+
+# 说明：以上内容由真实 agentguard CLI 扫描纯合成 OpenCode 配置生成；域名、任务和配置均不来自用户环境。

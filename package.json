@@ -1,6 +1,6 @@
 {
   "name": "agentguard",
-  "version": "0.0.5-pilot.1",
+  "version": "0.0.5-pilot.2",
   "description": "面向多 Agent、多模型、多 Provider 的 AI Coding Agent 安全配置中心",
   "type": "module",
   "bin": {
@@ -9,7 +9,8 @@
   "files": [
     "dist",
     "bin",
-    "examples"
+    "examples",
+    "README.en.md"
   ],
   "engines": {
     "node": ">=22"
@@ -17,14 +18,27 @@
   "scripts": {
     "build": "tsc",
     "desktop": "npm run build && electron desktop/main.cjs",
-    "desktop:pack": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dir --arm64 --config electron-builder.yml --publish never",
-    "desktop:dist": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg --arm64 --config electron-builder.yml --publish never",
+    "desktop:pack": "npm run build && node scripts/build-local-macos-app.mjs",
+    "desktop:dist": "npm run build && node scripts/build-local-macos-app.mjs --dmg",
+    "desktop:release": "npm run build && node scripts/macos-release-preflight.mjs && node scripts/build-macos-release.mjs",
+    "desktop:bundle:verify": "node scripts/verify-desktop-bundle.mjs",
+    "desktop:preview:capture": "electron scripts/capture-desktop-preview.cjs",
+    "desktop:demo:build": "node scripts/build-desktop-demo.mjs",
+    "desktop:release:verify": "node scripts/verify-macos-release.mjs",
+    "release:verify-version": "node scripts/verify-release-version.mjs",
+    "release:scan-assets": "node scripts/scan-release-assets.mjs",
     "dev": "tsc --watch",
     "doctor": "node bin/agentguard doctor",
     "sanitize": "node scripts/sanitize.mjs",
     "sanitize:history": "node scripts/sanitize.mjs --history",
     "sanitize:package": "node scripts/sanitize.mjs --package",
     "sanitize:staged": "node scripts/sanitize.mjs --staged",
+    "package:verify-install": "node scripts/verify-cli-package.mjs",
+    "evals:check": "node scripts/check-agent-evals.mjs",
+    "evals:preflight": "node scripts/agent-eval-preflight.mjs",
+    "evals:result:check": "node scripts/check-agent-eval-result.mjs",
+    "check:repo": "node scripts/check-contribution.mjs && npm run evals:check",
+    "check": "npm run sanitize && npm run sanitize:staged && npm test && npm run check:repo && git diff --exit-code -- dist && npm run sanitize:package",
     "test": "npm run build && node --test \"test/**/*.test.mjs\"",
     "clean": "rm -rf dist",
     "prepack": "npm run clean && npm run build"

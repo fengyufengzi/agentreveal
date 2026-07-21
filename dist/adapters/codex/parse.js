@@ -10,6 +10,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse as parseToml } from "smol-toml";
+import { describeParseFailure } from "../../core/parse-failure.js";
+import { isProxyManagedPlaceholder } from "../../core/proxy-managed.js";
 /** 疑似密钥的环境变量名。 */
 const SECRET_ENV_RE = /(api[_-]?key|auth[_-]?token|access[_-]?token|secret|token|password)/i;
 function asRecord(v) {
@@ -72,12 +74,15 @@ function readAuth(baseDir) {
         const rec = asRecord(raw);
         const key = rec.OPENAI_API_KEY;
         return {
-            apiKeyPresent: typeof key === "string" && key.trim().length > 0,
+            apiKeyPresent: typeof key === "string" &&
+                key.trim().length > 0 &&
+                !isProxyManagedPlaceholder(key),
+            proxyManagedPlaceholderPresent: isProxyManagedPlaceholder(key),
             authMode: str(rec.auth_mode),
         };
     }
     catch {
-        return { apiKeyPresent: false };
+        return { apiKeyPresent: false, proxyManagedPlaceholderPresent: false };
     }
 }
 /** 判断某 env 键名是否疑似密钥。 */
@@ -93,21 +98,24 @@ export function parseCodex(configPath, baseDir) {
     const auth = readAuth(baseDir);
     let cfg = {};
     let configParsed = false;
+    let parseFailureReason;
     try {
         cfg = asRecord(parseToml(readFileSync(configPath, "utf8")));
         configParsed = true;
     }
-    catch {
-        /* TOML 损坏或版本不兼容 → 按空处理，仍返回 auth 信息 */
+    catch (error) {
+        parseFailureReason = describeParseFailure(error, configPath, "TOML").reason;
     }
     return {
         configParsed,
+        parseFailureReason,
         providers: parseProviders(cfg),
         activeProvider: str(cfg.model_provider),
         mcpServers: parseMcpServers(cfg),
         trustedProjects: parseTrustedProjects(cfg),
         proxyUrl: str(asRecord(cfg.network).proxy_url),
         apiKeyPresent: auth.apiKeyPresent,
+        proxyManagedPlaceholderPresent: auth.proxyManagedPlaceholderPresent,
         authMode: auth.authMode,
     };
 }

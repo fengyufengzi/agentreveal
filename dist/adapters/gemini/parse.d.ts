@@ -31,6 +31,10 @@ export interface GeminiData {
     shellToolAllowed: boolean;
     /** ~/.gemini/.env 中 value 非空且非 ${VAR} 引用的键名（只存键名，不存值）。 */
     plaintextEnvKeys: string[];
+    /** ~/.gemini/.env 是否含 CC Switch 写入的非秘密接管占位符。 */
+    proxyManagedPlaceholderPresent: boolean;
+    /** GOOGLE_GEMINI_BASE_URL（若配置）。 */
+    baseUrl?: string;
 }
 export declare function looksLikeSecretEnv(key: string): boolean;
 /**

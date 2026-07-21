@@ -7,6 +7,7 @@
  */
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
+import { describeParseFailure } from "../parse-failure.js";
 function stringList(value) {
     if (!Array.isArray(value))
         return [];
@@ -48,12 +49,11 @@ export function loadAgentGuardConfig(cwd) {
         };
     }
     catch (err) {
+        const failure = describeParseFailure(err, configPath, "JSON");
         return {
             configPath,
             providerPolicy: {},
-            warnings: [
-                err instanceof Error ? err.message : String(err),
-            ],
+            warnings: [`${failure.reason}，已安全忽略此项目策略文件`],
         };
     }
 }

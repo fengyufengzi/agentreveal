@@ -7,6 +7,7 @@
  * - 解析失败不抛错，返回 { ok:false, reason } 让 risk.ts 决定如何降级。
  */
 import { readFileSync } from "node:fs";
+import { describeParseFailure } from "../../core/parse-failure.js";
 const SERVICE_ENV_GLOB_HINT = "service-env";
 // 直接列举常见的 env 文件名以避免 glob 库依赖。
 const KNOWN_SERVICE_ENV_FILES = [
@@ -32,14 +33,14 @@ export function parseOpenClaw(configPath, homeDir, serviceEnvDir) {
         raw = readFileSync(configPath, "utf8");
     }
     catch (e) {
-        return { ok: false, reason: `无法读取配置文件: ${e.message}` };
+        return { ok: false, reason: describeParseFailure(e, configPath, "JSON").reason };
     }
     let json;
     try {
         json = JSON.parse(raw);
     }
     catch (e) {
-        return { ok: false, reason: `JSON 解析失败: ${e.message}` };
+        return { ok: false, reason: describeParseFailure(e, configPath, "JSON").reason };
     }
     // —— gateway ——
     const gwRaw = (json.gateway ?? {});

@@ -50,6 +50,39 @@ test("correlate: 单个 Agent 用代理 → 不产出", () => {
   assert.equal(out.length, 0);
 });
 
+test("correlate: CC Switch 路由与消费方本地端点不会被重复算成两个 Agent", () => {
+  const out = correlate([
+    result("claude-code", "Claude Code", [
+      F("CLAUDE_LOCAL_BASE_URL", "provider", "info", { proxy: "127.0.0.1:15721" }),
+    ]),
+    result("cc-switch", "CC Switch", [
+      F("CCSWITCH_PROXY_ENABLED", "provider", "info", {
+        appType: "claude",
+        proxy: "127.0.0.1:15721",
+        realUpstream: "https://a.io",
+      }),
+    ]),
+  ]);
+  assert.equal(out.filter((finding) => finding.id === "XAGENT_SHARED_PROXY").length, 0);
+});
+
+test("correlate: CC Switch 两条已接管路由归属到真实消费 Agent", () => {
+  const out = correlate([
+    result("cc-switch", "CC Switch", [
+      F("CCSWITCH_PROXY_ENABLED", "provider", "info", {
+        appType: "claude",
+        proxy: "127.0.0.1:15721",
+      }),
+      F("CCSWITCH_PROXY_ENABLED", "provider", "info", {
+        appType: "codex",
+        proxy: "127.0.0.1:15721",
+      }),
+    ]),
+  ]);
+  const shared = out.find((finding) => finding.id === "XAGENT_SHARED_PROXY");
+  assert.deepEqual(shared.evidence.agents.sort(), ["Claude Code", "Codex"]);
+});
+
 test("correlate: 两 Agent 连同一未知端点 → XAGENT_SHARED_ENDPOINT(medium)", () => {
   const out = correlate([
     result("codex", "Codex", [

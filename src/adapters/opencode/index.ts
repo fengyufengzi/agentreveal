@@ -15,6 +15,7 @@ import type {
 import { fileExists } from "../../core/discovery/fs-utils.js";
 import { parseOpenCode } from "./parse.js";
 import { buildOpenCodeFindings } from "./risk.js";
+import { buildParseFailureFinding } from "../../core/parse-failure.js";
 
 export const opencodeAdapter: Adapter = {
   agent: "opencode",
@@ -71,20 +72,25 @@ export const opencodeAdapter: Adapter = {
     if (!found.configFound || !found.configPath) return [];
     try {
       const data = parseOpenCode(found.configPath);
-      return buildOpenCodeFindings(data, _ctx.providerPolicy);
-    } catch (err) {
-      return [
-        {
+      const findings = buildOpenCodeFindings(data, _ctx.providerPolicy);
+      if (!data.configParsed) {
+        findings.unshift(buildParseFailureFinding({
           id: "OPENCODE_PARSE_FAILED",
-          category: "compat",
-          severity: "info",
-          title: "OpenCode 配置解析失败",
-          description: "无法读取或解析 opencode.json。",
-          evidence: { error: err instanceof Error ? err.message : String(err) },
-          recommendation: "确认 opencode.json 为合法 JSON。",
-          fixable: false,
-        },
-      ];
+          displayName: this.displayName,
+          configPath: found.configPath,
+          format: "JSON",
+          reason: data.parseFailureReason ?? "JSON 文件无法读取或当前版本暂不兼容",
+        }));
+      }
+      return findings;
+    } catch (err) {
+      return [buildParseFailureFinding({
+        id: "OPENCODE_PARSE_FAILED",
+        displayName: this.displayName,
+        configPath: found.configPath,
+        error: err,
+        format: "JSON",
+      })];
     }
   },
 };

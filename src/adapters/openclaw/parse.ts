@@ -8,6 +8,7 @@
  */
 import { readFileSync } from "node:fs";
 import type { RiskFinding } from "../types.js";
+import { describeParseFailure } from "../../core/parse-failure.js";
 
 export interface OcGateway {
   port?: number;
@@ -94,14 +95,14 @@ export function parseOpenClaw(
   try {
     raw = readFileSync(configPath, "utf8");
   } catch (e) {
-    return { ok: false, reason: `无法读取配置文件: ${(e as Error).message}` };
+    return { ok: false, reason: describeParseFailure(e, configPath, "JSON").reason };
   }
 
   let json: Record<string, unknown>;
   try {
     json = JSON.parse(raw) as Record<string, unknown>;
   } catch (e) {
-    return { ok: false, reason: `JSON 解析失败: ${(e as Error).message}` };
+    return { ok: false, reason: describeParseFailure(e, configPath, "JSON").reason };
   }
 
   // —— gateway ——

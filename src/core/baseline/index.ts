@@ -49,6 +49,29 @@ export interface BaselinePlan {
   warnings: string[];
 }
 
+/**
+ * 对用户实际看到的 profile + 文件变更计算稳定指纹。
+ * apply 可据此拒绝与已确认预览不一致的计划；指纹不暴露配置内容。
+ */
+export function baselinePlanFingerprint(
+  plan: Pick<BaselinePlan, "profile" | "files">
+): string {
+  const payload = {
+    profile: plan.profile,
+    files: plan.files.map((file) => ({
+      agent: file.agent,
+      configPath: file.configPath,
+      changes: file.changes.map((change) => ({
+        path: change.path,
+        from: change.from,
+        to: change.to,
+        reason: change.reason,
+      })),
+    })),
+  };
+  return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+}
+
 function asRecord(v: unknown): Record<string, unknown> {
   return v && typeof v === "object" && !Array.isArray(v)
     ? (v as Record<string, unknown>)

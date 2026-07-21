@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 import { dirExists, fileExists } from "../../core/discovery/fs-utils.js";
 import { parseCodex } from "./parse.js";
 import { buildCodexFindings } from "./risk.js";
+import { buildParseFailureFinding } from "../../core/parse-failure.js";
 export const codexAdapter = {
     agent: "codex",
     displayName: "Codex",
@@ -51,21 +52,26 @@ export const codexAdapter = {
             return [];
         try {
             const data = parseCodex(found.configPath, dirname(found.configPath));
-            return buildCodexFindings(data, _ctx.providerPolicy);
+            const findings = buildCodexFindings(data, _ctx.providerPolicy);
+            if (!data.configParsed) {
+                findings.unshift(buildParseFailureFinding({
+                    id: "CODEX_PARSE_FAILED",
+                    displayName: this.displayName,
+                    configPath: found.configPath,
+                    format: "TOML",
+                    reason: data.parseFailureReason ?? "TOML 文件无法读取或当前版本暂不兼容",
+                }));
+            }
+            return findings;
         }
         catch (err) {
-            return [
-                {
+            return [buildParseFailureFinding({
                     id: "CODEX_PARSE_FAILED",
-                    category: "compat",
-                    severity: "info",
-                    title: "Codex 配置解析失败",
-                    description: "无法读取或解析 config.toml，可能因 TOML 结构变化。",
-                    evidence: { error: err instanceof Error ? err.message : String(err) },
-                    recommendation: "确认 config.toml 合法；如持续失败请反馈结构。",
-                    fixable: false,
-                },
-            ];
+                    displayName: this.displayName,
+                    configPath: found.configPath,
+                    error: err,
+                    format: "TOML",
+                })];
         }
     },
 };

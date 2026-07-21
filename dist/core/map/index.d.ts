@@ -26,10 +26,16 @@ export interface MapRow {
 export interface ProxyHop {
     /** 归属 Agent（如 claude / codex）。 */
     via: string;
+    /** 供 UI 展示的 Agent 名称。 */
+    agentLabel?: string;
     /** 本地代理监听地址。 */
     proxy: string;
     /** 真实上游（可能是 URL 或 Provider 名）。 */
     upstream: string;
+    /** 本地代理所有者，如 CC Switch。 */
+    owner?: string;
+    /** Agent live 配置里的鉴权模式说明，不含真实凭证。 */
+    authMode?: string;
 }
 export interface ConfigMap {
     rows: MapRow[];

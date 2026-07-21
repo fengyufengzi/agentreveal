@@ -36,7 +36,7 @@ const DEEPSCAN_FAILED_ACTION = {
     fixMode: "guided",
     rationale: "深度扫描未完成，当前结果可能遗漏该 Agent 的配置风险。",
     nextSteps: [
-        "查看错误证据并确认相关配置文件仍然存在且当前用户可读。",
+        "查看安全失败原因，并确认相关配置文件仍然存在且当前用户可读。",
         "修复配置格式、文件权限或兼容性问题后重新运行 agentguard scan。",
     ],
     verification: [
@@ -44,7 +44,7 @@ const DEEPSCAN_FAILED_ACTION = {
         "确认该 Agent 能正常展示完整发现，或明确显示未发现风险。",
     ],
     acceptWhen: "仅在已有等效的替代扫描覆盖时限时接受，并记录未覆盖原因。",
-    group: { family: "scan-health", evidenceKeys: [] },
+    group: { family: "scan-health", evidenceKeys: ["path"] },
 };
 /** 新增规则尚未进入矩阵时的保守回退，避免报告产生无行动信息的 finding。 */
 function fallbackAction(id) {

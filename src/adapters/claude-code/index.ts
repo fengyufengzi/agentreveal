@@ -14,6 +14,7 @@ import type {
 import { dirExists, fileExists } from "../../core/discovery/fs-utils.js";
 import { parseClaudeCode } from "./parse.js";
 import { buildClaudeCodeFindings } from "./risk.js";
+import { buildParseFailureFinding } from "../../core/parse-failure.js";
 
 export const claudeCodeAdapter: Adapter = {
   agent: "claude-code",
@@ -63,18 +64,13 @@ export const claudeCodeAdapter: Adapter = {
       const data = parseClaudeCode(found.configPath, ctx.home ?? homedir());
       return buildClaudeCodeFindings(data, ctx.providerPolicy);
     } catch (err) {
-      return [
-        {
-          id: "CLAUDE_PARSE_FAILED",
-          category: "compat",
-          severity: "info",
-          title: "Claude Code 配置解析失败",
-          description: "无法读取或解析 settings.json / ~/.claude.json。",
-          evidence: { error: err instanceof Error ? err.message : String(err) },
-          recommendation: "确认配置文件为合法 JSON。",
-          fixable: false,
-        },
-      ];
+      return [buildParseFailureFinding({
+        id: "CLAUDE_PARSE_FAILED",
+        displayName: this.displayName,
+        configPath: found.configPath,
+        error: err,
+        format: "JSON",
+      })];
     }
   },
 };

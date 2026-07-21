@@ -109,6 +109,54 @@ test("action matrix: 10 个 baseline 规则与实际 profile 效果准确映射"
   });
 });
 
+test("action matrix: 首发高影响家族都有明确整改与复扫步骤", () => {
+  const coverage = {
+    plaintextSecrets: [
+      "CLAUDE_PLAINTEXT_TOKEN",
+      "CODEX_PLAINTEXT_API_KEY",
+      "CCSWITCH_PLAINTEXT_KEY",
+      "OPENCODE_PLAINTEXT_KEY",
+      "GEMINI_PLAINTEXT_ENV_KEY",
+      "OPENCLAW_CHANNEL_PLAINTEXT_SECRET",
+      "OPENCLAW_CHANNEL_PLAINTEXT_TOKEN",
+      "OPENCLAW_GATEWAY_PLAINTEXT_TOKEN",
+    ],
+    sharedSecrets: ["CCSWITCH_SHARED_KEY"],
+    proxyChains: [
+      "CLAUDE_LOCAL_BASE_URL",
+      "CODEX_LOCAL_PROXY",
+      "CCSWITCH_PROXY_ENABLED",
+      "CCSWITCH_PROXY_FAILOVER_UNKNOWN",
+      "XAGENT_SHARED_PROXY",
+    ],
+    dangerousPermissions: [
+      "CLAUDE_BYPASS_PERMISSIONS",
+      "CLAUDE_DANGEROUS_ALLOW",
+      "OPENCODE_BASH_UNRESTRICTED",
+      "OPENCODE_PERMISSION_WILDCARD",
+      "GEMINI_SHELL_NO_SANDBOX",
+    ],
+    publicExposure: [
+      "OPENCLAW_GATEWAY_EXPOSED_BIND",
+      "OPENCLAW_TAILSCALE_EXPOSURE",
+    ],
+  };
+
+  for (const [family, ruleIds] of Object.entries(coverage)) {
+    assert.ok(ruleIds.length > 0, family);
+    for (const ruleId of ruleIds) {
+      const action = ACTION_MATRIX[ruleId];
+      assert.ok(action, `${family}/${ruleId} must exist`);
+      assert.ok(action.nextSteps.some((step) => step.trim().length >= 12), `${ruleId} remediation`);
+      assert.ok(action.verification.some((step) => /复扫|扫描|确认|验证/.test(step)), `${ruleId} verification`);
+      if (action.fixMode === "baseline") {
+        assert.ok(action.baselineProfiles?.safe, `${ruleId} baseline safe effect`);
+        assert.ok(action.baselineProfiles?.balanced, `${ruleId} baseline balanced effect`);
+      }
+    }
+  }
+});
+
 test("action matrix: 可读文档完整列出 63 条规则", () => {
   const doc = readFileSync(
     join(repoRoot, "docs", "rule-disposition-matrix.md"),

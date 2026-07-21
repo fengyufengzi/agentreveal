@@ -25,6 +25,11 @@ export interface BaselinePlan {
     files: BaselineFilePlan[];
     warnings: string[];
 }
+/**
+ * 对用户实际看到的 profile + 文件变更计算稳定指纹。
+ * apply 可据此拒绝与已确认预览不一致的计划；指纹不暴露配置内容。
+ */
+export declare function baselinePlanFingerprint(plan: Pick<BaselinePlan, "profile" | "files">): string;
 export declare function buildBaselineEdits(profile: BaselineProfile, ctx?: DiscoveryContext): Promise<{
     edits: BaselineFileEdit[];
     warnings: string[];

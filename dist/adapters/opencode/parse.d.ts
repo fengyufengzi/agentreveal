@@ -19,6 +19,8 @@ export interface OcMcpServer {
 }
 export interface OcData {
     configParsed: boolean;
+    /** 解析失败时的固定安全原因，不含底层异常原文。 */
+    parseFailureReason?: string;
     providers: OcProvider[];
     mcpServers: OcMcpServer[];
     /** permission.bash（"allow" | "ask" | "deny" 或对象）。 */

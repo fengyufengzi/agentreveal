@@ -63,10 +63,16 @@ function collectProxyChains(report) {
             const upstream = ev.realUpstream;
             const proxy = ev.proxy;
             if (typeof upstream === "string" && typeof proxy === "string") {
+                const owner = ev.proxyOwner;
+                const authMode = ev.authMode;
+                const agentLabel = ev.appLabel;
                 hops.push({
                     via: String(ev.appType ?? r.agent),
                     proxy,
                     upstream,
+                    ...(typeof agentLabel === "string" ? { agentLabel } : {}),
+                    ...(typeof owner === "string" ? { owner } : {}),
+                    ...(typeof authMode === "string" ? { authMode } : {}),
                 });
             }
         }

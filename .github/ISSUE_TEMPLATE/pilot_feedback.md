@@ -14,18 +14,22 @@ assignees: ""
 ## 环境
 
 - 操作系统：
-- Node.js 版本：
+- 试用入口：CLI / macOS Desktop（非 CLI）
+- Node.js 版本（仅 CLI）：
 - 使用的 Agent（不需要填写账号）：
 - 是否使用自定义 Provider / CC Switch / MCP：
 
 ## 试用结果
 
-- 完成首次 `doctor → scan → map/report` 用时：
+- 完成首次有效扫描用时：
 - 是否能仅参考 README 独立完成：是 / 否
+- Desktop 是否从 DMG 正常安装并通过 Gatekeeper：是 / 否 / 未试用
+- Desktop 是否理解项目选择且未请求无关文件夹权限：是 / 部分 / 否 / 未试用
+- Desktop 是否成功导出并重新打开 HTML 报告：是 / 否 / 未试用
 - 有效风险（规则 ID）：
 - 误报或不认可项（规则 ID + 原因）：
 - 是否采取整改：已执行 / 计划执行 / 不执行
-- 最有价值能力：scan / map / report / baseline / CI
+- 最有价值能力：首次扫描 / Agent 工作区 / 连接链路 / report / baseline / CI
 - 是否愿意重复使用：是 / 否 / 不确定
 - 是否有团队试点意向：是 / 否
 

@@ -1,0 +1,29 @@
+# Default owner until the maintainer group grows.
+* @fengyufengzi
+
+# Security and privacy contracts.
+/src/rules/ @fengyufengzi
+/src/core/acceptance/ @fengyufengzi
+/src/core/apply/ @fengyufengzi
+/src/core/backup/ @fengyufengzi
+/src/core/fs-safety.ts @fengyufengzi
+/src/core/remediation/ @fengyufengzi
+/scripts/sanitize.mjs @fengyufengzi
+/SECURITY.md @fengyufengzi
+
+# Desktop privilege boundary and release supply chain.
+/src/desktop/ @fengyufengzi
+/desktop/main.cjs @fengyufengzi
+/desktop/preload.cjs @fengyufengzi
+/desktop/diagnostics.cjs @fengyufengzi
+/.github/workflows/ @fengyufengzi
+/electron-builder.yml @fengyufengzi
+/electron-builder.release.yml @fengyufengzi
+/scripts/macos-release-preflight.mjs @fengyufengzi
+/scripts/verify-macos-release.mjs @fengyufengzi
+
+# Repository instructions and accepted architecture decisions.
+/AGENTS.md @fengyufengzi
+/REVIEW.md @fengyufengzi
+/.agents/skills/ @fengyufengzi
+/docs/adr/ @fengyufengzi

@@ -9,6 +9,7 @@
  */
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
+import { isProxyManagedPlaceholder } from "../../core/proxy-managed.js";
 const require = createRequire(import.meta.url);
 /** 当前 adapter 已验证支持的 schema 版本。 */
 const KNOWN_SCHEMA_VERSIONS = new Set([10]);
@@ -47,7 +48,10 @@ function extractFromConfig(cfg) {
                 if (!baseUrl && BASEURL_KEY_RE.test(k) && looksLikeUrl(v)) {
                     baseUrl = v;
                 }
-                else if (!secret && SECRET_KEY_RE.test(k) && v.trim().length > 0) {
+                else if (!secret &&
+                    SECRET_KEY_RE.test(k) &&
+                    v.trim().length > 0 &&
+                    !isProxyManagedPlaceholder(v)) {
                     secret = v;
                 }
                 else if (k === "config" && v.includes("base_url")) {
@@ -105,12 +109,17 @@ export function parseCcSwitchDb(dbPath) {
         });
         let proxies = [];
         try {
+            const proxyColumns = new Set(db.prepare("PRAGMA table_info(proxy_config)").all().map((column) => column.name));
+            // 新 schema 用 enabled 表示 per-app 接管；旧 schema 只有 proxy_enabled。
+            const routeEnabledColumn = proxyColumns.has("enabled")
+                ? "enabled"
+                : "proxy_enabled";
             const rawProxies = db
-                .prepare("SELECT app_type, proxy_enabled, listen_address, listen_port, auto_failover_enabled FROM proxy_config")
+                .prepare(`SELECT app_type, proxy_enabled, ${routeEnabledColumn} AS route_enabled, listen_address, listen_port, auto_failover_enabled FROM proxy_config`)
                 .all();
             proxies = rawProxies.map((r) => ({
                 appType: String(r.app_type),
-                enabled: Number(r.proxy_enabled) === 1,
+                enabled: Number(r.proxy_enabled) === 1 && Number(r.route_enabled) === 1,
                 listenAddress: String(r.listen_address),
                 listenPort: Number(r.listen_port),
                 autoFailover: Number(r.auto_failover_enabled) === 1,

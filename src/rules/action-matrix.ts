@@ -48,8 +48,8 @@ export const ACTION_MATRIX = {
   }),
   CLAUDE_PLAINTEXT_TOKEN: action({
     disposition: "fix", priority: "P0", confidence: "high", fixMode: "guided",
-    rationale: "settings 文件泄露会直接导致有效凭证泄露。",
-    nextSteps: ["移除明文 token，改用安全注入或可信 apiKeyHelper，并轮换旧凭证。"],
+    rationale: "settings 文件中的真实凭证泄露会直接导致有效凭证泄露；已知代理接管占位符不属于此规则。",
+    nextSteps: ["先用 Desktop 一键备份或运行 agentguard credential backup <task-id>，再把新凭证存入系统安全存储，从 settings.json/settings.local.json 删除明文字段，改用可信 apiKeyHelper，并轮换旧凭证。"],
     verification: verifyRescan,
     acceptWhen: "仅短期、最小权限、短有效期凭证可作为限时例外。",
     family: "secret.plaintext", evidenceKeys: [],
@@ -126,7 +126,7 @@ export const ACTION_MATRIX = {
     rationale: "解析失败会造成扫描覆盖盲区。",
     nextSteps: ["校验 settings.json、settings.local.json 和全局状态文件的 JSON 格式及权限。"],
     verification: verifyParse,
-    family: "coverage.parse", evidenceKeys: ["error"],
+    family: "coverage.parse", evidenceKeys: ["path"],
   }),
 
   CODEX_CUSTOM_PROVIDER: action({
@@ -147,7 +147,7 @@ export const ACTION_MATRIX = {
   }),
   CODEX_PLAINTEXT_API_KEY: action({
     disposition: "fix", priority: "P0", confidence: "high", fixMode: "guided",
-    rationale: "auth.json 泄露会直接泄露原始 API Key。",
+    rationale: "auth.json 中的真实 API Key 泄露会直接暴露凭证；已知代理接管占位符不属于此规则。",
     nextSteps: ["删除落盘 Key，改用 OAuth/安全注入，收紧文件权限并轮换旧 Key。"],
     verification: verifyRescan,
     acceptWhen: "仅短期、最小权限、短有效期 Key 可作为限时例外。",
@@ -198,7 +198,7 @@ export const ACTION_MATRIX = {
     rationale: "解析失败会造成 Codex 配置扫描盲区。",
     nextSteps: ["校验 config.toml 格式和读取权限。"],
     verification: verifyParse,
-    family: "coverage.parse", evidenceKeys: ["error"],
+    family: "coverage.parse", evidenceKeys: ["path"],
   }),
 
   CCSWITCH_SCHEMA_UNKNOWN: action({
@@ -235,9 +235,16 @@ export const ACTION_MATRIX = {
   }),
   CCSWITCH_PLAINTEXT_KEY: action({
     disposition: "fix", priority: "P0", confidence: "medium", fixMode: "manual",
-    rationale: "数据库中的非空疑似密钥字段可能直接暴露有效凭证。",
-    nextSteps: ["在应用内清除明文凭证，改安全注入，收紧 DB 权限并轮换旧密钥。"],
-    verification: verifyRescan,
+    rationale: "数据库中的非空疑似密钥字段可能直接暴露有效凭证；已知代理接管占位符除外。",
+    nextSteps: [
+      "先在 Provider 控制台创建独立、最小权限的新 Token，在 CC Switch 原应用中替换并测试，再撤销旧 Token。",
+      "普通 Provider 的 API Key/Token 输入框当前不解析环境变量名、${VAR} 或 {env:VAR}；不要把变量名当作 Token 填入。",
+      "执行报告中的 Terminal 命令，收紧 ~/.cc-switch、数据库和数据库备份的本机访问权限。",
+      "若该 Provider 支持官方账号/OAuth，优先改用不在 CC Switch 数据库保存 Token 的登录方式。",
+    ],
+    verification: [
+      "重新激活 Provider 并测试鉴权，再点击“复扫验证”；只要 CC Switch 数据库仍保存真实 Token，本规则会保留，不能把权限加固误报为已彻底解决。",
+    ],
     acceptWhen: "字段并非凭证时可记为误报；真实明文只可作为短期限时例外。",
     family: "secret.plaintext", evidenceKeys: ["providers"],
   }),
@@ -251,11 +258,11 @@ export const ACTION_MATRIX = {
   }),
   CCSWITCH_PROXY_ENABLED: action({
     disposition: "observe", priority: "P3", confidence: "high", fixMode: "none",
-    rationale: "代理开启是链路上下文，不应单独算作待修复漏洞。",
-    nextSteps: ["确认监听进程、当前上游和自动故障转移队列。"],
+    rationale: "CC Switch 代理服务和该 Agent 路由均开启时才形成接管链路，本身不算待修复漏洞。",
+    nextSteps: ["确认接管的 Agent、监听进程、当前上游和自动故障转移队列。"],
     verification: ["将该代理与各 Agent 的本地端点结果关联，确认链路符合预期。"],
     acceptWhen: "代理、真实上游和 failover 队列均可信。",
-    family: "provider.proxy-chain", evidenceKeys: ["appType", "proxy"],
+    family: "provider.proxy-chain", evidenceKeys: ["appType", "proxy", "proxyOwner", "authMode"],
   }),
   CCSWITCH_PROXY_FAILOVER_UNKNOWN: action({
     disposition: "fix", priority: "P1", confidence: "medium", fixMode: "manual",
@@ -270,7 +277,7 @@ export const ACTION_MATRIX = {
     rationale: "数据库解析失败会使 CC Switch 的 Provider、密钥和代理风险全部不可见。",
     nextSteps: ["检查数据库完整性、读取权限、文件锁和 schema 兼容性。"],
     verification: verifyParse,
-    family: "coverage.parse", evidenceKeys: ["error"],
+    family: "coverage.parse", evidenceKeys: ["path"],
   }),
 
   OPENCODE_CUSTOM_PROVIDER: action({
@@ -361,12 +368,12 @@ export const ACTION_MATRIX = {
     rationale: "解析失败会造成 OpenCode 配置扫描盲区。",
     nextSteps: ["校验 opencode.json/JSONC 的格式和读取权限。"],
     verification: verifyParse,
-    family: "coverage.parse", evidenceKeys: ["error"],
+    family: "coverage.parse", evidenceKeys: ["path"],
   }),
 
   GEMINI_PLAINTEXT_ENV_KEY: action({
     disposition: "fix", priority: "P0", confidence: "high", fixMode: "guided",
-    rationale: ".env 中的明文凭证可能因文件读取、备份或误提交而泄露。",
+    rationale: ".env 中的真实明文凭证可能因文件读取、备份或误提交而泄露；已知代理接管占位符不属于此规则。",
     nextSteps: ["迁移到安全环境注入，收紧文件权限并轮换旧凭证。"],
     verification: verifyRescan,
     acceptWhen: "仅短期、最小权限、短有效期凭证可作为限时例外。",
@@ -426,7 +433,7 @@ export const ACTION_MATRIX = {
     rationale: "解析失败会造成 Gemini 配置扫描盲区。",
     nextSteps: ["校验 settings.json 格式和读取权限。"],
     verification: verifyParse,
-    family: "coverage.parse", evidenceKeys: ["error"],
+    family: "coverage.parse", evidenceKeys: ["path"],
   }),
 
   OPENCLAW_CHANNEL_PLAINTEXT_SECRET: action({
@@ -497,7 +504,7 @@ export const ACTION_MATRIX = {
     rationale: "解析失败会使网关暴露、渠道凭证和插件风险不可见。",
     nextSteps: ["校验 openclaw.json 格式和读取权限。"],
     verification: verifyParse,
-    family: "coverage.parse", evidenceKeys: ["error"],
+    family: "coverage.parse", evidenceKeys: ["path"],
   }),
 
   XAGENT_SHARED_PROXY: action({
