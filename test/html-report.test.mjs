@@ -128,6 +128,37 @@ test("行动卡展示原因、步骤、验证、Agent、接受条件与 baseline
   assert.ok(html.includes("这是生成时刻的静态快照"));
 });
 
+test("未知 Provider 提供可复制的项目级信任命令，HTTP 规则不单独提供", () => {
+  const provider = {
+    id: "OPENCODE_CUSTOM_PROVIDER",
+    category: "provider",
+    severity: "medium",
+    title: "自建中转",
+    evidence: {
+      provider: "relay",
+      baseUrl: "http://relay.report-example.net:8443/v1",
+    },
+  };
+  const html = renderHtmlReport(makeReport([provider]));
+  assert.ok(
+    html.includes(
+      'agentguard trust add &quot;relay.report-example.net&quot; --kind trusted'
+    )
+  );
+  assert.ok(html.includes("HTTP、明文密钥和危险权限风险仍会显示"));
+
+  const httpOnly = renderHtmlReport(
+    makeReport([
+      {
+        ...provider,
+        id: "OPENCODE_INSECURE_HTTP",
+        title: "明文 HTTP",
+      },
+    ])
+  );
+  assert.equal(httpOnly.includes("agentguard trust add"), false);
+});
+
 test("已接受任务退出默认待办但保留原因、撤销命令与技术证据", () => {
   const findings = [
     {
@@ -165,6 +196,47 @@ test("已接受任务退出默认待办但保留原因、撤销命令与技术�
   assert.ok(html.includes("自建示例中转"));
   assert.equal(countOf(html, '<article class="action-card'), 0);
   assert.equal(countOf(html, '<div class="finding sev-'), 1);
+});
+
+test("项目规则忽略退出行动任务但保留审计、撤销命令与技术证据", () => {
+  const findings = [{
+    id: "CCSWITCH_PROXY_ENABLED",
+    category: "provider",
+    severity: "info",
+    title: "项目自建代理已开启",
+    evidence: { appType: "claude", proxy: "127.0.0.1:9000" },
+  }];
+  const report = makeReport(findings);
+  const initial = renderHtmlReport(report);
+  assert.match(initial, /agentguard ignore add task-[a-f0-9]{12} --rule CCSWITCH_PROXY_ENABLED/);
+
+  const html = renderHtmlReport(report, {
+    ruleIgnores: [{
+      ruleId: "CCSWITCH_PROXY_ENABLED",
+      agent: "cc-switch",
+      reason: "已核对本机代理进程和受控上游",
+      createdAt: "2026-07-18T00:00:00.000Z",
+      status: "active",
+    }],
+  });
+  assert.ok(html.includes("1 条项目规则已忽略"));
+  assert.ok(html.includes("项目已忽略规则"));
+  assert.ok(html.includes("已核对本机代理进程和受控上游"));
+  assert.ok(html.includes("agentguard ignore remove CCSWITCH_PROXY_ENABLED --agent cc-switch"));
+  assert.equal(countOf(html, '<article class="action-card'), 0);
+  assert.equal(countOf(html, '<div class="finding sev-'), 1);
+
+  const policyWithoutFinding = renderHtmlReport(makeReport([]), {
+    ruleIgnores: [{
+      ruleId: "CCSWITCH_PROXY_ENABLED",
+      agent: "cc-switch",
+      reason: "已核对本机代理进程和受控上游",
+      createdAt: "2026-07-18T00:00:00.000Z",
+      status: "active",
+    }],
+  });
+  assert.ok(policyWithoutFinding.includes("当前扫描未命中（策略仍有效）"));
+  assert.ok(policyWithoutFinding.includes("agentguard ignore remove CCSWITCH_PROXY_ENABLED"));
 });
 
 test("同一根因的多个 finding 聚合为一张任务卡，计数按任务而非 finding", () => {

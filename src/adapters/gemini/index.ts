@@ -13,6 +13,7 @@ import type {
 import { dirExists, fileExists } from "../../core/discovery/fs-utils.js";
 import { parseGemini } from "./parse.js";
 import { buildGeminiFindings } from "./risk.js";
+import { buildParseFailureFinding } from "../../core/parse-failure.js";
 
 export const geminiAdapter: Adapter = {
   agent: "gemini",
@@ -58,18 +59,13 @@ export const geminiAdapter: Adapter = {
       const data = parseGemini(found.configPath, dirname(found.configPath));
       return buildGeminiFindings(data, ctx.providerPolicy);
     } catch (err) {
-      return [
-        {
-          id: "GEMINI_PARSE_FAILED",
-          category: "compat",
-          severity: "info",
-          title: "Gemini CLI 配置解析失败",
-          description: "无法读取或解析 settings.json。",
-          evidence: { error: err instanceof Error ? err.message : String(err) },
-          recommendation: "确认配置文件为合法 JSON。",
-          fixable: false,
-        },
-      ];
+      return [buildParseFailureFinding({
+        id: "GEMINI_PARSE_FAILED",
+        displayName: this.displayName,
+        configPath: found.configPath,
+        error: err,
+        format: "JSON",
+      })];
     }
   },
 };

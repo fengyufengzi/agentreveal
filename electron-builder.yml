@@ -2,6 +2,7 @@ appId: com.agentguard.desktop
 productName: AgentGuard
 directories:
   output: release
+afterPack: scripts/after-pack.cjs
 extraMetadata:
   main: desktop/main.cjs
 files:
@@ -11,13 +12,15 @@ files:
   - desktop/**/*
 asar: true
 mac:
+  icon: desktop/icon.icns
   category: public.app-category.developer-tools
+  minimumSystemVersion: "12.0"
   target:
     - target: dmg
       arch:
         - arm64
-  identity: null
   hardenedRuntime: false
+  notarize: false
 dmg:
   artifactName: AgentGuard-${version}-${arch}.${ext}
   sign: false

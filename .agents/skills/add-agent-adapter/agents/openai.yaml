@@ -1,0 +1,4 @@
+interface:
+  display_name: "Add Agent Adapter"
+  short_description: "Safely add an AI coding-agent adapter and privacy tests"
+  default_prompt: "Use $add-agent-adapter to add or extend an AgentGuard adapter safely."

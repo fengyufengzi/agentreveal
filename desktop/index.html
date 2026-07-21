@@ -3,54 +3,151 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>AgentGuard</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <aside class="sidebar">
+  <a class="skip-link" href="#mainContent">跳到主要内容</a>
+  <header class="app-header">
     <div class="brand">
-      <div class="mark">AG</div>
+      <img class="brand-icon" src="./icon.png" alt="">
       <div>
         <h1>AgentGuard</h1>
-        <p>AI Agent 安全配置中心</p>
+        <p>AI Agent 本地安全中心</p>
       </div>
     </div>
-    <nav>
-      <button class="nav active" data-command="doctor">环境体检</button>
-      <button class="nav" data-command="scan">风险扫描</button>
-      <button class="nav" data-command="map">配置地图</button>
-      <button class="nav" data-command="provider">Provider</button>
-      <button class="nav" data-command="baselineBalanced">Baseline</button>
-    </nav>
-    <div class="sidebar-foot">
-      <button id="reportBtn" class="secondary">生成 HTML 报告</button>
-      <button id="openReportBtn" class="ghost">打开报告</button>
-    </div>
-  </aside>
+    <div class="local-promise"><span></span>本地运行 · 零上传</div>
+    <details class="report-menu">
+      <summary>报告</summary>
+      <div class="report-menu-popover">
+        <button id="exportHtmlBtn" class="report-action" disabled><span>↗</span>导出行动报告</button>
+        <button id="exportJsonBtn" class="text-action" disabled>导出 JSON</button>
+        <button id="openReportBtn" class="text-action" disabled>打开最近报告</button>
+        <button id="exportDiagnosticsBtn" class="text-action">导出脱敏诊断</button>
+      </div>
+    </details>
+  </header>
 
-  <main>
+  <main id="mainContent" tabindex="-1" aria-labelledby="viewTitle">
     <header class="topbar">
-      <div>
-        <h2 id="viewTitle">环境体检</h2>
-        <p id="viewSubtitle">查看本机已配置的 AI Coding Agent。</p>
+      <div class="page-title">
+        <span class="eyebrow">LOCAL AGENT SECURITY</span>
+        <h2 id="viewTitle">选择一个开发项目开始检查</h2>
+        <p id="viewSubtitle">从明确的项目范围开始，避免不必要的 macOS 文件夹权限请求。</p>
       </div>
       <div class="actions">
-        <select id="baselineProfile" aria-label="Baseline profile">
-          <option value="baselineBalanced">balanced</option>
-          <option value="baselineSafe">safe</option>
+        <select id="baselineProfile" aria-label="Baseline profile" hidden>
+          <option value="balanced">balanced</option>
+          <option value="safe">safe</option>
         </select>
-        <button id="refreshBtn">运行</button>
+        <button id="machineScopeBtn" class="quiet-action" hidden>扫描整台 Mac</button>
+        <button id="selectProjectBtn" class="quiet-action" hidden>选择项目</button>
+        <button id="runBtn" class="primary-action" disabled hidden>开始扫描</button>
       </div>
     </header>
 
-    <section id="status" class="status idle">等待运行</section>
+    <div class="scan-context-row">
+      <section class="project-bar" aria-label="当前检查范围">
+        <span class="project-dot"></span>
+        <div><span id="scopeLabel">当前项目</span><strong id="projectPath">尚未选择</strong></div>
+        <span class="read-only-chip">默认只读</span>
+      </section>
+      <section id="status" class="status idle" role="status" aria-live="polite" aria-atomic="true">
+        <span class="status-indicator" aria-hidden="true"></span>
+        <span class="status-copy"><span id="statusText">等待选择项目</span><small id="statusHint">建议从单个开发项目开始，所有检查默认只读。</small></span>
+        <span id="operationProgress" class="operation-progress" role="progressbar" aria-label="操作正在进行" hidden><span></span></span>
+      </section>
+    </div>
+    <div id="assertiveStatus" class="sr-only" role="alert" aria-live="assertive" aria-atomic="true"></div>
     <section id="summary" class="summary"></section>
     <section id="content" class="content"></section>
-    <details class="raw">
-      <summary>原始输出</summary>
-      <pre id="rawOutput"></pre>
+    <details id="developerData" class="raw">
+      <summary>开发者数据 <span>证据已脱敏</span></summary>
+      <pre id="diagnosticData"></pre>
     </details>
   </main>
+
+  <dialog id="acceptDialog" aria-labelledby="acceptTitle" aria-describedby="acceptDescription">
+    <form id="acceptForm">
+      <div class="dialog-heading">
+        <div>
+          <span class="eyebrow">风险接受</span>
+          <h3 id="acceptTitle">接受当前风险</h3>
+        </div>
+        <button id="acceptCancelBtn" type="button" class="icon-button" aria-label="关闭">×</button>
+      </div>
+      <p id="acceptDescription" class="dialog-description"></p>
+      <label>
+        接受原因
+        <textarea id="acceptReason" maxlength="500" rows="4" required placeholder="说明业务用途、资源归属和为什么当前可以暂不修复"></textarea>
+      </label>
+      <label>
+        到期日期
+        <input id="acceptExpires" type="date">
+      </label>
+      <p id="acceptExpiryHelp" class="field-help">建议设置复审日期；P0 任务必须限时接受。</p>
+      <div class="dialog-actions">
+        <button id="acceptDismissBtn" type="button" class="ghost">取消</button>
+        <button type="submit">确认接受</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="trustDialog" aria-labelledby="trustTitle" aria-describedby="trustDescription">
+    <form id="trustForm">
+      <div class="dialog-heading">
+        <div>
+          <span class="eyebrow">项目级端点策略</span>
+          <h3 id="trustTitle">信任此 Provider 端点</h3>
+        </div>
+        <button id="trustCancelBtn" type="button" class="icon-button" aria-label="关闭">×</button>
+      </div>
+      <p id="trustDescription" class="dialog-description"></p>
+      <label id="trustKindLabel">
+        信任类型
+        <select id="trustKind">
+          <option value="trusted">trusted · 已核实的自建/第三方服务</option>
+          <option value="internal">internal · 组织内部服务</option>
+        </select>
+      </label>
+      <label>
+        变更原因
+        <textarea id="trustReason" maxlength="500" rows="4" required placeholder="说明端点所有者、用途和核实依据；不要填写密钥"></textarea>
+      </label>
+      <p class="field-help">将写入项目的 .agentguard.json，原因可能进入版本控制。此操作只消除“未知端点”提示，不会隐藏 HTTP、明文密钥或危险权限风险。</p>
+      <div class="dialog-actions">
+        <button id="trustDismissBtn" type="button" class="ghost">取消</button>
+        <button id="trustSubmitBtn" type="submit">确认信任</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="ignoreDialog" aria-labelledby="ignoreTitle" aria-describedby="ignoreDescription">
+    <form id="ignoreForm">
+      <div class="dialog-heading">
+        <div>
+          <span class="eyebrow">项目级规则策略</span>
+          <h3 id="ignoreTitle">忽略低优先级规则</h3>
+        </div>
+        <button id="ignoreCancelBtn" type="button" class="icon-button" aria-label="关闭">×</button>
+      </div>
+      <p id="ignoreDescription" class="dialog-description"></p>
+      <label>
+        审核或变更原因
+        <textarea id="ignoreReason" maxlength="500" rows="4" required placeholder="说明为什么该规则在当前项目无需重复提示；不要填写密钥或敏感信息"></textarea>
+      </label>
+      <label id="ignoreExpiresLabel">
+        可选到期日期
+        <input id="ignoreExpires" type="date">
+      </label>
+      <p class="field-help">将写入项目的 .agentguard.json 并保留追加式审计，原因可能进入版本控制。P0/P1、强制修复、明文密钥、危险权限、扫描盲区和 Provider 端点分类不能通过此功能隐藏。</p>
+      <div class="dialog-actions">
+        <button id="ignoreDismissBtn" type="button" class="ghost">取消</button>
+        <button id="ignoreSubmitBtn" type="submit">确认忽略</button>
+      </div>
+    </form>
+  </dialog>
 
   <script src="./renderer.js"></script>
 </body>

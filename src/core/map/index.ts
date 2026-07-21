@@ -37,10 +37,16 @@ export interface MapRow {
 export interface ProxyHop {
   /** 归属 Agent（如 claude / codex）。 */
   via: string;
+  /** 供 UI 展示的 Agent 名称。 */
+  agentLabel?: string;
   /** 本地代理监听地址。 */
   proxy: string;
   /** 真实上游（可能是 URL 或 Provider 名）。 */
   upstream: string;
+  /** 本地代理所有者，如 CC Switch。 */
+  owner?: string;
+  /** Agent live 配置里的鉴权模式说明，不含真实凭证。 */
+  authMode?: string;
 }
 
 export interface ConfigMap {
@@ -105,10 +111,16 @@ function collectProxyChains(report: ScanReport): ProxyHop[] {
       const upstream = ev.realUpstream;
       const proxy = ev.proxy;
       if (typeof upstream === "string" && typeof proxy === "string") {
+        const owner = ev.proxyOwner;
+        const authMode = ev.authMode;
+        const agentLabel = ev.appLabel;
         hops.push({
           via: String(ev.appType ?? r.agent),
           proxy,
           upstream,
+          ...(typeof agentLabel === "string" ? { agentLabel } : {}),
+          ...(typeof owner === "string" ? { owner } : {}),
+          ...(typeof authMode === "string" ? { authMode } : {}),
         });
       }
     }

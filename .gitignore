@@ -57,6 +57,7 @@ backups/
 
 # 文档中间产物（已转为 .md）
 *.txt
+!examples/scan-output.txt
 
 # 测试
 .tmp/

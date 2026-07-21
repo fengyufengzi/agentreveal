@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import type { DiscoveryContext } from "../../adapters/types.js";
 import { opencodeAdapter } from "../../adapters/opencode/index.js";
 import {
+  baselinePlanFingerprint,
   buildBaselineEdits,
   type BaselineFilePlan,
   type BaselineProfile,
@@ -14,9 +15,15 @@ import { atomicWriteFile, fileMode } from "../fs-safety.js";
 
 export interface ApplyResult {
   profile: BaselineProfile;
+  planFingerprint: string;
   backupId: string;
   files: BaselineFilePlan[];
   warnings: string[];
+}
+
+export interface ApplyBaselineOptions {
+  /** 桌面端等交互入口确认过的 dry-run 指纹；不一致时禁止写入。 */
+  expectedPlanFingerprint?: string;
 }
 
 export interface ManualBackupResult {
@@ -35,11 +42,25 @@ function contentHash(path: string): string {
 
 export async function applyBaseline(
   profile: BaselineProfile,
-  ctx: DiscoveryContext = buildContext()
+  ctx: DiscoveryContext = buildContext(),
+  options: ApplyBaselineOptions = {}
 ): Promise<ApplyResult> {
   const { edits, warnings } = await buildBaselineEdits(profile, ctx);
+  const files = edits.map((edit) => ({
+    agent: edit.agent,
+    configPath: edit.configPath,
+    changes: edit.changes,
+    diff: edit.diff,
+  }));
+  const planFingerprint = baselinePlanFingerprint({ profile, files });
+  if (
+    options.expectedPlanFingerprint !== undefined &&
+    options.expectedPlanFingerprint !== planFingerprint
+  ) {
+    throw new Error("当前 baseline 计划与已确认预览不一致，请重新生成预览后再应用。");
+  }
   if (edits.length === 0) {
-    return { profile, backupId: "", files: [], warnings };
+    return { profile, planFingerprint, backupId: "", files: [], warnings };
   }
 
   for (const edit of edits) {
@@ -81,13 +102,9 @@ export async function applyBaseline(
 
   return {
     profile,
+    planFingerprint,
     backupId: backup.id,
-    files: edits.map((edit) => ({
-      agent: edit.agent,
-      configPath: edit.configPath,
-      changes: edit.changes,
-      diff: edit.diff,
-    })),
+    files,
     warnings,
   };
 }

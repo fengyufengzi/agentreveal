@@ -5,6 +5,10 @@
  */
 import type { RiskFinding } from "../types.js";
 import { classifyBaseUrl, type ProviderTrustPolicy } from "../../rules/provider.js";
+import {
+  ccSwitchAppLabel,
+  PROXY_MANAGED_AUTH_LABEL,
+} from "../../core/proxy-managed.js";
 import type { CcSwitchData, CcProvider } from "./parse.js";
 
 /** 仅取激活 + 在故障转移队列中的 Provider（这些才是"实际会被用到"的）。 */
@@ -97,11 +101,12 @@ export function buildCcSwitchFindings(
         count: withKey.length,
         providers: withKey.map((p) => `${p.appType}/${p.name}`),
       },
-      recommendation: "尽量改用环境变量引用；限制数据库文件权限。",
+      recommendation: "当前普通 Provider 不支持在 Token 字段引用环境变量；请轮换为独立最小权限 Token，并限制数据库及备份权限。",
       remediation: [
-        "打开 CC Switch 应用，在相关 Provider 配置里清空明文 API Key / Token 字段。",
-        "改用系统环境变量注入或官方账号登录，避免密钥再次落盘。",
-        "运行 chmod 600 ~/.cc-switch/cc-switch.db 收紧数据库权限。",
+        "先在 Provider 控制台创建独立、最小权限的新 Token，再打开 CC Switch，在相关 Provider 配置中替换并测试，最后撤销旧 Token。",
+        "不要在 API Key / Token 输入框填写环境变量名、${VAR} 或 {env:VAR}；当前普通 Provider 会把它们当作 Token 字面量。",
+        "复制并执行下方 Terminal 命令，收紧 ~/.cc-switch、cc-switch.db 和数据库备份权限。",
+        "若 Provider 支持官方账号/OAuth，优先改用无需在 CC Switch 数据库保存 Token 的登录方式。",
         "配置存于只读 SQLite，AgentGuard 坚持不写库，请务必在 CC Switch 应用内修改。",
       ],
       fixable: false,
@@ -142,6 +147,7 @@ export function buildCcSwitchFindings(
   // —— 内置代理链路 ——
   for (const proxy of data.proxies) {
     if (!proxy.enabled) continue;
+    const appLabel = ccSwitchAppLabel(proxy.appType);
     // 该 app 当前激活的真实上游
     const upstream = data.providers.find(
       (p) => p.appType === proxy.appType && p.isCurrent
@@ -150,14 +156,17 @@ export function buildCcSwitchFindings(
       id: "CCSWITCH_PROXY_ENABLED",
       category: "provider",
       severity: "info",
-      title: `${proxy.appType} 经 CC Switch 内置代理转发`,
-      description: `${proxy.appType} 的请求先经本地代理 ${proxy.listenAddress}:${proxy.listenPort}，真实上游为 ${
+      title: `${appLabel} 已由 CC Switch 接管`,
+      description: `${appLabel} 的请求先经 CC Switch 本地代理 ${proxy.listenAddress}:${proxy.listenPort}，真实上游为 ${
         upstream?.baseUrl ?? upstream?.name ?? "未知"
-      }。勿把 ${proxy.listenAddress} 误判为安全本地服务。`,
+      }；live 配置中的 ${PROXY_MANAGED_AUTH_LABEL} 不是真实 Provider Key。`,
       evidence: {
         appType: proxy.appType,
+        appLabel,
         proxy: `${proxy.listenAddress}:${proxy.listenPort}`,
         realUpstream: upstream?.baseUrl ?? upstream?.name,
+        proxyOwner: "CC Switch",
+        authMode: PROXY_MANAGED_AUTH_LABEL,
         autoFailover: proxy.autoFailover,
       },
       recommendation: "确认真实上游可信；关注 failover 队列中的 Provider。",

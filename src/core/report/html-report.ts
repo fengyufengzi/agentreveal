@@ -21,6 +21,12 @@ import {
   buildRemediationGuide,
   type RemediationGuide,
 } from "../remediation/index.js";
+import { providerTrustCandidateForTask } from "../config/trust.js";
+import {
+  ruleIgnoreCandidatesForTask,
+  type ListedRuleIgnore,
+} from "../config/rule-ignore.js";
+import { applyRuleIgnores, type IgnoredFinding } from "../triage/index.js";
 
 export interface HtmlAcceptedTask {
   taskId: string;
@@ -33,6 +39,8 @@ export interface HtmlReportOptions {
   generatedAt?: Date;
   /** 当前有效的风险接受记录；过期记录应在持久化层过滤。 */
   acceptances?: readonly HtmlAcceptedTask[];
+  /** 当前项目有效的低优先级规则忽略；技术证据仍保留在完整报告中。 */
+  ruleIgnores?: readonly ListedRuleIgnore[];
 }
 
 const SEVERITY_ORDER: Record<RiskLevel, number> = {
@@ -265,6 +273,30 @@ function remediationCommands(task: ActionTask): string {
     .join("")}</div>`;
 }
 
+function providerTrustCommand(task: ActionTask): string {
+  const candidate = providerTrustCandidateForTask(task);
+  if (!candidate) return "";
+  const command = `agentguard trust add "${candidate.endpoint}" --kind trusted --reason "填写端点所有者、用途和核实依据"`;
+  return `<div class="accept-box trust-box"><strong>这是你确认控制的自建/内部端点？</strong>` +
+    `<div class="command-row"><code>${escapeHtml(command)}</code><button type="button" class="copy-command">复制命令</button></div>` +
+    `<small>该操作只消除“未知端点”提示，并保留项目级审计；HTTP、明文密钥和危险权限风险仍会显示。原因可能进入版本控制，请勿填写秘密。</small></div>`;
+}
+
+function projectIgnoreCommands(task: ActionTask): string {
+  const candidates = ruleIgnoreCandidatesForTask(task);
+  if (candidates.length === 0) return "";
+  return `<div class="accept-box ignore-box"><strong>项目内不再提示这些已审核规则</strong>${candidates
+    .map((candidate) => {
+      const command =
+        `agentguard ignore add ${task.taskId} --rule ${candidate.ruleId} ` +
+        '--reason "填写审核依据；不要包含密钥或敏感信息"';
+      return `<div class="command-row"><small>${escapeHtml(candidate.ruleId)}</small><code>${escapeHtml(
+        command
+      )}</code><button type="button" class="copy-command">复制命令</button></div>`;
+    })
+    .join("")}<small>只对当前项目和当前 Agent 生效，但 evidence/task ID 变化后仍会隐藏；P0/P1、强制修复和高风险家族不提供此操作。原因可能进入版本控制，请勿填写秘密。</small></div>`;
+}
+
 function actionCard(task: ActionTask, p0ExpiresOn: string): string {
   const finding = task.primary.finding;
   const disposition = normalizedDisposition(task.disposition);
@@ -305,6 +337,8 @@ function actionCard(task: ActionTask, p0ExpiresOn: string): string {
     )}${taskBaselineEffects(task) ? ` · ${escapeHtml(taskBaselineEffects(task))}` : ""}</div>`
   );
   parts.push(remediationCommands(task));
+  parts.push(providerTrustCommand(task));
+  parts.push(projectIgnoreCommands(task));
   if (missingAcceptanceRules.length === 0) {
     parts.push(
       `<div class="accept-box"><strong>确认暂不修复整组任务</strong>` +
@@ -355,6 +389,37 @@ function acceptedSection(
       )}${expires}</p><code>agentguard risk revoke ${escapeHtml(
         task.taskId
       )}</code></article>`;
+    })
+    .join("")}</section>`;
+}
+
+function ignoredSection(
+  policies: readonly ListedRuleIgnore[],
+  findings: readonly IgnoredFinding[]
+): string {
+  if (policies.length === 0) return "";
+  return `<section class="accepted-section ignored-section" id="actions-ignored"><div class="section-head"><div><h2>项目已忽略规则</h2><p>这些低优先级规则仍保留审计和技术证据，可随时撤销；策略会跨 evidence/task ID 变化持续生效。当前隐藏 ${findings.length} 项发现。</p></div><span class="section-count">${policies.length}</span></div>${policies
+    .map((policy) => {
+      const items = findings.filter(
+        (finding) =>
+          finding.agent === policy.agent && finding.finding.id === policy.ruleId
+      );
+      const expires = policy.expiresAt
+        ? ` · 到期 ${escapeHtml(policy.expiresAt)}`
+        : " · 长期有效";
+      const titles = [...new Set(items.map((item) => item.finding.title))];
+      const command = `agentguard ignore remove ${policy.ruleId} --agent ${policy.agent} --reason "填写撤销原因"`;
+      return `<article class="accepted-card ignored-card"><div class="action-head"><span class="accepted-badge">已忽略</span><span class="action-title">${escapeHtml(
+        policy.ruleId
+      )}</span></div><div class="action-meta"><span>${escapeHtml(
+        items[0]?.displayName ?? policy.agent
+      )}</span><span>${items.length} 项当前发现</span></div><p><strong>审核原因</strong> ${escapeHtml(
+        policy.reason
+      )}${expires}</p><p><strong>关联发现</strong> ${escapeHtml(
+        titles.join("、") || "当前扫描未命中（策略仍有效）"
+      )}</p><div class="command-row"><code>${escapeHtml(
+        command
+      )}</code><button type="button" class="copy-command">复制命令</button></div></article>`;
     })
     .join("")}</section>`;
 }
@@ -670,6 +735,7 @@ h1{font-size:22px;margin:0 0 4px}
 .accepted-section{margin:36px 0 28px;padding-top:24px;border-top:1px dashed #3b4251}
 .accepted-section h2{font-size:17px;margin:0}
 .accepted-card{padding:14px 16px;margin:10px 0;background:#14151b;border:1px solid #292d37;border-left:4px solid #8b5cf6;border-radius:8px;color:#cbd5e1}
+.ignored-card{border-left-color:#0ea5e9}.ignored-card .accepted-badge{background:#0369a1}
 .accepted-card p{margin:8px 0}.accepted-card p strong{color:#e6e6e6;margin-right:5px}
 .accepted-badge{padding:2px 7px;border-radius:6px;background:#6d28d9;color:#fff;font-size:11px;font-weight:700}
 .empty{margin:10px 0;color:#8a90a0}
@@ -778,7 +844,8 @@ export function renderHtmlReport(
     .toISOString()
     .slice(0, 10);
   const total = report.allFindings.length + (report.correlations?.length ?? 0);
-  const tasks = buildActionTasks(buildActionPlan(report));
+  const ignored = applyRuleIgnores(report, opts.ruleIgnores);
+  const tasks = buildActionTasks(buildActionPlan(ignored.report));
   const acceptances = new Map(
     (opts.acceptances ?? []).map((record) => [record.taskId, record])
   );
@@ -802,12 +869,13 @@ export function renderHtmlReport(
 <body>
 <div class="wrap">
 <h1>AgentGuard 下一步行动报告</h1>
-<div class="meta">生成时间 ${escapeHtml(when)} · 共 ${total} 项发现 · ${activeTasks.length} 个行动任务 · ${actionable} 个需要行动${acceptedTasks.length > 0 ? ` · ${acceptedTasks.length} 个已接受` : ""}</div>
+<div class="meta">生成时间 ${escapeHtml(when)} · 共 ${total} 项发现 · ${activeTasks.length} 个行动任务 · ${actionable} 个需要行动${acceptedTasks.length > 0 ? ` · ${acceptedTasks.length} 个已接受` : ""}${ignored.ignoredFindings.length > 0 ? ` · ${ignored.ignoredFindings.length} 条项目规则已忽略` : ""}</div>
 <p class="snapshot-notice">这是生成时刻的静态快照，不会因配置修改自动刷新。完成处置后请运行卡片中的 <code>agentguard risk verify task-...</code>，并重新生成报告。</p>
 ${actionSummary(activeTasks)}
 ${topActions(activeTasks)}
 ${actionSections(activeTasks, p0ExpiresOn)}
 ${acceptedSection(acceptedTasks, acceptances)}
+${ignoredSection(ignored.activeRuleIgnores, ignored.ignoredFindings)}
 <div class="evidence-block" id="technical-evidence">
 <h2 class="evidence-title">按 Agent 查看技术证据</h2>
 <p class="evidence-intro">严重度表示潜在影响，不等同于行动优先级。可用下方按钮筛选完整发现。</p>

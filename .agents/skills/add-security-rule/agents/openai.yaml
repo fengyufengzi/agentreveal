@@ -1,0 +1,4 @@
+interface:
+  display_name: "Add Security Rule"
+  short_description: "Add AgentGuard rules with complete action semantics"
+  default_prompt: "Use $add-security-rule to add or change an AgentGuard security rule."

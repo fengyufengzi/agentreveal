@@ -9,6 +9,7 @@
  */
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
+import { isProxyManagedPlaceholder } from "../../core/proxy-managed.js";
 
 const require = createRequire(import.meta.url);
 
@@ -30,6 +31,7 @@ export interface CcProvider {
 /** 单个 app 的代理配置。 */
 export interface CcProxy {
   appType: string;
+  /** 代理服务已开启，且该 Agent 的 live 路由接管也已开启。 */
   enabled: boolean;
   listenAddress: string;
   listenPort: number;
@@ -86,7 +88,12 @@ function extractFromConfig(cfg: unknown): {
       if (typeof v === "string") {
         if (!baseUrl && BASEURL_KEY_RE.test(k) && looksLikeUrl(v)) {
           baseUrl = v;
-        } else if (!secret && SECRET_KEY_RE.test(k) && v.trim().length > 0) {
+        } else if (
+          !secret &&
+          SECRET_KEY_RE.test(k) &&
+          v.trim().length > 0 &&
+          !isProxyManagedPlaceholder(v)
+        ) {
           secret = v;
         } else if (k === "config" && v.includes("base_url")) {
           // codex：base_url 埋在 config 的 TOML 字符串里
@@ -148,14 +155,24 @@ export function parseCcSwitchDb(dbPath: string): CcSwitchData {
 
     let proxies: CcProxy[] = [];
     try {
+      const proxyColumns = new Set(
+        (db.prepare("PRAGMA table_info(proxy_config)").all() as Array<{ name: string }>).map(
+          (column) => column.name
+        )
+      );
+      // 新 schema 用 enabled 表示 per-app 接管；旧 schema 只有 proxy_enabled。
+      const routeEnabledColumn = proxyColumns.has("enabled")
+        ? "enabled"
+        : "proxy_enabled";
       const rawProxies = db
         .prepare(
-          "SELECT app_type, proxy_enabled, listen_address, listen_port, auto_failover_enabled FROM proxy_config"
+          `SELECT app_type, proxy_enabled, ${routeEnabledColumn} AS route_enabled, listen_address, listen_port, auto_failover_enabled FROM proxy_config`
         )
         .all() as Array<Record<string, unknown>>;
       proxies = rawProxies.map((r) => ({
         appType: String(r.app_type),
-        enabled: Number(r.proxy_enabled) === 1,
+        enabled:
+          Number(r.proxy_enabled) === 1 && Number(r.route_enabled) === 1,
         listenAddress: String(r.listen_address),
         listenPort: Number(r.listen_port),
         autoFailover: Number(r.auto_failover_enabled) === 1,

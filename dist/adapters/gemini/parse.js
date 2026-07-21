@@ -9,6 +9,8 @@
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { ConfigParseError } from "../../core/parse-failure.js";
+import { isProxyManagedPlaceholder } from "../../core/proxy-managed.js";
 const SECRET_ENV_RE = /(api[_-]?key|auth[_-]?token|access[_-]?token|secret|token|password)/i;
 const SHELL_TOOL = "run_shell_command";
 function asRecord(v) {
@@ -23,7 +25,12 @@ function strArray(v) {
     return Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
 }
 function readJson(path) {
-    return asRecord(JSON.parse(readFileSync(path, "utf8")));
+    try {
+        return asRecord(JSON.parse(readFileSync(path, "utf8")));
+    }
+    catch (error) {
+        throw new ConfigParseError(path, "JSON", error);
+    }
 }
 export function looksLikeSecretEnv(key) {
     return SECRET_ENV_RE.test(key);
@@ -54,9 +61,11 @@ function parseEnvPresence(envPath) {
         text = readFileSync(envPath, "utf8");
     }
     catch {
-        return [];
+        return { plaintextKeys: [], proxyManagedPlaceholderPresent: false };
     }
-    const keys = [];
+    const plaintextKeys = [];
+    let proxyManagedPlaceholderPresent = false;
+    let baseUrl;
     for (const rawLine of text.split(/\r?\n/)) {
         const line = rawLine.trim();
         if (!line || line.startsWith("#"))
@@ -73,14 +82,24 @@ function parseEnvPresence(envPath) {
         }
         if (!key)
             continue;
+        if (key === "GOOGLE_GEMINI_BASE_URL" && /^https?:\/\//i.test(value)) {
+            baseUrl = value;
+            continue;
+        }
         // 空值或纯 ${VAR} 引用视为"未内嵌明文"。
         if (value.length === 0)
             continue;
         if (/^\$\{[^}]+\}$/.test(value) || /^\$[A-Za-z_][A-Za-z0-9_]*$/.test(value))
             continue;
-        keys.push(key);
+        if (!SECRET_ENV_RE.test(key))
+            continue;
+        if (isProxyManagedPlaceholder(value)) {
+            proxyManagedPlaceholderPresent = true;
+            continue;
+        }
+        plaintextKeys.push(key);
     }
-    return keys;
+    return { plaintextKeys, proxyManagedPlaceholderPresent, baseUrl };
 }
 /**
  * 读取并归一化 Gemini CLI 配置。
@@ -102,7 +121,7 @@ export function parseGemini(settingsPath, configDir) {
     const coreListsShell = strArray(tools.coreTools).some((t) => t === SHELL_TOOL || t.startsWith(SHELL_TOOL + "("));
     const shellExcluded = strArray(tools.excludeTools).some((t) => t === SHELL_TOOL || t.startsWith(SHELL_TOOL + "("));
     const shellToolAllowed = coreListsShell && !shellExcluded;
-    const plaintextEnvKeys = parseEnvPresence(join(configDir, ".env"));
+    const env = parseEnvPresence(join(configDir, ".env"));
     return {
         settingsParsed: true,
         authType,
@@ -110,7 +129,9 @@ export function parseGemini(settingsPath, configDir) {
         mcpExcluded,
         sandbox,
         shellToolAllowed,
-        plaintextEnvKeys,
+        plaintextEnvKeys: env.plaintextKeys,
+        proxyManagedPlaceholderPresent: env.proxyManagedPlaceholderPresent,
+        baseUrl: env.baseUrl,
     };
 }
 //# sourceMappingURL=parse.js.map

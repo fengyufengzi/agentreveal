@@ -20,6 +20,8 @@ export interface CodexMcpServer {
 export interface CodexData {
     /** 主配置是否成功解析。 */
     configParsed: boolean;
+    /** 解析失败时的固定安全原因，不含底层异常原文。 */
+    parseFailureReason?: string;
     providers: CodexModelProvider[];
     /** 顶层 model_provider（当前激活的自定义 provider 名）。 */
     activeProvider?: string;
@@ -30,6 +32,8 @@ export interface CodexData {
     proxyUrl?: string;
     /** auth.json 中是否存在非空 OPENAI_API_KEY（原始密钥落盘）。 */
     apiKeyPresent: boolean;
+    /** auth.json 是否含 CC Switch 写入的非秘密接管占位符。 */
+    proxyManagedPlaceholderPresent: boolean;
     /** auth.json 的 auth_mode（如 "chatgpt" / "apikey"）。 */
     authMode?: string;
 }

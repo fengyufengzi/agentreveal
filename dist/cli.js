@@ -1,23 +1,32 @@
 /** AgentGuard CLI 入口。骨架阶段：doctor 已接真实 discovery，其余命令为占位。 */
 import { writeFileSync } from "node:fs";
 import { Command } from "commander";
-import { discoverAll } from "./core/discovery/index.js";
+import { buildContext, discoverAll } from "./core/discovery/index.js";
 import { scanAll } from "./core/scan/index.js";
 import { buildMap } from "./core/map/index.js";
 import { buildBaselinePlan } from "./core/baseline/index.js";
 import { applyBaseline, backupOpenCodeConfig, restoreBaselineBackup, restoreLatestBaselineBackup, } from "./core/apply/index.js";
 import { formatDoctor } from "./core/report/doctor-format.js";
+import { formatFirstRun } from "./core/report/first-run-format.js";
 import { formatScan } from "./core/report/scan-format.js";
 import { formatMap } from "./core/report/map-format.js";
 import { formatBaseline } from "./core/report/baseline-format.js";
 import { renderHtmlReport } from "./core/report/html-report.js";
+import { buildFirstRunSummary } from "./core/first-run/index.js";
 import { withOutputContract } from "./core/output-contract.js";
 import { buildActionPlan, buildActionTasks, taskMissingAcceptanceRules, } from "./core/action/index.js";
 import { AcceptanceStore } from "./core/acceptance/index.js";
 import { applyAcceptances } from "./core/triage/index.js";
 import { verifyRiskTask } from "./core/verification/index.js";
 import { TaskSnapshotStore } from "./core/verification/snapshot.js";
+import { addProviderTrust, listProviderTrust, removeProviderTrust, } from "./core/config/trust.js";
+import { activeRuleIgnoresSafely, addRuleIgnore, listRuleIgnores, removeRuleIgnore, ruleIgnoreCandidatesForTask, } from "./core/config/rule-ignore.js";
+import { claudeCodeAdapter } from "./adapters/claude-code/index.js";
+import { createClaudeCredentialBackup, previewClaudeCredentialRestore, restoreClaudeCredentialBackup, } from "./core/credential-backup/index.js";
 const program = new Command();
+const invocationArgs = process.argv.slice(2);
+const bareJson = invocationArgs.length === 1 && invocationArgs[0] === "--json";
+const bareInvocation = invocationArgs.length === 0 || bareJson;
 function printJson(command, payload) {
     console.log(JSON.stringify(withOutputContract(command, payload), null, 2));
 }
@@ -31,12 +40,20 @@ function taskSnapshotStore() {
 }
 function triageReport(report) {
     const records = acceptanceStore().list({ activeOnly: true });
-    return applyAcceptances(report, records);
+    return applyAcceptances(report, records, activeRuleIgnoresSafely(process.cwd()));
+}
+async function currentClaudeConfigDir() {
+    const found = await claudeCodeAdapter.discover(buildContext());
+    if (!found.configFound || !found.configPath) {
+        throw new Error("未发现 Claude Code 配置目录；请确认 ~/.claude 或 CLAUDE_CONFIG_DIR。");
+    }
+    return found.configPath;
 }
 program
     .name("agentguard")
     .description("面向多 Agent、多模型、多 Provider 的 AI Coding Agent 安全配置中心")
-    .version("0.0.5-pilot.1");
+    .version("0.0.5-pilot.2")
+    .addHelpText("after", "\nBare JSON: agentguard --json");
 program
     .command("doctor")
     .description("体检本机 AI Coding Agent 环境，列出已发现的 Agent 与配置路径")
@@ -51,6 +68,30 @@ program
     }
 });
 const hasHighRisk = (report) => [...report.allFindings, ...report.correlations].some((f) => f.severity === "critical" || f.severity === "high");
+program.action(async () => {
+    if (!bareInvocation) {
+        const knownCommand = program.commands.some((command) => command.name() === invocationArgs[0]);
+        if (knownCommand)
+            return;
+        console.error(`未知命令 "${invocationArgs[0]}"。运行 agentguard --help 查看可用命令。`);
+        process.exitCode = 1;
+        return;
+    }
+    const triaged = triageReport(await scanAll());
+    const summary = buildFirstRunSummary(triaged.activeReport, {
+        acceptedTaskCount: triaged.acceptedTasks.length,
+        ignoredFindingCount: triaged.ignoredFindings.length,
+    });
+    taskSnapshotStore().capture(summary.tasks);
+    if (bareJson) {
+        console.log(JSON.stringify(summary, null, 2));
+    }
+    else {
+        console.log(formatFirstRun(summary));
+    }
+    if (hasHighRisk(triaged.activeReport))
+        process.exitCode = 2;
+});
 const providerOnly = (report) => ({
     results: report.results.map((r) => ({
         ...r,
@@ -73,12 +114,16 @@ program
         printJson("scan", {
             ...report,
             acceptedTaskCount: triaged.acceptedTasks.length,
+            ignoredFindingCount: triaged.ignoredFindings.length,
         });
     }
     else {
         console.log(formatScan(report));
         if (triaged.acceptedTasks.length > 0) {
             console.log(`\n已隐藏 ${triaged.acceptedTasks.length} 个已接受风险任务；运行 agentguard risk list 查看。`);
+        }
+        if (triaged.ignoredFindings.length > 0) {
+            console.log(`\n已隐藏 ${triaged.ignoredFindings.length} 条项目规则发现；运行 agentguard ignore list 查看。`);
         }
     }
     // 有高危及以上风险时以非零码退出，便于 CI 集成（含跨 Agent 关联项）。
@@ -101,6 +146,183 @@ program
     }
     if (hasHighRisk(report))
         process.exitCode = 2;
+});
+function parseTrustKind(raw) {
+    return raw === "trusted" || raw === "internal" ? raw : undefined;
+}
+const trust = program
+    .command("trust")
+    .description("管理当前项目的可信/内部 Provider 端点，不掩盖 HTTP、密钥或权限风险");
+trust
+    .command("add <endpoint>")
+    .description("把 URL、域名或通配符加入当前项目信任策略")
+    .option("--kind <kind>", "类型：trusted | internal", "trusted")
+    .requiredOption("--reason <reason>", "记录信任原因和资源归属")
+    .option("--json", "以 JSON 输出")
+    .action((endpoint, opts) => {
+    const kind = parseTrustKind(opts.kind);
+    if (!kind)
+        throw new Error("--kind 仅支持 trusted 或 internal。");
+    const state = addProviderTrust({
+        cwd: process.cwd(),
+        endpoint,
+        kind,
+        reason: opts.reason,
+    });
+    const normalizedEndpoint = state.audit.at(-1)?.endpoint;
+    const entry = normalizedEndpoint ? { endpoint: normalizedEndpoint, kind } : undefined;
+    if (opts.json) {
+        printJson("trust.add", { entry, configPath: state.configPath });
+    }
+    else {
+        console.log(`已标记 ${entry?.endpoint ?? endpoint} 为 ${kind}。`);
+        console.log(`配置：${state.configPath}`);
+        console.log("重新运行 agentguard scan 验证；HTTP、明文密钥和权限风险仍会独立显示。");
+    }
+});
+trust
+    .command("list")
+    .description("列出当前项目可信/内部端点和审计事件")
+    .option("--json", "以 JSON 输出")
+    .action((opts) => {
+    const state = listProviderTrust(process.cwd());
+    if (opts.json) {
+        printJson("trust.list", state);
+        return;
+    }
+    if (state.entries.length === 0) {
+        console.log("当前项目没有可信或内部端点。");
+    }
+    else {
+        for (const entry of state.entries) {
+            console.log(`[${entry.kind}] ${entry.endpoint}`);
+        }
+    }
+    console.log(`配置：${state.configPath}`);
+    console.log(`审计事件：${state.audit.length}`);
+});
+trust
+    .command("remove <endpoint>")
+    .description("撤销当前项目的一条端点信任")
+    .option("--kind <kind>", "类型：trusted | internal", "trusted")
+    .requiredOption("--reason <reason>", "记录撤销原因")
+    .option("--json", "以 JSON 输出")
+    .action((endpoint, opts) => {
+    const kind = parseTrustKind(opts.kind);
+    if (!kind)
+        throw new Error("--kind 仅支持 trusted 或 internal。");
+    const state = removeProviderTrust({
+        cwd: process.cwd(),
+        endpoint,
+        kind,
+        reason: opts.reason,
+    });
+    if (opts.json) {
+        printJson("trust.remove", {
+            endpoint: state.audit.at(-1)?.endpoint ?? endpoint,
+            kind,
+            configPath: state.configPath,
+        });
+    }
+    else {
+        console.log(`已撤销 ${state.audit.at(-1)?.endpoint ?? endpoint} 的 ${kind} 信任。`);
+        console.log("重新运行 agentguard scan 后，相关未知端点风险会重新进入待办。");
+    }
+});
+const ignore = program
+    .command("ignore")
+    .description("管理当前项目的低优先级规则忽略；按 Agent + ruleId 持续生效并保留审计");
+ignore
+    .command("add <task-id>")
+    .description("从当前扫描任务中选择一条允许忽略的规则")
+    .requiredOption("--rule <rule-id>", "要忽略的规则 ID，必须属于当前任务")
+    .requiredOption("--reason <reason>", "记录审核依据；不要填写密钥或敏感信息")
+    .option("--expires <date>", "可选到期时间，如 2026-12-31")
+    .option("--json", "以 JSON 输出")
+    .action(async (taskId, opts) => {
+    const triaged = triageReport(await scanAll());
+    const tasks = buildActionTasks(buildActionPlan(triaged.activeReport));
+    const task = tasks.find((candidate) => candidate.taskId === taskId);
+    if (!task) {
+        console.error(`当前待办中未找到任务 ${taskId}。请从最新报告复制 task ID。`);
+        process.exitCode = 1;
+        return;
+    }
+    const candidate = ruleIgnoreCandidatesForTask(task).find((entry) => entry.ruleId === opts.rule);
+    if (!candidate) {
+        console.error(`${opts.rule} 不是当前任务中允许项目级忽略的规则；P0/P1、强制修复和高风险家族不能忽略。`);
+        process.exitCode = 1;
+        return;
+    }
+    const state = addRuleIgnore({
+        cwd: process.cwd(),
+        ruleId: candidate.ruleId,
+        agent: candidate.agent,
+        reason: opts.reason,
+        ...(opts.expires ? { expiresAt: opts.expires } : {}),
+    });
+    const entry = state.entries.find((item) => item.ruleId === candidate.ruleId && item.agent === candidate.agent);
+    if (opts.json) {
+        printJson("ignore.add", { entry, configPath: state.configPath });
+    }
+    else {
+        console.log(`已在当前项目忽略 ${candidate.agent}/${candidate.ruleId}。`);
+        console.log(`原因：${entry?.reason ?? opts.reason}`);
+        console.log(entry?.expiresAt ? `到期：${entry.expiresAt}` : "有效期：长期（建议定期复审）");
+        console.log("该规则即使 evidence/task ID 变化仍会隐藏；运行 agentguard ignore remove 可撤销。");
+    }
+});
+ignore
+    .command("list")
+    .description("列出当前项目规则忽略和审计事件")
+    .option("--all", "包含已过期策略")
+    .option("--json", "以 JSON 输出")
+    .action((opts) => {
+    const state = listRuleIgnores(process.cwd());
+    const entries = opts.all
+        ? state.entries
+        : state.entries.filter((entry) => entry.status === "active");
+    if (opts.json) {
+        printJson("ignore.list", { ...state, entries });
+        return;
+    }
+    if (entries.length === 0) {
+        console.log(opts.all ? "当前项目没有规则忽略。" : "当前项目没有有效的规则忽略。");
+    }
+    else {
+        for (const entry of entries) {
+            const expiry = entry.expiresAt ? ` · 到期 ${entry.expiresAt}` : " · 长期";
+            console.log(`[${entry.status === "active" ? "有效" : "已过期"}] ${entry.agent}/${entry.ruleId}${expiry}`);
+            console.log(`  原因：${entry.reason}`);
+        }
+    }
+    console.log(`配置：${state.configPath}`);
+    console.log(`审计事件：${state.audit.length}`);
+});
+ignore
+    .command("remove <rule-id>")
+    .description("撤销当前项目的一条规则忽略")
+    .requiredOption("--agent <agent>", "规则所属 Agent")
+    .requiredOption("--reason <reason>", "记录撤销原因")
+    .option("--json", "以 JSON 输出")
+    .action((ruleId, opts) => {
+    const state = removeRuleIgnore({
+        cwd: process.cwd(),
+        ruleId,
+        agent: opts.agent,
+        reason: opts.reason,
+    });
+    if (opts.json) {
+        printJson("ignore.remove", {
+            ruleId,
+            agent: opts.agent,
+            configPath: state.configPath,
+        });
+    }
+    else {
+        console.log(`已撤销 ${opts.agent}/${ruleId} 的项目忽略。`);
+        console.log("重新运行 agentguard scan 后，相关发现会重新进入待办。");
+    }
 });
 const risk = program.command("risk").description("确认暂不修复、查看或撤销已接受风险");
 const SEVERITY_LABEL = {
@@ -130,7 +352,7 @@ risk
     .option("--expires <date>", "可选到期时间，如 2026-12-31；不传表示长期有效")
     .option("--confirm", "确认已阅读全部关联规则和接受条件")
     .action(async (taskId, opts) => {
-    const report = await scanAll();
+    const report = triageReport(await scanAll()).activeReport;
     const tasks = buildActionTasks(buildActionPlan(report));
     const task = tasks.find((candidate) => candidate.taskId === taskId);
     if (!task) {
@@ -317,6 +539,69 @@ program
         console.log(result.warnings.join("\n"));
     }
 });
+const credential = program
+    .command("credential")
+    .description("备份和恢复 Claude Code 明文凭证迁移涉及的设置文件");
+credential
+    .command("backup <task-id>")
+    .description("按当前扫描任务备份 Claude 设置文件，再执行凭证迁移")
+    .option("--json", "以 JSON 输出，便于自动化")
+    .action(async (taskId, opts) => {
+    const report = triageReport(await scanAll()).activeReport;
+    const task = buildActionTasks(buildActionPlan(report)).find((candidate) => candidate.taskId === taskId);
+    const result = createClaudeCredentialBackup({
+        cwd: process.cwd(),
+        task,
+        taskId,
+        configDir: await currentClaudeConfigDir(),
+    });
+    if (opts.json) {
+        printJson("credential.backup", result);
+        return;
+    }
+    console.log(`Claude 迁移前备份完成：${result.backupId}（${result.files} 个文件）`);
+    console.log("现在可以执行报告中的 Keychain 与 apiKeyHelper 迁移命令。");
+    console.log(`如迁移后启动或鉴权异常，先预览恢复：agentguard credential restore ${result.backupId}`);
+});
+credential
+    .command("restore <backup-id>")
+    .description("预览或确认恢复一次 Claude 凭证迁移备份")
+    .option("--confirm <fingerprint>", "使用本次预览指纹确认写入")
+    .option("--json", "以 JSON 输出，便于自动化")
+    .action(async (backupId, opts) => {
+    const input = {
+        cwd: process.cwd(),
+        backupId,
+        configDir: await currentClaudeConfigDir(),
+    };
+    if (!opts.confirm) {
+        const preview = previewClaudeCredentialRestore(input);
+        const output = { restored: false, ...preview };
+        if (opts.json) {
+            printJson("credential.restore", output);
+        }
+        else {
+            console.log(`恢复预览：将覆盖 ${preview.files} 个 Claude 设置文件；其中 ${preview.changedFiles} 个与备份不同。`);
+            console.log("恢复会重新带回旧明文字段，仅在迁移后启动或鉴权异常时使用。");
+            console.log(`确认写入：agentguard credential restore ${backupId} --confirm ${preview.fingerprint}`);
+        }
+        process.exitCode = 1;
+        return;
+    }
+    const result = restoreClaudeCredentialBackup({
+        ...input,
+        expectedFingerprint: opts.confirm,
+    });
+    const output = { restored: true, ...result };
+    if (opts.json) {
+        printJson("credential.restore", output);
+    }
+    else {
+        console.log(`Claude 配置已恢复：${result.backupId}（${result.files} 个文件）`);
+        console.log("旧明文凭证字段已重新出现；排除故障后仍需轮换并重新迁移。");
+        console.log("运行 agentguard scan 重新验证风险状态。");
+    }
+});
 program
     .command("apply")
     .description("应用 OpenCode / Claude Code / Gemini / OpenClaw baseline 变更（必须 --backup）")
@@ -393,8 +678,12 @@ program
         ? JSON.stringify(withOutputContract("report.json", {
             ...triaged.activeReport,
             acceptedTaskCount: triaged.acceptedTasks.length,
+            ignoredFindingCount: triaged.ignoredFindings.length,
         }), null, 2)
-        : renderHtmlReport(report, { acceptances: triaged.activeAcceptances });
+        : renderHtmlReport(report, {
+            acceptances: triaged.activeAcceptances,
+            ruleIgnores: triaged.activeRuleIgnores,
+        });
     // 默认输出路径按格式取扩展名；-o - 走标准输出。
     const output = opts.output ?? `agentguard-report.${format === "json" ? "json" : "html"}`;
     if (output === "-") {
@@ -403,7 +692,9 @@ program
     else {
         writeFileSync(output, content);
         console.log(`报告已写入 ${output}（${triaged.activeReport.allFindings.length} 项当前风险` +
-            `${triaged.acceptedTasks.length > 0 ? `，${triaged.acceptedTasks.length} 个任务已接受` : ""}，证据均已脱敏）`);
+            `${triaged.acceptedTasks.length > 0 ? `，${triaged.acceptedTasks.length} 个任务已接受` : ""}` +
+            `${triaged.ignoredFindings.length > 0 ? `，${triaged.ignoredFindings.length} 条项目规则已忽略` : ""}` +
+            "，证据均已脱敏）");
     }
     if (hasHighRisk(triaged.activeReport))
         process.exitCode = 2;
@@ -422,7 +713,8 @@ program
         console.log(formatMap(map));
     }
 });
-program.parseAsync(process.argv).catch((err) => {
+const parseArgv = bareJson ? process.argv.slice(0, 2) : process.argv;
+program.parseAsync(parseArgv).catch((err) => {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`AgentGuard 执行失败：${message}`);
     process.exitCode = 1;

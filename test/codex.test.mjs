@@ -121,6 +121,17 @@ test("规则: auth.json 中原始 API Key → high；OAuth 不触发", () => {
   );
 });
 
+test("CC Switch PROXY_MANAGED 是鉴权占位符，不触发 Codex 明文凭证 P0", () => {
+  scan(
+    { toml: "", auth: { auth_mode: "apikey", OPENAI_API_KEY: "PROXY_MANAGED" } },
+    ({ data, findings }) => {
+      assert.equal(data.apiKeyPresent, false);
+      assert.equal(data.proxyManagedPlaceholderPresent, true);
+      assert.equal(byId(findings, "CODEX_PLAINTEXT_API_KEY").length, 0);
+    }
+  );
+});
+
 test("规则: 本地 stdio MCP → info；disabled 跳过", () => {
   scan(
     {
@@ -206,11 +217,12 @@ trust_level = "untrusted"
   );
 });
 
-test("兼容: TOML 损坏不抛错，仍返回 auth 信息", () => {
+test("兼容: TOML 损坏仍返回 auth 风险和固定安全原因", () => {
   scan(
     { toml: "this is = = not valid toml [[[", auth: { auth_mode: "apikey", OPENAI_API_KEY: SECRET_KEY } },
     ({ data, findings }) => {
       assert.equal(data.configParsed, false);
+      assert.equal(data.parseFailureReason, "TOML 格式无效");
       assert.ok(ids(findings).includes("CODEX_PLAINTEXT_API_KEY"));
     }
   );

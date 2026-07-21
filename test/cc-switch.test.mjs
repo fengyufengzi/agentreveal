@@ -152,6 +152,28 @@ test("规则: 明文密钥计数", () => {
       assert.equal(f[0].evidence.count, 2);
       assert.ok(Array.isArray(f[0].remediation) && f[0].remediation.length > 0);
       assert.ok(f[0].remediation.every((s) => typeof s === "string" && s.length > 0));
+      assert.match(f[0].recommendation, /不支持.*环境变量/);
+      assert.ok(f[0].remediation.some((step) => step.includes("不要在 API Key / Token 输入框")));
+      assert.ok(f[0].remediation.some((step) => step.includes("最小权限的新 Token")));
+      assert.ok(!f[0].remediation.some((step) => step.includes("改用系统环境变量注入")));
+    }
+  );
+});
+
+test("CC Switch 数据库中的 PROXY_MANAGED 不作为真实 Provider 密钥", () => {
+  scan(
+    {
+      providers: [
+        {
+          app_type: "claude",
+          name: "Managed",
+          settings_config: { env: { ANTHROPIC_AUTH_TOKEN: "PROXY_MANAGED" } },
+        },
+      ],
+    },
+    ({ data, findings }) => {
+      assert.equal(data.providers[0].keyPresent, false);
+      assert.equal(byId(findings, "CCSWITCH_PLAINTEXT_KEY").length, 0);
     }
   );
 });
@@ -192,7 +214,47 @@ test("规则: 内置代理还原真实上游", () => {
     ({ findings }) => {
       const f = byId(findings, "CCSWITCH_PROXY_ENABLED");
       assert.equal(f.length, 1);
+      assert.equal(f[0].title, "Claude Code 已由 CC Switch 接管");
+      assert.equal(f[0].evidence.proxyOwner, "CC Switch");
+      assert.equal(
+        f[0].evidence.authMode,
+        "PROXY_MANAGED（CC Switch 鉴权占位符）"
+      );
       assert.equal(f[0].evidence.realUpstream, "https://ai.example.com");
+    }
+  );
+});
+
+test("规则: 全局代理开启但 Agent 路由未接管时不生成链路", () => {
+  scan(
+    {
+      proxies: [
+        { app_type: "claude", proxy_enabled: true, enabled: true },
+        { app_type: "codex", proxy_enabled: true, enabled: false },
+        { app_type: "gemini", proxy_enabled: true, enabled: false },
+      ],
+    },
+    ({ data, findings }) => {
+      assert.deepEqual(
+        data.proxies.filter((proxy) => proxy.enabled).map((proxy) => proxy.appType),
+        ["claude"]
+      );
+      assert.deepEqual(
+        byId(findings, "CCSWITCH_PROXY_ENABLED").map((finding) => finding.evidence.appType),
+        ["claude"]
+      );
+    }
+  );
+});
+
+test("兼容: 旧 schema 只有 proxy_enabled 时仍能还原代理链路", () => {
+  scan(
+    {
+      withRouteEnabledColumn: false,
+      proxies: [{ app_type: "codex", proxy_enabled: true }],
+    },
+    ({ findings }) => {
+      assert.equal(byId(findings, "CCSWITCH_PROXY_ENABLED").length, 1);
     }
   );
 });

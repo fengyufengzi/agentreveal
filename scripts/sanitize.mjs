@@ -31,8 +31,6 @@ const textExtensions = new Set([
   '.sh', '.zsh', '.bash', '.ps1', '.gitignore', '.npmrc', '.lock', '.map',
 ]);
 
-const excludedPaths = new Set(['package-lock.json']);
-
 const organizationTerms = [
   ['平安', '科技'].join(''),
   ['平安', '集团'].join(''),
@@ -127,6 +125,40 @@ const rules = [
   },
 ];
 
+const forbiddenArtifactRules = [
+  {
+    id: 'TRACKED_ENV_FILE',
+    description: '发现不应由 Git 或发布包跟踪的环境变量文件',
+    pattern: /(?:^|\/)\.env(?:$|\.)/iu,
+    allow: (file) => /(?:^|\/)\.env\.(?:example|sample|template)$/iu.test(file),
+  },
+  {
+    id: 'TRACKED_KEY_OR_CERTIFICATE',
+    description: '发现不应由 Git 或发布包跟踪的私钥或证书文件',
+    pattern: /\.(?:cer|crt|key|p12|pem|pfx)$/iu,
+  },
+  {
+    id: 'TRACKED_DEBUG_LOG',
+    description: '发现不应由 Git 或发布包跟踪的调试日志',
+    pattern: /(?:^|\/)(?:.*\.log|npm-debug\.log.*|yarn-(?:debug|error)\.log.*|pnpm-debug\.log.*)$/iu,
+  },
+  {
+    id: 'TRACKED_BACKUP',
+    description: '发现不应由 Git 或发布包跟踪的配置备份',
+    pattern: /^(?:backups?)(?:\/|$)|(?:^|\/)\.agentguard\/backups(?:\/|$)|\.(?:bak|backup)$/iu,
+  },
+  {
+    id: 'TRACKED_LOCAL_REPORT',
+    description: '发现不应由 Git 或发布包跟踪的本机扫描或诊断报告',
+    pattern: /(?:^|\/)reports\/|(?:^|\/)agentguard-(?:report|diagnostics?)(?:[-.][^/]*)?\.(?:html|json|txt)$/iu,
+  },
+  {
+    id: 'TRACKED_RELEASE_ARCHIVE',
+    description: '发现不应直接进入 Git 或 npm 包清单的本机构建资产',
+    pattern: /\.(?:dmg|tgz)$/iu,
+  },
+];
+
 function repositoryRoot(cwd = process.cwd()) {
   return execFileSync('git', ['rev-parse', '--show-toplevel'], {
     cwd,
@@ -167,8 +199,25 @@ export function packageFiles(root = repositoryRoot()) {
 }
 
 function isTextFile(file) {
-  if (excludedPaths.has(file)) return false;
   return textExtensions.has(extname(file).toLowerCase());
+}
+
+export function scanForbiddenArtifactPaths(files) {
+  const findings = [];
+  for (const file of files) {
+    for (const rule of forbiddenArtifactRules) {
+      if (!rule.pattern.test(file) || rule.allow?.(file)) continue;
+      findings.push({
+        ruleId: rule.id,
+        description: rule.description,
+        source: file,
+        line: 1,
+        column: 1,
+        matchLength: 0,
+      });
+    }
+  }
+  return findings;
 }
 
 function lineAndColumn(content, offset) {
@@ -200,7 +249,7 @@ export function scanText(source, content) {
 }
 
 export function scanRepository({ root = repositoryRoot(), files = trackedFiles(root) } = {}) {
-  const findings = [];
+  const findings = scanForbiddenArtifactPaths(files);
   for (const file of files) {
     if (!isTextFile(file)) continue;
     const absolutePath = resolve(root, file);

@@ -1,0 +1,86 @@
+name: macOS and npm Release Candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact package version, without the v prefix
+        required: true
+        default: 0.0.5-pilot.2
+        type: string
+
+concurrency:
+  group: release-candidate-${{ inputs.version }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build matching CLI and signed macOS candidates
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Verify release version and notes
+        run: npm run release:verify-version -- "${{ inputs.version }}"
+
+      - name: Test
+        run: npm test
+
+      - name: Sensitive information check
+        run: npm run sanitize
+
+      - name: Build npm tarball candidate
+        run: |
+          mkdir -p release-candidate
+          npm pack --pack-destination release-candidate
+
+      - name: Build, sign, and notarize
+        run: npm run desktop:release
+        env:
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Verify signature, Gatekeeper, notarization, and DMG
+        run: npm run desktop:release:verify
+
+      - name: Install independent release scanner
+        run: brew install gitleaks
+
+      - name: Scan unpacked npm and DMG assets for secrets
+        run: >-
+          npm run release:scan-assets --
+          --tarball release-candidate/agentguard-${{ inputs.version }}.tgz
+          --dmg release/AgentGuard-${{ inputs.version }}-arm64.dmg
+
+      - name: Assemble checksummed release candidate
+        run: |
+          cp release/AgentGuard-${{ inputs.version }}-arm64.dmg release-candidate/
+          cd release-candidate
+          shasum -a 256 agentguard-${{ inputs.version }}.tgz AgentGuard-${{ inputs.version }}-arm64.dmg > SHA256SUMS
+
+      - name: Upload verified joint candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: AgentGuard-${{ inputs.version }}-release-candidate-${{ github.sha }}
+          path: release-candidate/
+          if-no-files-found: error
+          retention-days: 7

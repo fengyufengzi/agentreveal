@@ -30,6 +30,9 @@ jobs:
       - name: Sensitive information check
         run: npm run sanitize
 
+      - name: Repository contribution contracts
+        run: npm run check:repo
+
       - name: Test
         run: npm test
 

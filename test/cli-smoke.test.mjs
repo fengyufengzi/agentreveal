@@ -2,7 +2,7 @@
  * CLI smoke tests：直接运行 bin/agentguard，验证端到端命令路径。
  * 从 dist/ 启动。运行前需 npm run build。
  */
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,6 +38,7 @@ function withCliProject(config, fn) {
     };
 
     return fn({
+      home,
       cwd,
       configPath,
       acceptancePath: env.AGENTGUARD_ACCEPTANCE_PATH,
@@ -68,10 +69,67 @@ test("cli: version matches package.json", () => {
   assert.equal(res.stdout.trim(), packageJson.version);
 });
 
+test("cli: 裸执行进入统一首次入口，JSON 与终端共享 Top 3 行动摘要", () => {
+  withCliProject(
+    {
+      permission: { bash: "allow", edit: "allow" },
+      provider: {
+        relay: {
+          options: { baseURL: "https://relay.cli-first-run-example.net/v1" },
+        },
+      },
+    },
+    ({ run }) => {
+      const terminal = run([]);
+      assert.equal(terminal.status, 2, terminal.stderr);
+      assert.ok(terminal.stdout.indexOf("实际连接链路") < terminal.stdout.indexOf("行动摘要"));
+      assert.match(terminal.stdout, /建议先完成（最多 3 项）/);
+      assert.match(terminal.stdout, /task-[a-f0-9]{12}/);
+      assert.match(terminal.stdout, /agentguard report --format html/);
+
+      const machine = run(["--json"]);
+      assert.equal(machine.status, 2, machine.stderr);
+      const parsed = JSON.parse(machine.stdout);
+      assert.equal(parsed.schemaVersion, 1);
+      assert.equal(parsed.command, "first-run");
+      assert.ok(parsed.topTasks.length > 0 && parsed.topTasks.length <= 3);
+      assert.deepEqual(
+        parsed.topTasks.map((task) => task.taskId),
+        parsed.tasks
+          .filter((task) => task.disposition !== "observe")
+          .slice(0, 3)
+          .map((task) => task.taskId)
+      );
+      assert.equal(parsed.privacy.uploadsData, false);
+    }
+  );
+});
+
+test("cli: 未知命令不会被裸入口静默接受", () => {
+  const res = spawnSync(process.execPath, [binPath, "definitely-not-a-command"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+  assert.equal(res.status, 1);
+  assert.match(res.stderr, /未知命令/);
+  assert.equal(res.stdout, "");
+});
+
 test("package: Release tarball 使用预编译 dist，不依赖安装期构建", () => {
   assert.equal(packageJson.scripts.prepare, undefined);
   assert.ok(packageJson.files.includes("dist"));
   assert.ok(readFileSync(join(repoRoot, "dist", "cli.js"), "utf8").length > 0);
+});
+
+test("docs: README 脱敏 CLI 示例存在且保留首次行动结构", () => {
+  const samplePath = join(repoRoot, "examples", "scan-output.txt");
+  assert.equal(existsSync(samplePath), true);
+  const sample = readFileSync(samplePath, "utf8");
+  assert.match(sample, /本机运行 · 默认只读 · 不自动上传/);
+  assert.match(sample, /实际连接链路/);
+  assert.match(sample, /建议先完成（最多 3 项）/);
+  assert.match(sample, /relay\.demo-example\.net/);
+  assert.doesNotMatch(sample, /\/Users\/(?!example)|[A-Za-z]:\\Users\\/);
 });
 
 test("cli: baseline 必须显式 --dry-run", () => {
@@ -80,6 +138,116 @@ test("cli: baseline 必须显式 --dry-run", () => {
     assert.equal(res.status, 1);
     assert.match(res.stderr, /--dry-run/);
   });
+});
+
+test("cli: trust add/list/remove 只消除未知端点并保留审计", () => {
+  withCliProject(
+    {
+      provider: {
+        relay: { options: { baseURL: "https://relay.private-example.net/v1" } },
+      },
+    },
+    ({ cwd, run }) => {
+      const added = run([
+        "trust",
+        "add",
+        "https://relay.private-example.net/v1",
+        "--reason",
+        "个人维护的隔离中转站",
+        "--json",
+      ]);
+      assert.equal(added.status, 0, added.stderr);
+      assert.equal(JSON.parse(added.stdout).command, "trust.add");
+
+      const state = JSON.parse(run(["trust", "list", "--json"]).stdout);
+      assert.deepEqual(state.entries, [
+        { endpoint: "relay.private-example.net", kind: "trusted" },
+      ]);
+      assert.equal(state.audit.length, 1);
+
+      const trustedScan = run(["scan", "--json"]);
+      const trustedReport = JSON.parse(trustedScan.stdout);
+      assert.equal(
+        trustedReport.allFindings.some((finding) => finding.id === "OPENCODE_CUSTOM_PROVIDER"),
+        false
+      );
+
+      const removed = run([
+        "trust",
+        "remove",
+        "relay.private-example.net",
+        "--reason",
+        "中转站已停止使用",
+        "--json",
+      ]);
+      assert.equal(removed.status, 0, removed.stderr);
+      const raw = JSON.parse(readFileSync(join(cwd, ".agentguard.json"), "utf8"));
+      assert.equal(raw.providerTrustAudit.length, 2);
+
+      const untrustedScan = JSON.parse(run(["scan", "--json"]).stdout);
+      assert.equal(
+        untrustedScan.allFindings.some((finding) => finding.id === "OPENCODE_CUSTOM_PROVIDER"),
+        true
+      );
+    }
+  );
+});
+
+test("cli: ignore 只能从当前任务添加，并可审计、隐藏和撤销低优先级规则", () => {
+  withCliProject(
+    {
+      mcp: {
+        docs: { type: "local", command: ["node", "server.js"] },
+      },
+    },
+    ({ cwd, run }) => {
+      const firstRun = JSON.parse(run(["--json"]).stdout);
+      const task = firstRun.tasks.find((entry) =>
+        entry.requirements.some((requirement) => requirement.ruleId === "OPENCODE_MCP_LOCAL")
+      );
+      assert.ok(task);
+
+      const added = run([
+        "ignore",
+        "add",
+        task.taskId,
+        "--rule",
+        "OPENCODE_MCP_LOCAL",
+        "--reason",
+        "已审核固定版本的项目内文档 MCP",
+        "--json",
+      ]);
+      assert.equal(added.status, 0, added.stderr);
+      assert.equal(JSON.parse(added.stdout).command, "ignore.add");
+
+      const scan = JSON.parse(run(["scan", "--json"]).stdout);
+      assert.equal(scan.ignoredFindingCount, 1);
+      assert.equal(scan.allFindings.some((finding) => finding.id === "OPENCODE_MCP_LOCAL"), false);
+
+      const listed = JSON.parse(run(["ignore", "list", "--json"]).stdout);
+      assert.equal(listed.command, "ignore.list");
+      assert.equal(listed.entries[0].reason, "已审核固定版本的项目内文档 MCP");
+      const raw = readFileSync(join(cwd, ".agentguard.json"), "utf8");
+      assert.equal(raw.includes("server.js"), false);
+      assert.equal(raw.includes("evidence"), false);
+
+      const removed = run([
+        "ignore",
+        "remove",
+        "OPENCODE_MCP_LOCAL",
+        "--agent",
+        "opencode",
+        "--reason",
+        "项目已移除该 MCP",
+        "--json",
+      ]);
+      assert.equal(removed.status, 0, removed.stderr);
+      assert.equal(JSON.parse(removed.stdout).command, "ignore.remove");
+      const restored = JSON.parse(run(["scan", "--json"]).stdout);
+      assert.equal(restored.ignoredFindingCount, 0);
+      assert.equal(restored.allFindings.some((finding) => finding.id === "OPENCODE_MCP_LOCAL"), true);
+    }
+  );
 });
 
 test("cli: baseline dry-run 不泄露未变更密钥且不写文件", () => {
@@ -141,6 +309,118 @@ test("cli: restore 拒绝非法备份 ID，并输出可读错误", () => {
     assert.equal(res.status, 1);
     assert.match(res.stderr, /无效的备份 ID/);
     assert.doesNotMatch(res.stderr, /at restoreBaselineBackup/);
+  });
+});
+
+test("cli: Claude 凭证迁移可先备份，并通过指纹确认安全恢复", () => {
+  withCliProject({}, ({ home, cwd, run }) => {
+    const configDir = join(home, ".claude");
+    const settingsPath = join(configDir, "settings.json");
+    mkdirSync(configDir, { recursive: true });
+    const original = {
+      env: {
+        ANTHROPIC_AUTH_TOKEN: "sk-ant-example-cli-backup-placeholder",
+        SAFE_FLAG: "1",
+      },
+      theme: "dark",
+    };
+    writeFileSync(settingsPath, JSON.stringify(original, null, 2) + "\n");
+    chmodSync(settingsPath, 0o640);
+
+    const firstRun = JSON.parse(run(["--json"]).stdout);
+    const task = firstRun.tasks.find((candidate) =>
+      candidate.requirements.some(
+        (requirement) => requirement.ruleId === "CLAUDE_PLAINTEXT_TOKEN"
+      )
+    );
+    assert.ok(task);
+    const hasMacBackupGuide = firstRun.remediationGuides[
+      task.taskId
+    ].commands.some(
+      (command) =>
+        command.command === `agentguard credential backup ${task.taskId}`
+    );
+    assert.equal(hasMacBackupGuide, process.platform === "darwin");
+
+    const backupRun = run([
+      "credential",
+      "backup",
+      task.taskId,
+      "--json",
+    ]);
+    assert.equal(backupRun.status, 0, backupRun.stderr);
+    assert.doesNotMatch(backupRun.stdout, /sk-ant-example-cli/);
+    const backup = JSON.parse(backupRun.stdout);
+    assert.equal(backup.command, "credential.backup");
+    assert.equal(backup.taskId, task.taskId);
+    assert.equal(backup.files, 1);
+
+    const backupRoot = join(cwd, ".agentguard", "backups", backup.backupId);
+    const manifest = JSON.parse(
+      readFileSync(join(backupRoot, "manifest.json"), "utf8")
+    );
+    assert.equal(statSync(backupRoot).mode & 0o777, 0o700);
+    assert.equal(statSync(manifest.files[0].backupPath).mode & 0o777, 0o600);
+
+    const migrated = {
+      env: { SAFE_FLAG: "1" },
+      theme: "dark",
+      apiKeyHelper: "security find-generic-password -s AgentGuard/example -w",
+    };
+    writeFileSync(settingsPath, JSON.stringify(migrated, null, 2) + "\n");
+
+    const previewRun = run([
+      "credential",
+      "restore",
+      backup.backupId,
+      "--json",
+    ]);
+    assert.equal(previewRun.status, 1, previewRun.stderr);
+    const preview = JSON.parse(previewRun.stdout);
+    assert.equal(preview.command, "credential.restore");
+    assert.equal(preview.restored, false);
+    assert.equal(preview.changedFiles, 1);
+    assert.match(preview.fingerprint, /^[a-f0-9]{64}$/);
+    assert.deepEqual(JSON.parse(readFileSync(settingsPath, "utf8")), migrated);
+
+    const changedAfterPreview = { ...migrated, userChangedAfterPreview: true };
+    writeFileSync(
+      settingsPath,
+      JSON.stringify(changedAfterPreview, null, 2) + "\n"
+    );
+    const staleConfirm = run([
+      "credential",
+      "restore",
+      backup.backupId,
+      "--confirm",
+      preview.fingerprint,
+      "--json",
+    ]);
+    assert.equal(staleConfirm.status, 1);
+    assert.match(staleConfirm.stderr, /发生变化/);
+    assert.deepEqual(
+      JSON.parse(readFileSync(settingsPath, "utf8")),
+      changedAfterPreview
+    );
+
+    const refreshed = JSON.parse(
+      run(["credential", "restore", backup.backupId, "--json"]).stdout
+    );
+    const restoredRun = run([
+      "credential",
+      "restore",
+      backup.backupId,
+      "--confirm",
+      refreshed.fingerprint,
+      "--json",
+    ]);
+    assert.equal(restoredRun.status, 0, restoredRun.stderr);
+    assert.doesNotMatch(restoredRun.stdout, /sk-ant-example-cli/);
+    const restored = JSON.parse(restoredRun.stdout);
+    assert.equal(restored.command, "credential.restore");
+    assert.equal(restored.restored, true);
+    assert.deepEqual(JSON.parse(readFileSync(settingsPath, "utf8")), original);
+    assert.equal(statSync(settingsPath).mode & 0o777, 0o640);
   });
 });
 

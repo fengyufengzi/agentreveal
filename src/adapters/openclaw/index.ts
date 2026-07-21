@@ -19,6 +19,7 @@ import type {
 } from "../types.js";
 import { parseOpenClaw } from "./parse.js";
 import { buildOpenClawFindings } from "./risk.js";
+import { buildParseFailureFinding } from "../../core/parse-failure.js";
 
 export const openclawAdapter: Adapter = {
   agent: "openclaw",
@@ -91,18 +92,15 @@ export const openclawAdapter: Adapter = {
 
     const parsed = parseOpenClaw(found.configPath, home, serviceEnvDirPresent(serviceEnvDir) ? serviceEnvDir : undefined);
     if (!parsed.ok) {
-      return [
-        {
-          id: "OPENCLAW_PARSE_FAIL",
-          category: "config",
-          severity: "info",
-          title: "OpenClaw 配置解析失败",
-          description: parsed.reason,
-          evidence: { configPath: found.configPath },
-          recommendation: "运行 `openclaw doctor` 验证配置文件，或手动检查 JSON 语法。",
-          fixable: false,
-        },
-      ];
+      return [buildParseFailureFinding({
+        id: "OPENCLAW_PARSE_FAIL",
+        displayName: this.displayName,
+        configPath: found.configPath,
+        format: "JSON",
+        category: "config",
+        reason: parsed.reason,
+        recommendation: "运行 `openclaw doctor` 验证配置，再重新运行 agentguard scan。",
+      })];
     }
 
     return buildOpenClawFindings({

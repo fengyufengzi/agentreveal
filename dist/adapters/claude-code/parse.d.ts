@@ -15,6 +15,8 @@ export interface ClaudeData {
     baseUrl?: string;
     /** env 中是否存在明文 ANTHROPIC_AUTH_TOKEN / ANTHROPIC_API_KEY。 */
     authTokenPresent: boolean;
+    /** 是否存在 CC Switch 代理接管写入的非秘密占位符。 */
+    proxyManagedPlaceholderPresent: boolean;
     /** 是否配置了 apiKeyHelper（外部命令产出密钥）。 */
     apiKeyHelperPresent: boolean;
     /** permissions.allow 规则。 */
@@ -30,6 +32,11 @@ export interface ClaudeData {
     mcpServers: ClaudeMcpServer[];
 }
 export declare function looksLikeSecretEnv(key: string): boolean;
+/**
+ * 返回实际包含 Claude 明文字段的设置文件路径，不返回字段值。
+ * Desktop 备份流程据此限定目标，避免复制无关配置。
+ */
+export declare function claudePlaintextSettingsFiles(configDir: string): string[];
 /**
  * 读取并归一化 Claude Code 配置。
  * @param configDir 主配置目录（~/.claude 或 CLAUDE_CONFIG_DIR）。

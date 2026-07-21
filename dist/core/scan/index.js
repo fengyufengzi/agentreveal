@@ -4,6 +4,7 @@ import { buildContext } from "../discovery/index.js";
 import { correlate } from "../correlate/index.js";
 import { scanSensitiveFiles } from "../sensitive/index.js";
 import { enrichFinding } from "../action/index.js";
+import { buildParseFailureFinding } from "../parse-failure.js";
 /**
  * 运行全部 adapter：discover → deepScan。
  * 未实现 deepScan 或未发现配置的 adapter 产出空风险列表。
@@ -47,18 +48,13 @@ export async function scanAll(ctx = buildContext()) {
                 findings = await a.deepScan(scanCtx, discovery);
             }
             catch (err) {
-                findings = [
-                    {
+                findings = [buildParseFailureFinding({
                         id: "DEEPSCAN_FAILED",
-                        category: "compat",
-                        severity: "info",
-                        title: `${a.displayName} 深度扫描出错，已跳过`,
-                        evidence: {
-                            error: err instanceof Error ? err.message : String(err),
-                        },
-                        fixable: false,
-                    },
-                ];
+                        displayName: a.displayName,
+                        configPath: discovery.configPath,
+                        error: err,
+                        title: `${a.displayName} 深度扫描失败，已安全跳过`,
+                    })];
             }
         }
         findings = findings.map(enrichFinding);

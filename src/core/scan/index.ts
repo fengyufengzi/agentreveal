@@ -14,6 +14,7 @@ import { buildContext } from "../discovery/index.js";
 import { correlate } from "../correlate/index.js";
 import { scanSensitiveFiles } from "../sensitive/index.js";
 import { enrichFinding } from "../action/index.js";
+import { buildParseFailureFinding } from "../parse-failure.js";
 
 /** 单个 Agent 的扫描结果：发现信息 + 该 Agent 的风险列表。 */
 export interface AgentScanResult {
@@ -77,18 +78,13 @@ export async function scanAll(
         try {
           findings = await a.deepScan(scanCtx, discovery);
         } catch (err) {
-          findings = [
-            {
-              id: "DEEPSCAN_FAILED",
-              category: "compat",
-              severity: "info",
-              title: `${a.displayName} 深度扫描出错，已跳过`,
-              evidence: {
-                error: err instanceof Error ? err.message : String(err),
-              },
-              fixable: false,
-            },
-          ];
+          findings = [buildParseFailureFinding({
+            id: "DEEPSCAN_FAILED",
+            displayName: a.displayName,
+            configPath: discovery.configPath,
+            error: err,
+            title: `${a.displayName} 深度扫描失败，已安全跳过`,
+          })];
         }
       }
 

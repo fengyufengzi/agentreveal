@@ -67,14 +67,28 @@ test("buildMap: 代理两跳链路来自带 realUpstream+proxy 的 finding", () 
   const report = {
     results: [
       result("cc-switch", "CC Switch", true, [
-        F("P", "provider", "info", { appType: "claude", proxy: "127.0.0.1:15721", realUpstream: "https://ai.example.com" }),
+        F("P", "provider", "info", {
+          appType: "claude",
+          appLabel: "Claude Code",
+          proxy: "127.0.0.1:15721",
+          realUpstream: "https://ai.example.com",
+          proxyOwner: "CC Switch",
+          authMode: "PROXY_MANAGED（CC Switch 鉴权占位符）",
+        }),
       ]),
     ],
     allFindings: [],
   };
   const chains = buildMap(report).proxyChains;
   assert.equal(chains.length, 1);
-  assert.deepEqual(chains[0], { via: "claude", proxy: "127.0.0.1:15721", upstream: "https://ai.example.com" });
+  assert.deepEqual(chains[0], {
+    via: "claude",
+    agentLabel: "Claude Code",
+    proxy: "127.0.0.1:15721",
+    upstream: "https://ai.example.com",
+    owner: "CC Switch",
+    authMode: "PROXY_MANAGED（CC Switch 鉴权占位符）",
+  });
 });
 
 test("formatMap: 含表头、风险标签、代理链路段", () => {

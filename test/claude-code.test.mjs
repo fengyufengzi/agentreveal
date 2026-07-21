@@ -5,8 +5,12 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { join } from "node:path";
 import { buildClaudeDir } from "./fixtures/build-claude.mjs";
-import { parseClaudeCode } from "../dist/adapters/claude-code/parse.js";
+import {
+  claudePlaintextSettingsFiles,
+  parseClaudeCode,
+} from "../dist/adapters/claude-code/parse.js";
 import { buildClaudeCodeFindings } from "../dist/adapters/claude-code/risk.js";
 
 function scan(opts, fn) {
@@ -23,6 +27,77 @@ const byId = (f, id) => f.filter((x) => x.id === id);
 
 const TOKEN = "sk-ant-PLAINTOKEN-AAAAAAAAAAAA";
 const MCP_SECRET = "ghp_MCP-BBBBBBBBBBBB";
+
+test("备份目标: 只返回实际含明文字段的已知 Claude 设置文件", () => {
+  const { configDir, cleanup } = buildClaudeDir({
+    settings: { env: { ANTHROPIC_AUTH_TOKEN: TOKEN } },
+    settingsLocal: { env: { SAFE_FLAG: "1" } },
+  });
+  try {
+    assert.deepEqual(claudePlaintextSettingsFiles(configDir), [
+      join(configDir, "settings.json"),
+    ]);
+  } finally {
+    cleanup();
+  }
+});
+
+test("CC Switch PROXY_MANAGED 只是代理占位符，不触发凭证 P0 或迁移备份", () => {
+  const { configDir, home, cleanup } = buildClaudeDir({
+    settings: {
+      env: {
+        ANTHROPIC_AUTH_TOKEN: "PROXY_MANAGED",
+        ANTHROPIC_BASE_URL: "http://127.0.0.1:15721",
+      },
+    },
+  });
+  try {
+    const data = parseClaudeCode(configDir, home);
+    const findings = buildClaudeCodeFindings(data);
+    assert.equal(data.authTokenPresent, false);
+    assert.equal(data.proxyManagedPlaceholderPresent, true);
+    assert.equal(byId(findings, "CLAUDE_PLAINTEXT_TOKEN").length, 0);
+    assert.deepEqual(claudePlaintextSettingsFiles(configDir), []);
+    const localProxy = byId(findings, "CLAUDE_LOCAL_BASE_URL")[0];
+    assert.equal(localProxy.title, "Claude Code 使用本地代理接管配置");
+    assert.equal(
+      localProxy.evidence.authMode,
+      "PROXY_MANAGED（CC Switch 鉴权占位符）"
+    );
+    assert.match(localProxy.description, /不是真实 Provider 凭证/);
+    assert.ok(!JSON.stringify(findings).includes(TOKEN));
+  } finally {
+    cleanup();
+  }
+});
+
+test("代理占位符不会掩盖另一个设置文件中的真实明文凭证", () => {
+  const { configDir, home, cleanup } = buildClaudeDir({
+    settings: { env: { ANTHROPIC_AUTH_TOKEN: TOKEN } },
+    settingsLocal: {
+      env: {
+        ANTHROPIC_AUTH_TOKEN: "PROXY_MANAGED",
+        ANTHROPIC_BASE_URL: "http://127.0.0.1:15721",
+      },
+    },
+  });
+  try {
+    const data = parseClaudeCode(configDir, home);
+    const findings = buildClaudeCodeFindings(data);
+    assert.equal(data.authTokenPresent, true);
+    assert.equal(data.proxyManagedPlaceholderPresent, true);
+    assert.equal(byId(findings, "CLAUDE_PLAINTEXT_TOKEN").length, 1);
+    assert.equal(
+      byId(findings, "CLAUDE_LOCAL_BASE_URL")[0].title,
+      "ANTHROPIC_BASE_URL 指向本地端点"
+    );
+    assert.deepEqual(claudePlaintextSettingsFiles(configDir), [
+      join(configDir, "settings.json"),
+    ]);
+  } finally {
+    cleanup();
+  }
+});
 
 test("规则: 明文 ANTHROPIC_AUTH_TOKEN → high；本地 base_url → info", () => {
   scan(

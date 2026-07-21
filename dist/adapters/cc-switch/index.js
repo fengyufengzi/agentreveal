@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { dirExists, fileExists } from "../../core/discovery/fs-utils.js";
 import { parseCcSwitchDb } from "./parse.js";
 import { buildCcSwitchFindings } from "./risk.js";
+import { buildParseFailureFinding } from "../../core/parse-failure.js";
 export const ccSwitchAdapter = {
     agent: "cc-switch",
     displayName: "CC Switch",
@@ -56,18 +57,14 @@ export const ccSwitchAdapter = {
         }
         catch (err) {
             // 解析失败降级为一条 info，不阻断整体扫描。
-            return [
-                {
+            return [buildParseFailureFinding({
                     id: "CCSWITCH_PARSE_FAILED",
-                    category: "compat",
-                    severity: "info",
-                    title: "CC Switch 配置解析失败",
-                    description: "无法读取或解析 cc-switch.db，可能因 schema 变化或文件被占用。",
-                    evidence: { error: err instanceof Error ? err.message : String(err) },
-                    recommendation: "确认 CC Switch 未损坏；如持续失败请反馈 schema 版本。",
-                    fixable: false,
-                },
-            ];
+                    displayName: this.displayName,
+                    configPath: found.configPath,
+                    error: err,
+                    format: "SQLite",
+                    recommendation: "关闭正在写入数据库的 CC Switch 后重试；如持续失败请反馈 schema 版本。",
+                })];
         }
     },
 };

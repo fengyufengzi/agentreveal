@@ -1,4 +1,5 @@
 import { classifyBaseUrl } from "../../rules/provider.js";
+import { ccSwitchAppLabel } from "../proxy-managed.js";
 /** 去掉 scheme 与尾斜杠，便于按端点归并。 */
 function stripScheme(v) {
     return v.replace(/^https?:\/\//i, "").replace(/\/$/, "");
@@ -37,6 +38,10 @@ export function correlate(results, providerPolicy = {}) {
             const ev = f.evidence;
             if (!ev)
                 continue;
+            // CC Switch finding 代表具体消费方的路由链路，不能把基础设施自身重复算成一个 Agent。
+            const endpointAgent = f.id === "CCSWITCH_PROXY_ENABLED"
+                ? ccSwitchAppLabel(ev.appType)
+                : agent;
             // 每个端点值（代理监听地址 / base_url / 真实上游）都按类型归并：
             // 本地地址 → 共享代理桶；非官方公网端点 → 共享上游桶。
             for (const cand of [ev.proxy, ev.baseUrl, ev.realUpstream]) {
@@ -45,10 +50,10 @@ export function correlate(results, providerPolicy = {}) {
                 const key = stripScheme(cand);
                 const type = endpointType(cand, providerPolicy);
                 if (type === "local") {
-                    add(proxyMap, key, agent);
+                    add(proxyMap, key, endpointAgent);
                 }
                 else if (isNoteworthyUpstream(type)) {
-                    add(upstreamMap, key, agent);
+                    add(upstreamMap, key, endpointAgent);
                 }
             }
         }

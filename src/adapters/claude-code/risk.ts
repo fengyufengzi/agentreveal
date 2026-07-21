@@ -5,6 +5,7 @@
  */
 import type { RiskFinding } from "../types.js";
 import { classifyBaseUrl, type ProviderTrustPolicy } from "../../rules/provider.js";
+import { PROXY_MANAGED_AUTH_LABEL } from "../../core/proxy-managed.js";
 import { looksLikeSecretEnv, type ClaudeData } from "./parse.js";
 
 /** 危险的 permissions.allow 模式：无约束 Bash / 通配。 */
@@ -25,13 +26,22 @@ export function buildClaudeCodeFindings(
     const cls = classifyBaseUrl(data.baseUrl, providerPolicy);
     if (cls.type === "local") {
       // 指向本地端点：真实上游取决于该本地服务（如 CC Switch 代理）。
+      const proxyManagedOnly =
+        data.proxyManagedPlaceholderPresent && !data.authTokenPresent;
       findings.push({
         id: "CLAUDE_LOCAL_BASE_URL",
         category: "provider",
         severity: "info",
-        title: "ANTHROPIC_BASE_URL 指向本地端点",
-        description: `base_url 指向本地服务（${data.baseUrl}），真实上游取决于该本地进程，勿误判为安全。`,
-        evidence: { baseUrl: data.baseUrl },
+        title: proxyManagedOnly
+          ? "Claude Code 使用本地代理接管配置"
+          : "ANTHROPIC_BASE_URL 指向本地端点",
+        description: proxyManagedOnly
+          ? `base_url 指向本地服务（${data.baseUrl}）；配置中的鉴权值是代理接管占位符，不是真实 Provider 凭证。真实上游取决于该本地进程。`
+          : `base_url 指向本地服务（${data.baseUrl}），真实上游取决于该本地进程，勿误判为安全。`,
+        evidence: {
+          baseUrl: data.baseUrl,
+          ...(proxyManagedOnly ? { authMode: PROXY_MANAGED_AUTH_LABEL } : {}),
+        },
         recommendation: "确认该本地端点（如 CC Switch 代理）的真实上游可信。",
         fixable: false,
       });

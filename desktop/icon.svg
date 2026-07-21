@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">AgentGuard</title>
+  <desc id="desc">An open ivory inspection ring and amber verification spark on a forest green app tile.</desc>
+  <rect x="32" y="32" width="960" height="960" rx="220" fill="#103D31"/>
+  <path
+    d="M 803 406 A 310 310 0 1 1 643 231"
+    fill="none"
+    stroke="#F3F0E6"
+    stroke-width="150"
+    stroke-linecap="round"
+  />
+  <path
+    d="M 512 418
+       C 520 472 552 504 606 512
+       C 552 520 520 552 512 606
+       C 504 552 472 520 418 512
+       C 472 504 504 472 512 418 Z"
+    fill="#FFB02E"
+  />
+</svg>

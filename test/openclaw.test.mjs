@@ -324,6 +324,8 @@ test("openclawAdapter.deepScan: 配置损坏 → 降级到 OPENCLAW_PARSE_FAIL",
   const hit = findings.find((x) => x.id === "OPENCLAW_PARSE_FAIL");
   assert.ok(hit);
   assert.equal(hit.severity, "info");
+  assert.equal(hit.evidence.reason, "JSON 格式无效");
+  assert.equal(hit.evidence.status, "已安全跳过");
 });
 
 test("隐私红线: 完整 deepScan 输出不含明文密钥", async () => {

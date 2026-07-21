@@ -4,7 +4,7 @@
  * 安全边界：
  * - 绝不把 finding evidence、标题或凭证值拼进命令。
  * - 只有现有 baseline 能力可标为 baseline；其它情况均为 guided/none。
- * - 凭证迁移命令只负责安全存储或当前会话注入，仍需用户按 action 指引更新配置并轮换旧凭证。
+ * - 凭证迁移命令只为明确支持的配置生成窄范围修改；其它 Agent 仍只提供安全存储或当前会话注入。
  */
 import type { RiskFinding } from "../../adapters/types.js";
 import { type ActionTask } from "../action/index.js";
@@ -16,7 +16,7 @@ export interface RemediationCommand {
     label: string;
     command: string;
     shell: "sh" | "powershell";
-    kind: "preview" | "apply" | "store" | "inject" | "inspect" | "verify";
+    kind: "preview" | "apply" | "backup" | "store" | "configure" | "inject" | "inspect" | "verify";
     /** false 表示命令只辅助人工处置，不能声称已自动修复 finding。 */
     completesRemediation: boolean;
 }

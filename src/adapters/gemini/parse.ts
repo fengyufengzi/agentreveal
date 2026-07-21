@@ -9,6 +9,8 @@
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { ConfigParseError } from "../../core/parse-failure.js";
+import { isProxyManagedPlaceholder } from "../../core/proxy-managed.js";
 
 /** 一个 Gemini MCP Server。 */
 export interface GeminiMcpServer {
@@ -44,6 +46,10 @@ export interface GeminiData {
   shellToolAllowed: boolean;
   /** ~/.gemini/.env 中 value 非空且非 ${VAR} 引用的键名（只存键名，不存值）。 */
   plaintextEnvKeys: string[];
+  /** ~/.gemini/.env 是否含 CC Switch 写入的非秘密接管占位符。 */
+  proxyManagedPlaceholderPresent: boolean;
+  /** GOOGLE_GEMINI_BASE_URL（若配置）。 */
+  baseUrl?: string;
 }
 
 const SECRET_ENV_RE = /(api[_-]?key|auth[_-]?token|access[_-]?token|secret|token|password)/i;
@@ -61,7 +67,11 @@ function strArray(v: unknown): string[] {
   return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
 }
 function readJson(path: string): Record<string, unknown> | undefined {
-  return asRecord(JSON.parse(readFileSync(path, "utf8")));
+  try {
+    return asRecord(JSON.parse(readFileSync(path, "utf8")));
+  } catch (error) {
+    throw new ConfigParseError(path, "JSON", error);
+  }
 }
 
 export function looksLikeSecretEnv(key: string): boolean {
@@ -89,14 +99,20 @@ function parseMcp(map: Record<string, unknown>): GeminiMcpServer[] {
  * 解析 ~/.gemini/.env：仅收集 value 非空且非 ${VAR} 引用的键名。
  * 读不到 / 为空则返回 []。绝不返回任何 value。
  */
-function parseEnvPresence(envPath: string): string[] {
+function parseEnvPresence(envPath: string): {
+  plaintextKeys: string[];
+  proxyManagedPlaceholderPresent: boolean;
+  baseUrl?: string;
+} {
   let text: string;
   try {
     text = readFileSync(envPath, "utf8");
   } catch {
-    return [];
+    return { plaintextKeys: [], proxyManagedPlaceholderPresent: false };
   }
-  const keys: string[] = [];
+  const plaintextKeys: string[] = [];
+  let proxyManagedPlaceholderPresent = false;
+  let baseUrl: string | undefined;
   for (const rawLine of text.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (!line || line.startsWith("#")) continue;
@@ -112,12 +128,21 @@ function parseEnvPresence(envPath: string): string[] {
       value = value.slice(1, -1);
     }
     if (!key) continue;
+    if (key === "GOOGLE_GEMINI_BASE_URL" && /^https?:\/\//i.test(value)) {
+      baseUrl = value;
+      continue;
+    }
     // 空值或纯 ${VAR} 引用视为"未内嵌明文"。
     if (value.length === 0) continue;
     if (/^\$\{[^}]+\}$/.test(value) || /^\$[A-Za-z_][A-Za-z0-9_]*$/.test(value)) continue;
-    keys.push(key);
+    if (!SECRET_ENV_RE.test(key)) continue;
+    if (isProxyManagedPlaceholder(value)) {
+      proxyManagedPlaceholderPresent = true;
+      continue;
+    }
+    plaintextKeys.push(key);
   }
-  return keys;
+  return { plaintextKeys, proxyManagedPlaceholderPresent, baseUrl };
 }
 
 /**
@@ -150,7 +175,7 @@ export function parseGemini(settingsPath: string, configDir: string): GeminiData
   );
   const shellToolAllowed = coreListsShell && !shellExcluded;
 
-  const plaintextEnvKeys = parseEnvPresence(join(configDir, ".env"));
+  const env = parseEnvPresence(join(configDir, ".env"));
 
   return {
     settingsParsed: true,
@@ -159,6 +184,8 @@ export function parseGemini(settingsPath: string, configDir: string): GeminiData
     mcpExcluded,
     sandbox,
     shellToolAllowed,
-    plaintextEnvKeys,
+    plaintextEnvKeys: env.plaintextKeys,
+    proxyManagedPlaceholderPresent: env.proxyManagedPlaceholderPresent,
+    baseUrl: env.baseUrl,
   };
 }

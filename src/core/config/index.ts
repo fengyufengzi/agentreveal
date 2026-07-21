@@ -8,6 +8,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import type { ProviderTrustPolicy } from "../../rules/provider.js";
+import { describeParseFailure } from "../parse-failure.js";
 
 export interface AgentGuardConfig {
   configPath?: string;
@@ -58,12 +59,11 @@ export function loadAgentGuardConfig(cwd: string): AgentGuardConfig {
       warnings: [],
     };
   } catch (err) {
+    const failure = describeParseFailure(err, configPath, "JSON");
     return {
       configPath,
       providerPolicy: {},
-      warnings: [
-        err instanceof Error ? err.message : String(err),
-      ],
+      warnings: [`${failure.reason}，已安全忽略此项目策略文件`],
     };
   }
 }

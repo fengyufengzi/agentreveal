@@ -8,6 +8,7 @@
  * - baseURL 属 endpoint 标识，可返回用于风险判定与展示。
  */
 import { readFileSync } from "node:fs";
+import { describeParseFailure } from "../../core/parse-failure.js";
 const SECRET_ENV_RE = /(api[_-]?key|auth|token|secret|password|bearer)/i;
 function asRecord(v) {
     return v && typeof v === "object" && !Array.isArray(v)
@@ -83,16 +84,18 @@ function parsePermission(cfg) {
 export function parseOpenCode(configPath) {
     let cfg = {};
     let configParsed = false;
+    let parseFailureReason;
     try {
         cfg = asRecord(JSON.parse(readFileSync(configPath, "utf8")));
         configParsed = true;
     }
-    catch {
-        /* 结构损坏则按空处理 */
+    catch (error) {
+        parseFailureReason = describeParseFailure(error, configPath, "JSON").reason;
     }
     const perm = parsePermission(cfg);
     return {
         configParsed,
+        parseFailureReason,
         providers: parseProviders(cfg),
         mcpServers: parseMcp(cfg),
         permissionBash: perm.bash,
