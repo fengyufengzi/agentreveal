@@ -293,10 +293,10 @@ agentguard ignore remove OPENCODE_MCP_LOCAL --agent opencode --reason "项目已
 
 当前不是继续增加规则和 Agent 数量的阶段。项目作用域、聚合任务完整语义和单任务验证已经完成；
 `npm run package:verify-install` 会构建真实 tarball，检查发布清单，在临时 HOME/prefix 安装并使用本地
-tarball 完成 npx 版本验证。本地发布包已经验证；接下来仍需从最终公开 Release 资产回装、
-清理开源前 Git 历史敏感信息，再验证“发现后能否完成处置”。
+tarball 完成 npx 版本验证。本地发布包已经验证，独立公开候选仓库的全部可达历史也已通过敏感信息检查；
+接下来仍需从最终公开 Release 资产回装，并验证“发现后能否完成处置”。
 
-进入 Inventory、Drift 或 Dashboard 前，至少需要完成一轮 `0.0.5-pilot.1` 真实试用并证明：
+进入 Inventory、Drift 或 Dashboard 前，至少需要完成一轮 `0.0.5-pilot.2` 真实试用并证明：
 
 - 用户能独立找到并理解本机命令。
 - 至少一部分用户完成真实整改并复扫消除任务。
