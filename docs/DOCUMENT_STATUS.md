@@ -48,7 +48,8 @@
 | `docs/README.en.md` | Active | 英文文档导航 |
 | `docs/install-upgrade-uninstall.md` | Active | CLI/Pilot/源码/macOS 的安装、手动升级、卸载与本地状态保留边界 |
 | `docs/desktop-pilot-quickstart.md` | Active | 非 CLI macOS Desktop cohort 的签名 DMG 安装、项目扫描、反馈与卸载流程 |
-| `docs/release-0.0.5-pilot.2.md` | Draft | 同版本 CLI/DMG 候选说明与签名、公证、Pilot、联合发布阻断项 |
+| `docs/release-0.0.5-pilot.3.md` | Draft | scoped npm CLI 与同版本 DMG 的联合 Public Preview 候选说明 |
+| `docs/release-0.0.5-pilot.2.md` | Superseded | 未公开候选；因 npm 相似名称保护由 `0.0.5-pilot.3` 替代 |
 | `CHANGELOG.md` | Active | 已发布或已完成能力记录 |
 | `docs/research/*` | Reference | 配置路径、技术调研和适配证据；不决定产品优先级 |
 

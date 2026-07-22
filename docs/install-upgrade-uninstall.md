@@ -1,20 +1,20 @@
 # AgentGuard 安装、升级与卸载
 
-> 状态：Public Preview 发布前说明。当前可用的是私有 Pilot tarball 和源码开发方式；npm registry 与
-> 签名、公证的 macOS DMG 尚未公开。不要把下面标记为“公开后”的命令当作当前可用资产。
+> 状态：Public Preview。CLI 通过 npm `next` 分发，macOS Desktop 通过同版本 GitHub Pre-release 的
+> 签名、公证 DMG 分发。
 
 ## 1. 先选择你的安装方式
 
 | 使用场景 | 当前是否可用 | 安装方式 |
 |---|---:|---|
-| 受邀 CLI Pilot | 是 | 从私有 GitHub Pre-release 下载 `.tgz` 后全局安装 |
+| 固定版本 CLI Pilot | 是 | 从 GitHub Pre-release 下载 `.tgz` 后全局安装 |
 | 贡献代码或本机开发 | 是 | 源码安装，执行 `npm ci`、测试和 `npm link` |
-| 公开 npm CLI | 否，发布后启用 | `npm install -g agentguard` |
-| macOS 桌面应用 | 仅开发构建 | 正式发布后从签名、公证的 DMG 拖入 Applications |
+| 公开 npm CLI | 是，Public Preview | `npm install -g @wangmarsen/agentguard@next` |
+| macOS 桌面应用 | 是，Apple Silicon | 从签名、公证的 DMG 拖入 Applications |
 
 CLI 需要 Node.js 22 或更高版本。正式 macOS 桌面应用会包含运行时，不要求用户另装 Node.js 或全局 CLI。
 
-## 2. CLI：私有 Pilot
+## 2. CLI：固定版本 Release tarball
 
 先确认 Node.js 与 GitHub CLI 可用，并已登录有仓库权限的 GitHub 账号：
 
@@ -23,16 +23,16 @@ node --version
 gh auth status
 ```
 
-下载并安装当前 `0.0.5-pilot.1`：
+下载并安装当前 `0.0.5-pilot.3`：
 
 ```bash
 mkdir -p /tmp/agentguard-pilot
-gh release download v0.0.5-pilot.1 \
+gh release download v0.0.5-pilot.3 \
   --repo fengyufengzi/AgentGuard \
-  --pattern 'agentguard-0.0.5-pilot.1.tgz' \
+  --pattern 'wangmarsen-agentguard-0.0.5-pilot.3.tgz' \
   --dir /tmp/agentguard-pilot \
   --clobber
-npm install -g /tmp/agentguard-pilot/agentguard-0.0.5-pilot.1.tgz
+npm install -g /tmp/agentguard-pilot/wangmarsen-agentguard-0.0.5-pilot.3.tgz
 agentguard --version
 agentguard
 ```
@@ -42,10 +42,10 @@ agentguard
 - `agentguard --version`：确认实际运行的版本。
 - `agentguard`：运行统一首次入口，完成发现、扫描、链路和前三项行动摘要。
 
-没有 GitHub CLI 时，可以从私有仓库 Releases 页面下载 `.tgz`，再执行：
+没有 GitHub CLI 时，可以从仓库 Releases 页面下载 `.tgz`，再执行：
 
 ```bash
-npm install -g ~/Downloads/agentguard-0.0.5-pilot.1.tgz
+npm install -g ~/Downloads/wangmarsen-agentguard-0.0.5-pilot.3.tgz
 agentguard --version
 ```
 
@@ -87,13 +87,13 @@ npm link
 agentguard --version
 ```
 
-## 4. CLI：公开 npm 包（发布后）
+## 4. CLI：公开 npm 包
 
-包真正发布到 npm registry 后，README 和 GitHub Release 会移除“尚未公开”提示。届时安装和手动升级分别为：
+Public Preview 使用 `next` dist-tag，安装和手动升级命令为：
 
 ```bash
-npm install -g agentguard
-npm install -g agentguard@latest
+npm install -g @wangmarsen/agentguard@next
+npm update -g @wangmarsen/agentguard@next
 agentguard --version
 ```
 
@@ -112,7 +112,7 @@ npm run desktop
 临时目录生成可双击的本地预览启动器；它依赖当前源码目录与 `node_modules` 中受信任的 Electron 运行时，
 不是独立安装包。macOS 26 会终止缺少公证 ticket 的独立 Electron App，因此最终安装包必须走正式签名和公证。
 
-### 正式 DMG（发布后）
+### 正式 DMG
 
 1. 从同一版本的 GitHub Release 下载 Apple Silicon DMG，并核对 Release 中的 SHA-256；
 2. 打开 DMG，把 AgentGuard 拖到 Applications；

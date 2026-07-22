@@ -52,7 +52,7 @@ async function currentClaudeConfigDir() {
 program
     .name("agentguard")
     .description("面向多 Agent、多模型、多 Provider 的 AI Coding Agent 安全配置中心")
-    .version("0.0.5-pilot.2")
+    .version("0.0.5-pilot.3")
     .addHelpText("after", "\nBare JSON: agentguard --json");
 program
     .command("doctor")

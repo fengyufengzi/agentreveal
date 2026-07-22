@@ -197,8 +197,9 @@
 截至 2026-07-18，所有无需外部凭据、真实设备、公开发布或产品确认的 P0 已在本机闭环。剩余事项按以下
 顺序接力，前一项未通过时不进入联合公开发布：
 
-1. **确认发布身份与展示**：Demo 视频、封面、生成脚本、`0.0.5-pilot.2` 版本和个人 Gmail 作者邮箱
-   已确认；仍需在 npm 首次发布时锁定公开包名。registry 的 404 只表示检查时未占用，不构成保留。
+1. **确认发布身份与展示**：Demo 视频、封面、生成脚本、`0.0.5-pilot.3` 版本和个人 Gmail 作者邮箱
+   已确认；npm 首次发布使用账户 scope 下的 `@wangmarsen/agentguard`，避免与现有 `agent-guard` 包触发
+   registry 相似名称保护。
 2. **建立干净公开历史（已完成）**：已把审核后的当前树同步到独立候选仓库，候选 `main` 的内置
    `sanitize:history` 已归零且未带入私有分支、tag 或开发提交；私有开发仓库的 23 项历史元数据不进入公开面。
 3. **完成 Apple 发布链**：Developer ID Application、hardened runtime、notarization、staple；不得在文档、

@@ -2,20 +2,19 @@
 
 > 预计用时：15–20 分钟。请在你日常使用 AI Coding Agent 的项目目录中执行。
 
-> 本文件对应私有 GitHub Pre-release `0.0.5-pilot.1`，只发给受邀 Pilot 用户，不发布到 npm registry。
+> 本文件对应 Public Preview `0.0.5-pilot.3`。CLI 可从 npm `next` 安装，也可使用 GitHub Release 的固定 tarball。
 
 本说明用于 CLI cohort。完全不使用终端的 macOS Desktop 试用者应改用
 [`desktop-pilot-quickstart.md`](desktop-pilot-quickstart.md)，且必须等待签名、公证的固定 DMG 候选。
 
 ## 1. 安装
 
-环境要求：macOS、Node.js 22 或更高版本，并已获得 AgentGuard 私有仓库访问权限。
+环境要求：macOS、Node.js 22 或更高版本。
 
 先确认本机版本：
 
 ```bash
 node --version
-gh auth status
 ```
 
 下载并安装当前试用版：
@@ -23,27 +22,27 @@ gh auth status
 ```bash
 mkdir -p /tmp/agentguard-pilot
 
-gh release download v0.0.5-pilot.1 \
+gh release download v0.0.5-pilot.3 \
   --repo fengyufengzi/AgentGuard \
-  --pattern 'agentguard-0.0.5-pilot.1.tgz' \
+  --pattern 'wangmarsen-agentguard-0.0.5-pilot.3.tgz' \
   --dir /tmp/agentguard-pilot \
   --clobber
 
-npm install -g /tmp/agentguard-pilot/agentguard-0.0.5-pilot.1.tgz
+npm install -g /tmp/agentguard-pilot/wangmarsen-agentguard-0.0.5-pilot.3.tgz
 agentguard --version
 ```
 
 最后一条命令应输出：
 
 ```text
-0.0.5-pilot.1
+0.0.5-pilot.3
 ```
 
-如果没有安装 GitHub CLI，也可以在私有仓库的 Releases 页面下载
-`agentguard-0.0.5-pilot.1.tgz`，然后执行：
+如果没有安装 GitHub CLI，也可以在仓库 Releases 页面下载
+`wangmarsen-agentguard-0.0.5-pilot.3.tgz`，然后执行：
 
 ```bash
-npm install -g ~/Downloads/agentguard-0.0.5-pilot.1.tgz
+npm install -g ~/Downloads/wangmarsen-agentguard-0.0.5-pilot.3.tgz
 agentguard --version
 ```
 
@@ -111,7 +110,7 @@ AgentGuard 会拒绝恢复，避免覆盖新内容。备份包含完整原配置
 
 ### 确认某项风险暂时不处理
 
-> 以下命令属于 `0.0.5-pilot.1`。风险接受只影响当前项目和本机，不会自动同步到团队成员。
+> 以下命令属于 `0.0.5-pilot.3`。风险接受只影响当前项目和本机，不会自动同步到团队成员。
 
 如果报告中的 MCP、权限或其它配置已经由你确认暂时不处理，可以复制报告卡片里的 `task-...`，记录接受原因：
 

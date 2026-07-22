@@ -46,6 +46,10 @@ try {
       cwd: resolve("."),
     }).stdout
   );
+  const expectedFilename = `${packageJson.name.slice(1).replace("/", "-")}-${packageJson.version}.tgz`;
+  assert.equal(packed.name, packageJson.name, "tarball package name must match package.json");
+  assert.equal(packed.version, packageJson.version, "tarball version must match package.json");
+  assert.equal(packed.filename, expectedFilename, "scoped tarball filename must remain stable");
   const tarball = join(packDir, packed.filename);
   const paths = packed.files.map((file) => file.path);
   assert.ok(paths.includes("bin/agentguard"), "tarball must include bin/agentguard");
