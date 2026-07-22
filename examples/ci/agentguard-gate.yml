@@ -29,14 +29,9 @@ jobs:
         with:
           node-version: 22 # scan/map 读取 CC Switch 的 SQLite 依赖 node:sqlite，需 ≥22
 
-      # 安装 AgentGuard。私有仓库需要一个只读 token 作为 AGENTGUARD_TOKEN。
-      - name: Download AgentGuard pilot package
-        env:
-          GH_TOKEN: ${{ secrets.AGENTGUARD_TOKEN }}
-        run: gh release download v0.0.5-pilot.1 --repo fengyufengzi/AgentGuard --pattern '*.tgz'
-
+      # Public Preview 使用 next；安装后的可执行命令仍为 agentguard。
       - name: Install AgentGuard
-        run: npm install -g ./agentguard-0.0.5-pilot.1.tgz
+        run: npm install -g @wangmarsen/agentguard@next
 
       # 核心门禁：高危及以上 → 退出码 2 → 本步骤失败 → 挡 PR。
       - name: Scan

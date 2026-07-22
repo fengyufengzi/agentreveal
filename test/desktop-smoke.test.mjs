@@ -251,6 +251,7 @@ test("desktop: release workflow builds matching CLI and signed DMG candidates wi
   assert.match(workflow, /github\.ref == 'refs\/heads\/main'/);
   assert.match(workflow, /release:verify-version/);
   assert.match(workflow, /npm pack --pack-destination release-candidate/);
+  assert.match(workflow, /wangmarsen-agentguard-\$\{\{ inputs\.version \}\}\.tgz/);
   assert.match(workflow, /--tarball release-candidate/);
   assert.match(workflow, /--dmg release\/AgentGuard/);
   assert.match(workflow, /SHA256SUMS/);

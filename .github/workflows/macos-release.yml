@@ -6,7 +6,7 @@ on:
       version:
         description: Exact package version, without the v prefix
         required: true
-        default: 0.0.5-pilot.2
+        default: 0.0.5-pilot.3
         type: string
 
 concurrency:
@@ -68,14 +68,14 @@ jobs:
       - name: Scan unpacked npm and DMG assets for secrets
         run: >-
           npm run release:scan-assets --
-          --tarball release-candidate/agentguard-${{ inputs.version }}.tgz
+          --tarball release-candidate/wangmarsen-agentguard-${{ inputs.version }}.tgz
           --dmg release/AgentGuard-${{ inputs.version }}-arm64.dmg
 
       - name: Assemble checksummed release candidate
         run: |
           cp release/AgentGuard-${{ inputs.version }}-arm64.dmg release-candidate/
           cd release-candidate
-          shasum -a 256 agentguard-${{ inputs.version }}.tgz AgentGuard-${{ inputs.version }}-arm64.dmg > SHA256SUMS
+          shasum -a 256 wangmarsen-agentguard-${{ inputs.version }}.tgz AgentGuard-${{ inputs.version }}-arm64.dmg > SHA256SUMS
 
       - name: Upload verified joint candidate
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

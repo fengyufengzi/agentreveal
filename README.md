@@ -35,12 +35,19 @@ AI Coding Agent 的安全配置。它扫描 **Claude Code / OpenCode / Codex / C
 
 ## 🚀 快速开始
 
-> 当前源码为 **Pilot 候选版本（`0.0.5-pilot.2`）**，仍在为第一次对外联合发布做准备。
-> 首次正式公开分发计划同时提供 npm CLI，以及完成 Developer ID 签名与 Apple 公证的 macOS 桌面版。
-> 当前仓库和安装资产尚未公开，请勿把开发构建当作正式发行版转发。
+> 当前源码为 **Public Preview 候选版本（`0.0.5-pilot.3`）**，联合提供 npm CLI 和完成
+> Developer ID 签名、Apple 公证的 macOS 桌面版。npm 包使用个人 scope，避免与现有 `agent-guard` 包混淆。
 
 **环境要求**：Node.js ≥ 22（`scan`/`map` 读取 CC Switch 的 SQLite 配置依赖
 `node:sqlite`；开发环境使用 Node 24+）。
+
+### 从 npm 安装 CLI
+
+```bash
+npm install -g @wangmarsen/agentguard@next
+agentguard --version
+agentguard
+```
 
 **首发支持边界**：CLI 以 macOS 为主要端到端验证平台；Linux / Windows 当前标为 Beta，已有修复模板测试，
 但六类 Agent 的真实配置路径尚未完成三平台全覆盖。macOS Desktop 首发目标为 **macOS 12+、Apple Silicon**；
@@ -73,8 +80,8 @@ agentguard --version
 
 ### 安装、升级与卸载
 
-当前私有 Pilot 使用 GitHub Release `.tgz`，源码贡献者使用 `npm link`；公开 npm 包和签名、公证的 macOS
-DMG 尚未发布。第一公开版不做复杂自动更新，CLI 和桌面应用都采用手动升级。不同安装方式的完整命令、
+Public Preview 使用 npm `next` 分发 CLI，并在同版本 GitHub Release 提供签名、公证的 macOS DMG；
+源码贡献者仍可使用 `npm link`。第一公开版不做复杂自动更新，CLI 和桌面应用都采用手动升级。不同安装方式的完整命令、
 升级步骤、本地状态保留策略和卸载说明见
 [`docs/install-upgrade-uninstall.md`](docs/install-upgrade-uninstall.md)。
 
@@ -114,13 +121,13 @@ agentguard restore
 
 </details>
 
-### Mac 桌面版（开发者预览）
+### Mac 桌面版（Public Preview）
 
 当前 Electron 桌面预览直接复用 AgentGuard core 和稳定 taskId，不解析终端输出。首次启动会说明
 本地运行、默认只读和不上传，首次打开以“选择项目并开始扫描”为主行动，整机检查是提示权限影响的次级入口。完成后进入按 Agent
 切换的单页安全工作台，配置摘要、实际 Provider / 代理 / 上游链路、重点问题和修复步骤保持在同一处理路径；
-完整技术证据按需展开，并可将 HTML 或 JSON 报告保存到用户选择的目录。桌面版当前仍面向内部开发/试用，尚未提供
-完成 Developer ID 签名与 Apple 公证的正式安装包。
+完整技术证据按需展开，并可将 HTML 或 JSON 报告保存到用户选择的目录。同版本 GitHub Pre-release 提供
+完成 Developer ID 签名、Apple 公证和 staple 的 Apple Silicon DMG。
 
 这里的“项目”是你正在开发的单个代码项目根目录，通常包含 `.git`、`package.json`、`pyproject.toml`
 等标识。项目扫描会解析项目内的 Agent 配置；普通源代码只检查文件名，不读取内容，同时仍会读取常见
@@ -211,7 +218,7 @@ npm run desktop:release:verify
 
 ## 🧭 命令一览
 
-下表以当前 `0.0.5-pilot.2` 候选源码为准。
+下表以当前 `0.0.5-pilot.3` 候选源码为准。
 
 主要扫描与变更命令支持 `--json`（`report` 用 `--format json`）；`risk` 当前输出人类可读审计信息。
 机器输出带有
@@ -367,10 +374,7 @@ legacy 审计。撤销和过期只改变状态，不会删除历史。P0 任务�
 最小 GitHub Actions 片段：
 
 ```yaml
-- run: gh release download v0.0.5-pilot.1 --repo fengyufengzi/AgentGuard --pattern 'agentguard-0.0.5-pilot.1.tgz'
-  env:
-    GH_TOKEN: ${{ secrets.AGENTGUARD_TOKEN }}
-- run: npm install -g ./agentguard-0.0.5-pilot.1.tgz
+- run: npm install -g @wangmarsen/agentguard@next
 - run: agentguard scan            # 高危 → 退出码 2 → 挡 PR
 - run: agentguard report -f html -o agentguard-report.html
   if: always()                    # 存档一份脱敏报告

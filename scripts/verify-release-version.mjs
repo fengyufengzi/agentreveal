@@ -5,12 +5,16 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const PILOT_VERSION = /^\d+\.\d+\.\d+-pilot\.\d+$/u;
+const NPM_PACKAGE_NAME = "@wangmarsen/agentguard";
 
 export function verifyReleaseVersion(version, root = resolve(import.meta.dirname, "..")) {
   if (!PILOT_VERSION.test(version ?? "")) {
     throw new Error("发布版本必须使用 x.y.z-pilot.N 格式。");
   }
   const pkg = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
+  if (pkg.name !== NPM_PACKAGE_NAME) {
+    throw new Error(`npm 包名必须为 ${NPM_PACKAGE_NAME}，当前为 ${pkg.name ?? "未配置"}。`);
+  }
   if (pkg.version !== version) {
     throw new Error(`发布输入 ${version} 与 package.json ${pkg.version} 不一致。`);
   }

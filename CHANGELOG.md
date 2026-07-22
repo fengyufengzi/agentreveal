@@ -15,8 +15,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   多文件失败自动回滚并复扫。即使原任务已消失，全局整改区仍保留当前会话恢复入口。
 - macOS Claude Code 明文凭证引导增加完整 Keychain `apiKeyHelper` 迁移命令：只处理实际含明文的设置文件，
   删除 `ANTHROPIC_AUTH_TOKEN/API_KEY`、收紧权限且不打印凭证；Desktop 验证统一使用“复扫验证”按钮。
-- `0.0.5-pilot.2` 联合候选门禁：手动工作流校验版本化 Release Notes，生成同版本 npm tarball 与签名、
+- `0.0.5-pilot.3` 联合候选门禁：手动工作流校验版本化 Release Notes，生成同版本 npm tarball 与签名、
   公证 Apple Silicon DMG，联合执行 Gitleaks 与 SHA-256 后只上传 7 天候选 artifact，不自动公开发布。
+- npm 发布名改为 `@wangmarsen/agentguard`，保留 `agentguard` 可执行命令；避免与现有 `agent-guard` 包触发
+  registry 相似名称保护，并同步 scoped tarball 文件名、安装说明和联合发布工作流。
 - `npm run release:scan-assets`：安全解包最终 npm tarball、只读挂载 DMG 并解包 `app.asar`，使用 100%
   脱敏的独立 Gitleaks 复核真实发布内容；macOS RC 在上传 DMG 前强制执行。
 - 非 CLI macOS Desktop Pilot cohort、独立 quickstart 和反馈指标，覆盖 Gatekeeper、项目选择、无关文件夹

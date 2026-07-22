@@ -2,9 +2,9 @@
 
 > 本文是“AgentGuard 现在实际能做什么”的规范化摘要；代码和测试是最终事实依据。
 >
-> 当前源码：`0.0.5-pilot.2` 候选；最新私有 Pre-release：`0.0.5-pilot.1`。
+> 当前源码与 Public Preview：`0.0.5-pilot.3`；npm 包：`@wangmarsen/agentguard`。
 >
-> 更新日期：2026-07-18。
+> 更新日期：2026-07-22。
 
 ## 1. 产品定位
 
@@ -32,7 +32,7 @@ AgentGuard 是面向开发型 AI Agent 的本地安全检测与配置治理工�
 | CLI | 主入口 | 裸执行一次完成发现、实际链路、三类任务、Top 3 与下一条命令；保留完整 scan、报告、baseline、备份恢复、风险接受、端点信任和项目规则忽略子命令 |
 | 自包含 HTML | 主报告 | 离线打开；显示行动任务、本机命令、接受/忽略状态和完整脱敏证据 |
 | JSON | 自动化接口 | `schemaVersion: 1`；用于 CI 和其它工具消费 |
-| Electron macOS 桌面端 | 开发者预览 | 单一首次 CTA、扫描结论、前三行动、按需展开的 macOS 指引、实际链路、风险接受、Provider 信任/撤销、项目规则忽略/撤销、验证、baseline 预览/备份应用/复扫/安全恢复、Claude 凭证迁移前备份/会话级恢复、HTML/JSON 与脱敏诊断导出；签名发布仍待 Apple 凭据实测 |
+| Electron macOS 桌面端 | Public Preview | 单一首次 CTA、扫描结论、前三行动、按需展开的 macOS 指引、实际链路、风险接受、Provider 信任/撤销、项目规则忽略/撤销、验证、baseline 预览/备份应用/复扫/安全恢复、Claude 凭证迁移前备份/会话级恢复、HTML/JSON 与脱敏诊断导出；Apple Silicon DMG 经过 Developer ID 签名、公证、staple 与 Gatekeeper 验证 |
 | GitHub Actions 示例 | 可用 | 下载固定 Pre-release 包，执行扫描并存档报告 |
 
 首发平台口径：CLI 的 macOS 路径与真实环境验证最完整；Linux / Windows 为 Beta，已有命令模板测试但尚未
@@ -296,7 +296,7 @@ agentguard ignore remove OPENCODE_MCP_LOCAL --agent opencode --reason "项目已
 tarball 完成 npx 版本验证。本地发布包已经验证，独立公开候选仓库的全部可达历史也已通过敏感信息检查；
 接下来仍需从最终公开 Release 资产回装，并验证“发现后能否完成处置”。
 
-进入 Inventory、Drift 或 Dashboard 前，至少需要完成一轮 `0.0.5-pilot.2` 真实试用并证明：
+进入 Inventory、Drift 或 Dashboard 前，至少需要完成一轮 `0.0.5-pilot.3` 真实试用并证明：
 
 - 用户能独立找到并理解本机命令。
 - 至少一部分用户完成真实整改并复扫消除任务。
