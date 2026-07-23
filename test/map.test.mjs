@@ -106,7 +106,10 @@ test("formatMap: 含表头、风险标签、代理链路段", () => {
   assert.ok(out.includes("Agent"));
   assert.ok(out.includes("高危"));
   assert.ok(out.includes("代理链路"));
-  assert.ok(out.includes("claude") && out.includes("https://x.io"));
+  assert.match(
+    out,
+    /^  claude  →  本地代理 127\.0\.0\.1:15721  →  https:\/\/x\.io$/m
+  );
 });
 
 test("formatMap: 未配置 Agent 显示未配置且计数为 -", () => {
