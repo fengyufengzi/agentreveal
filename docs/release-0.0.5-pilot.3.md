@@ -1,7 +1,7 @@
 # AgentGuard 0.0.5-pilot.3 · CLI 与 macOS Desktop Public Preview
 
-> 状态：Draft。只有 scoped npm CLI、Developer ID 签名、公证 DMG、最终资产扫描和公开位置回装验证全部
-> 通过后，才能发布 GitHub Pre-release。
+> 状态：Published。2026-07-22 已以同一版本联合发布 scoped npm CLI 和签名、公证的 macOS DMG：
+> [GitHub Pre-release `v0.0.5-pilot.3`](https://github.com/fengyufengzi/AgentGuard/releases/tag/v0.0.5-pilot.3)。
 
 ## 本版目标
 
@@ -33,14 +33,20 @@ Applications 后打开。当前验证范围为 macOS 12+、Apple Silicon；Intel
 
 ## 发布资产
 
-正式发布时必须同时提供且版本一致：
+GitHub Pre-release 已同时提供且版本一致：
 
 - `wangmarsen-agentguard-0.0.5-pilot.3.tgz`；
 - `AgentGuard-0.0.5-pilot.3-arm64.dmg`；
 - `SHA256SUMS`；
-- Desktop Demo 视频或链接。
+- README 中的 Desktop Demo 视频链接。
 
-SHA-256、Git tag、npm dist-tag 和 GitHub Release URL 只能在最终资产通过验收后填写。
+最终资产 SHA-256：
+
+- DMG：`684c88e7271af1d15371142ca0fc667832a69c60d3e6b28343e2ee22951a8d85`；
+- npm tarball：`078fdd0a7d1d33587f87c6fd58b5f3bc6f65f04e4e3c948e54e6cd8fcf1bef9d`。
+
+npm registry 的 `next` 与 `latest` 当前都指向 `0.0.5-pilot.3`。Pilot 安装说明继续使用 `next`，以明确这是
+预览通道而不是稳定版承诺。
 
 ## 支持边界
 
@@ -50,12 +56,15 @@ SHA-256、Git tag、npm dist-tag 和 GitHub Release URL 只能在最终资产通
 - 自动整改只覆盖受支持配置，并强制预览、确认、备份、原子写入和复扫；
 - Codex 和 CC Switch 的凭证或配置迁移继续提供分步人工引导，不做自动改写。
 
-## 发布阻断项
+## 发布验收记录
 
-- [ ] `@wangmarsen/agentguard@0.0.5-pilot.3` 以 `next` dist-tag 发布并完成 registry 回装；
-- [ ] Developer ID Application 真实签名；
-- [ ] Apple notarization 状态为 Accepted，并检查公证日志；
-- [ ] `codesign`、Gatekeeper、staple 和 DMG 完整性全部通过；
-- [ ] 最终 npm tarball、DMG 和 `app.asar` 独立敏感信息扫描通过；
-- [ ] npm 包、Git tag、GitHub Release 和 DMG 使用同一版本；
-- [ ] 从最终公开位置重新下载并完成 checksum、安装和版本回装验证。
+- [x] `@wangmarsen/agentguard@0.0.5-pilot.3` 以 `next` dist-tag 发布并完成 registry 回装；
+- [x] Developer ID Application 真实签名；
+- [x] Apple notarization 状态为 Accepted，并检查公证结果；
+- [x] `codesign`、Gatekeeper、staple 和 DMG 完整性全部通过；
+- [x] 最终 npm tarball、DMG 和 `app.asar` 独立敏感信息扫描通过；
+- [x] npm 包、Git tag、GitHub Release 和 DMG 使用同一版本；
+- [x] 从最终 GitHub Release 和 npm registry 重下载并完成 checksum、安装和版本回装验证。
+
+发布完成不等于 Pilot 完成。全新 Apple Silicon Mac 的非开发环境验收，以及 CLI/非 CLI 用户的真实 Pilot，
+继续通过公开 Issue 和 `pilot-feedback-form.md` 收集。

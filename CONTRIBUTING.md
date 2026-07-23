@@ -8,7 +8,7 @@
 
 ## 开始之前
 
-1. 阅读 `AGENTS.md`、`REVIEW.md` 和 `docs/DOCUMENT_STATUS.md`。
+1. 阅读 `AGENTS.md`、`REVIEW.md`、`docs/README.md` 和 `docs/PRODUCT_DIRECTION.md`。
 2. 从与任务最接近的现有实现和测试开始，不依据历史 PRD 猜测当前行为。
 3. 涉及隐私、规则语义、配置写入或 Desktop 权限边界时，阅读 `docs/adr/` 中对应 Accepted 决策。
 4. Issue、PR、fixture 和截图中不要包含真实密钥、内部端点、用户名、配置内容或本机路径。

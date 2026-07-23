@@ -13,9 +13,18 @@ names remain unchanged because they are conventional entry points, numbered ADRs
 
 ## Development and reference documents
 
-The current product direction, capabilities, plans, security review protocol, ADRs, and release checklists are maintained
-primarily in Chinese. Use the [Chinese documentation index](README.md) to find the active source documents. An English
-translation must not be treated as current unless it is linked from both language versions.
+- [Current product direction (Chinese)](PRODUCT_DIRECTION.md)
+- [Current capabilities and limitations (Chinese)](product-capabilities.md)
+- [Contribution guide (Chinese)](../CONTRIBUTING.md)
+- [Security review protocol (Chinese)](../REVIEW.md)
+- [Architecture decision records](adr/README.md)
+- [Output schema v1 (Chinese)](output-schema-v1.md)
+- [Rule disposition matrix (Chinese)](rule-disposition-matrix.md)
+- [macOS signing and notarization (Chinese)](macos-release.md)
+- [Current release notes (Chinese)](release-0.0.5-pilot.3.md)
+
+These documents are maintained primarily in Chinese. An English translation must not be treated as current unless it is
+linked from both language versions.
 
 ## Language convention
 

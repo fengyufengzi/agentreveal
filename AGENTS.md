@@ -15,7 +15,7 @@ Public Preview。优先提升安装成功率、首次价值、风险准确性、
 ## 2. 开始工作的顺序
 
 1. 运行 `git status --short`，保留并避开用户已有修改。
-2. 阅读 `docs/DOCUMENT_STATUS.md`，确认当前有效文档。
+2. 阅读 `docs/README.md`、`docs/PRODUCT_DIRECTION.md` 和 `docs/product-capabilities.md`，确认当前方向与能力。
 3. 阅读与任务直接相关的代码、测试和 `docs/adr/` 中的 Accepted 决策，不从历史规划推断当前行为。
 4. 根据任务读取对应技能：
    - 新增或扩展 Agent：`.agents/skills/add-agent-adapter/SKILL.md`
@@ -32,7 +32,7 @@ Public Preview。优先提升安装成功率、首次价值、风险准确性、
 - `desktop/`：Electron 主进程、preload、无权限 renderer、诊断和应用资产。
 - `test/`：从已提交的 `dist/` 导入编译产物；fixture 必须使用合成内容。
 - `scripts/`：敏感信息、贡献一致性、macOS 发布预检和发布验证。
-- `docs/`：产品方向、当前能力、发布门禁和历史决策。
+- `docs/`：公开产品方向、当前能力、用户指南、发布说明和架构决策。
 - `docs/adr/`：跨模块长期架构决策及其不可破坏约束。
 - `evals/`：只给自然语言任务的 AI 贡献冷启动评测定义；不得直接把评测产物合并。
 
@@ -117,8 +117,8 @@ macOS 桌面变更还应运行 `npm run desktop:pack`。正式发布验证只在
 ## 8. 文档冲突
 
 代码和测试决定“实际发生什么”；`docs/PRODUCT_DIRECTION.md` 决定“现在应该做什么”；
-`docs/DOCUMENT_STATUS.md` 决定“哪份文档有效”。遇到冲突时不要猜测，先按该优先级核实并在同一变更中
-修正文档。
+`docs/product-capabilities.md` 汇总当前公开能力与限制。遇到冲突时不要猜测，先按该优先级核实并在同一
+变更中修正文档。
 
 ## 9. 文档语言与命名
 
