@@ -1,7 +1,7 @@
 # AgentGuard macOS 签名与公证
 
-> 状态：发布骨架已就绪；只有 Apple Developer Program 审核通过、Developer ID 证书和公证凭据均可用后，
-> 才能完成真实发布验证。任何凭据都不得提交到 Git。
+> 状态：`0.0.5-pilot.3` 已完成 Developer ID 签名、公证、staple、Gatekeeper 和最终资产验证。后续每个
+> 发布版本仍必须重新执行完整流程；任何凭据都不得提交到 Git。
 
 ## 1. 本地开发包
 
@@ -78,7 +78,7 @@ Notes 一致。配置以下 GitHub Actions Secrets 后才能运行：
 保留 7 天。它不会自动发布 npm、创建 GitHub Release 或把仓库公开；这些不可逆操作必须等待干净机和 Pilot
 验收完成。
 
-## 5. 首次发布前仍需人工验证
+## 5. 每次发布仍需人工验证
 
 - 在全新 Apple Silicon Mac 上从 DMG 安装到 `/Applications`；
 - 首次启动没有 Gatekeeper 绕过步骤；

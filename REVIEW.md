@@ -68,5 +68,5 @@ npm run check
 git diff --check
 ```
 
-桌面变更还需构建 `.app`；发布变更按 `docs/OPEN_SOURCE_RELEASE_CHECKLIST.md` 和
-`docs/macos-release.md` 执行。若无法运行某项验证，审查结论必须明确说明未验证范围。
+桌面变更还需构建 `.app`；macOS 发布变更按 `docs/macos-release.md` 执行，最终 npm tarball 和 DMG
+还需运行 `npm run release:scan-assets`。若无法运行某项验证，审查结论必须明确说明未验证范围。

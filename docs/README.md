@@ -19,8 +19,6 @@
 - [仓库统一工作说明](../AGENTS.md)
 - [贡献指南](../CONTRIBUTING.md)
 - [安全审查协议](../REVIEW.md)
-- [文档状态表](DOCUMENT_STATUS.md)
-- [当前开发计划](DEVELOPMENT_PLAN.md)
 - [架构决策记录](adr/README.md)
 - [安全问题报告](../SECURITY.md)
 
@@ -29,7 +27,7 @@
 - [机器输出契约 v1](output-schema-v1.md)
 - [规则处置矩阵](rule-disposition-matrix.md)
 - [macOS 签名与公证](macos-release.md)
-- [开源发布安全检查清单](OPEN_SOURCE_RELEASE_CHECKLIST.md)
+- [当前版本说明](release-0.0.5-pilot.3.md)
 - [版本记录](../CHANGELOG.md)
 
 ## 语言约定
