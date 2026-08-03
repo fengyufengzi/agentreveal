@@ -136,7 +136,7 @@ test("desktop service E4: 有效配置、可信状态与漂移通过同一 typed
     assert.equal(created.mutation.mutation, "create");
     assert.equal(created.overview.drift?.status, "unchanged");
     const stored = readFileSync(snapshotPath, "utf8");
-    assert.equal(stored.includes("relay-a.example.com"), false);
+    assert.doesNotMatch(stored, /relay-a\.example\.com/u);
     assert.equal(stored.includes(cwd), false);
 
     writeFileSync(
