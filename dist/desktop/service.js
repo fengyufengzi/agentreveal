@@ -5,13 +5,14 @@
  */
 import { createHash } from "node:crypto";
 import { chmodSync, readFileSync, realpathSync, statSync, writeFileSync, } from "node:fs";
-import { basename, dirname, extname, isAbsolute, resolve } from "node:path";
+import { basename, dirname, extname, isAbsolute, join, resolve } from "node:path";
 import { claudeCodeAdapter } from "../adapters/claude-code/index.js";
 import { AcceptanceStore } from "../core/acceptance/index.js";
 import { buildActionPlan, buildActionTasks, taskMissingAcceptanceRules, } from "../core/action/index.js";
 import { baselinePlanFingerprint, buildBaselinePlan, } from "../core/baseline/index.js";
 import { applyBaseline, restoreBaselineBackup, } from "../core/apply/index.js";
-import { createClaudeCredentialBackup, previewClaudeCredentialRestore, restoreClaudeCredentialBackup, } from "../core/credential-backup/index.js";
+import { createClaudeCredentialBackup, deleteClaudeCredentialBackup, previewClaudeCredentialRestore, readClaudeCredentialBackupForMigration, restoreClaudeCredentialBackup, } from "../core/credential-backup/index.js";
+import { applyClaudeCredentialMigration, claudePostMigrationVerification, previewClaudeCredentialMigration, verifyClaudeCredentialMigrationState, } from "../core/credential-migration/index.js";
 import { addProviderTrust, listProviderTrust, providerTrustCandidateForTask, removeProviderTrust, } from "../core/config/trust.js";
 import { activeRuleIgnoresSafely, addRuleIgnore, listRuleIgnores, removeRuleIgnore, ruleIgnoreCandidatesForTask, } from "../core/config/rule-ignore.js";
 import { buildContext } from "../core/discovery/index.js";
@@ -19,6 +20,7 @@ import { buildFirstRunSummary, } from "../core/first-run/index.js";
 import { withOutputContract } from "../core/output-contract.js";
 import { renderHtmlReport } from "../core/report/html-report.js";
 import { scanAll } from "../core/scan/index.js";
+import { PostureSnapshotStore, defaultPostureSnapshotPath, inspectEffectiveStates, inspectPosture, inspectPostureWithDrift, loadDriftPolicyStates, } from "../core/posture/index.js";
 import { applyAcceptances } from "../core/triage/index.js";
 import { defaultTaskSnapshotPath, TaskSnapshotStore, } from "../core/verification/snapshot.js";
 import { verifyRiskTask, } from "../core/verification/index.js";
@@ -57,6 +59,13 @@ function machineSnapshotStore(home) {
         path: defaultTaskSnapshotPath(home),
     });
 }
+/**
+ * E1 的 Desktop typed service 入口；E2 才把结果加入 renderer schema。
+ * 保持直接委托 core，防止桌面端复制配置优先级。
+ */
+export function inspectDesktopEffectiveStates(ctx) {
+    return inspectEffectiveStates(ctx);
+}
 /** 纯转换函数，便于用固定扫描夹具验证桌面与 core 的任务语义一致。 */
 export function buildDesktopOverview(cwd, triaged, generatedAt = new Date().toISOString(), trustState = {
     configPath: resolve(cwd, ".agentguard.json"),
@@ -66,12 +75,14 @@ export function buildDesktopOverview(cwd, triaged, generatedAt = new Date().toIS
     configPath: resolve(cwd, ".agentguard.json"),
     entries: [],
     audit: [],
-}, scopeKind = "project") {
+}, scopeKind = "project", posture, drift) {
     const report = triaged.activeReport;
     const firstRun = buildFirstRunSummary(report, {
         acceptedTaskCount: triaged.acceptedTasks.length,
         ignoredFindingCount: triaged.ignoredFindings.length,
         platform: "darwin",
+        ...(posture ? { posture } : {}),
+        ...(drift ? { drift } : {}),
     });
     const tasks = firstRun.tasks;
     const trustCandidates = Object.fromEntries([...tasks, ...triaged.acceptedTasks].flatMap((task) => {
@@ -101,6 +112,8 @@ export function buildDesktopOverview(cwd, triaged, generatedAt = new Date().toIS
             projectPoliciesAvailable: scopeKind === "project",
         },
         firstRun,
+        ...(posture ? { posture } : {}),
+        ...(drift ? { drift } : {}),
         summary: firstRun.summary,
         report,
         map: firstRun.map,
@@ -142,9 +155,29 @@ export function buildDesktopOverview(cwd, triaged, generatedAt = new Date().toIS
         },
     };
 }
-function desktopOverview(cwd, triaged, scopeKind = "project") {
+function desktopPostureStore(cwd, home) {
+    const path = process.env.AGENTGUARD_POSTURE_SNAPSHOT_PATH ??
+        defaultPostureSnapshotPath(home);
+    const keyPath = process.env.AGENTGUARD_POSTURE_KEY_PATH ?? join(dirname(path), "state-key");
+    const acceptancePath = process.env.AGENTGUARD_ACCEPTANCE_PATH;
+    return new PostureSnapshotStore({
+        cwd,
+        path,
+        keyPath,
+        policyStates: (now) => loadDriftPolicyStates(cwd, {
+            ...(acceptancePath ? { acceptancePath } : {}),
+            now,
+        }),
+    });
+}
+async function desktopOverview(cwd, triaged, scopeKind = "project", recordObservation = false) {
+    const context = scopeKind === "machine" ? machineContext(cwd) : projectContext(cwd);
+    const postureState = await inspectPostureWithDrift(context, desktopPostureStore(cwd, context.home), {
+        recordObservation,
+        tolerateStoreErrors: !recordObservation,
+    });
     if (scopeKind === "machine") {
-        return buildDesktopOverview(cwd, triaged, new Date().toISOString(), { configPath: resolve(cwd, ".agentguard.json"), entries: [], audit: [] }, { configPath: resolve(cwd, ".agentguard.json"), entries: [], audit: [] }, scopeKind);
+        return buildDesktopOverview(cwd, triaged, new Date().toISOString(), { configPath: resolve(cwd, ".agentguard.json"), entries: [], audit: [] }, { configPath: resolve(cwd, ".agentguard.json"), entries: [], audit: [] }, scopeKind, postureState.posture, postureState.drift);
     }
     let trustState;
     try {
@@ -168,7 +201,7 @@ function desktopOverview(cwd, triaged, scopeKind = "project") {
             audit: [],
         };
     }
-    return buildDesktopOverview(cwd, triaged, new Date().toISOString(), trustState, ruleIgnoreState, scopeKind);
+    return buildDesktopOverview(cwd, triaged, new Date().toISOString(), trustState, ruleIgnoreState, scopeKind, postureState.posture, postureState.drift);
 }
 function applyProjectTriage(cwd, report, records) {
     return applyAcceptances(report, records, activeRuleIgnoresSafely(cwd));
@@ -241,7 +274,7 @@ export async function acceptDesktopRisk(input) {
             createdAt: record.createdAt,
             ...(record.expiresAt ? { expiresAt: record.expiresAt } : {}),
         },
-        overview: desktopOverview(cwd, triaged),
+        overview: await desktopOverview(cwd, triaged),
     };
 }
 export async function verifyDesktopRisk(input) {
@@ -260,7 +293,7 @@ export async function verifyDesktopRisk(input) {
         snapshots.capture(fullTasks);
         return {
             verification,
-            overview: desktopOverview(cwd, applyAcceptances(fullReport, [], []), "machine"),
+            overview: await desktopOverview(cwd, applyAcceptances(fullReport, [], []), "machine"),
         };
     }
     const { fullReport, fullTasks } = await scanAndTriage(cwd);
@@ -280,7 +313,7 @@ export async function verifyDesktopRisk(input) {
     const triaged = applyProjectTriage(cwd, fullReport, store.list({ activeOnly: true }));
     return {
         verification,
-        overview: desktopOverview(cwd, triaged),
+        overview: await desktopOverview(cwd, triaged),
     };
 }
 export async function revokeDesktopRisk(input) {
@@ -291,7 +324,7 @@ export async function revokeDesktopRisk(input) {
     const { fullReport, fullTasks } = await scanAndTriage(cwd);
     new TaskSnapshotStore({ cwd }).capture(fullTasks);
     const triaged = applyProjectTriage(cwd, fullReport, store.list({ activeOnly: true }));
-    return { overview: desktopOverview(cwd, triaged) };
+    return { overview: await desktopOverview(cwd, triaged) };
 }
 export async function trustDesktopProvider(input) {
     const cwd = resolveDesktopProjectPath(input.projectPath);
@@ -318,7 +351,7 @@ export async function trustDesktopProvider(input) {
     new TaskSnapshotStore({ cwd }).capture(nextTasks);
     return {
         entry: { endpoint: candidate.endpoint, kind: input.kind },
-        overview: desktopOverview(cwd, triaged),
+        overview: await desktopOverview(cwd, triaged),
     };
 }
 export async function removeDesktopProviderTrust(input) {
@@ -337,7 +370,7 @@ export async function removeDesktopProviderTrust(input) {
     new TaskSnapshotStore({ cwd }).capture(fullTasks);
     return {
         entry: { endpoint: event.endpoint, kind: event.kind },
-        overview: desktopOverview(cwd, triaged),
+        overview: await desktopOverview(cwd, triaged),
     };
 }
 export async function ignoreDesktopRule(input) {
@@ -363,7 +396,7 @@ export async function ignoreDesktopRule(input) {
     new TaskSnapshotStore({ cwd }).capture(fullTasks);
     return {
         entry: { ruleId: candidate.ruleId, agent: candidate.agent },
-        overview: desktopOverview(cwd, next),
+        overview: await desktopOverview(cwd, next),
     };
 }
 export async function removeDesktopRuleIgnore(input) {
@@ -379,7 +412,7 @@ export async function removeDesktopRuleIgnore(input) {
     new TaskSnapshotStore({ cwd }).capture(fullTasks);
     return {
         entry: { ruleId: input.ruleId, agent: input.agent },
-        overview: desktopOverview(cwd, triaged),
+        overview: await desktopOverview(cwd, triaged),
     };
 }
 function normalizedScopeKind(value) {
@@ -388,6 +421,80 @@ function normalizedScopeKind(value) {
     if (value === "machine")
         return "machine";
     throw new Error("未知的 Desktop 扫描范围。");
+}
+function assertPostureFingerprint(value) {
+    if (!/^sha256:[a-f0-9]{64}$/.test(value)) {
+        throw new Error("可信状态预览指纹无效，请重新预览。");
+    }
+}
+function assertPostureStorageRevision(value) {
+    if (value !== "missing" && !/^sha256:[a-f0-9]{64}$/.test(value)) {
+        throw new Error("可信状态存储版本无效，请重新预览。");
+    }
+}
+function desktopPostureContext(cwd, scopeKind) {
+    return scopeKind === "machine" ? machineContext(cwd) : projectContext(cwd);
+}
+export async function previewDesktopPostureBaseline(input) {
+    const cwd = resolveDesktopProjectPath(input.projectPath);
+    const scopeKind = normalizedScopeKind(input.scopeKind);
+    const context = desktopPostureContext(cwd, scopeKind);
+    const store = desktopPostureStore(cwd, context.home);
+    const posture = await inspectPosture(context);
+    const preview = store.previewBaseline(posture.agents.map((entry) => entry.state));
+    return {
+        ...preview,
+        hasBaseline: preview.mutation === "replace",
+    };
+}
+export async function saveDesktopPostureBaseline(input) {
+    const cwd = resolveDesktopProjectPath(input.projectPath);
+    const scopeKind = normalizedScopeKind(input.scopeKind);
+    assertPostureFingerprint(input.expectedCurrentFingerprint);
+    assertPostureStorageRevision(input.expectedStorageRevision);
+    const context = desktopPostureContext(cwd, scopeKind);
+    const store = desktopPostureStore(cwd, context.home);
+    const hadBaseline = Boolean(store.getBaseline());
+    if (hadBaseline && input.replace !== true) {
+        throw new Error("已有可信状态；替换前必须重新预览并明确确认替换。");
+    }
+    if (!hadBaseline && input.replace === true) {
+        throw new Error("当前没有可替换的可信状态，请重新预览。");
+    }
+    const posture = await inspectPosture(context);
+    const mutation = store.saveBaselineConfirmed(posture.agents.map((entry) => entry.state), {
+        currentFingerprint: input.expectedCurrentFingerprint,
+        storageRevision: input.expectedStorageRevision,
+    });
+    return {
+        mutation,
+        overview: await scanDesktopScope(cwd, scopeKind),
+    };
+}
+export async function removeDesktopPostureBaseline(input) {
+    const cwd = resolveDesktopProjectPath(input.projectPath);
+    const scopeKind = normalizedScopeKind(input.scopeKind);
+    assertPostureStorageRevision(input.expectedStorageRevision);
+    const context = desktopPostureContext(cwd, scopeKind);
+    const store = desktopPostureStore(cwd, context.home);
+    const mutation = store.removeBaselineConfirmed(input.expectedStorageRevision);
+    return {
+        mutation,
+        overview: await scanDesktopScope(cwd, scopeKind),
+    };
+}
+export async function verifyDesktopPosture(input) {
+    const cwd = resolveDesktopProjectPath(input.projectPath);
+    const scopeKind = normalizedScopeKind(input.scopeKind);
+    if (scopeKind === "machine") {
+        const fullReport = await scanAll(machineContext(cwd));
+        const fullTasks = buildActionTasks(buildActionPlan(fullReport));
+        machineSnapshotStore(cwd).capture(fullTasks);
+        return desktopOverview(cwd, applyAcceptances(fullReport, [], []), "machine", true);
+    }
+    const { triaged, fullTasks } = await scanAndTriage(cwd);
+    new TaskSnapshotStore({ cwd }).capture(fullTasks);
+    return desktopOverview(cwd, triaged, "project", true);
 }
 async function scanDesktopScope(cwd, scopeKind) {
     return scopeKind === "machine"
@@ -414,14 +521,38 @@ export async function backupDesktopClaudeRemediation(input) {
         taskId: input.taskId,
         configDir: discovery.configPath,
     });
-    desktopCredentialBackupReceipts.set(credentialReceiptKey(cwd, backup.backupId), { taskId: input.taskId, configDir: discovery.configPath });
+    const migration = previewClaudeCredentialMigration({
+        task,
+        taskId: input.taskId,
+        configDir: discovery.configPath,
+    });
+    desktopCredentialBackupReceipts.set(credentialReceiptKey(cwd, backup.backupId), {
+        taskId: input.taskId,
+        configDir: discovery.configPath,
+        migrationVerified: false,
+    });
     return {
         backup: {
             backupId: backup.backupId,
             files: backup.files,
             createdAt: backup.createdAt,
         },
+        migration,
+        verification: claudePostMigrationVerification(),
+        retention: {
+            policy: "until-user-confirmed-cleanup",
+            autoDelete: false,
+            secureErase: false,
+        },
         restoreAvailable: true,
+        transaction: {
+            operation: "claude-credential",
+            phase: "awaiting-external-verification",
+            files: backup.files,
+            backupId: backup.backupId,
+            restoreAvailable: true,
+            message: "迁移前备份已创建；请先在 Terminal 写入并验证 Keychain，再返回应用配置。",
+        },
     };
 }
 function desktopCredentialReceipt(cwd, backupId) {
@@ -466,7 +597,159 @@ export async function restoreDesktopClaudeBackup(input) {
             backupId: input.backupId,
             files: restored.files,
         },
+        transaction: {
+            operation: "claude-credential",
+            phase: "restored",
+            files: restored.files,
+            backupId: input.backupId,
+            restoreAvailable: false,
+            message: "已恢复迁移前 Claude 配置并重新扫描。",
+        },
         overview: await scanDesktopScope(cwd, scopeKind),
+    };
+}
+export async function applyDesktopClaudeMigration(input) {
+    const cwd = resolveDesktopProjectPath(input.projectPath);
+    assertTaskId(input.taskId);
+    if (!/^[A-Za-z0-9_-]+$/.test(input.backupId)) {
+        throw new Error("无效的备份 ID。");
+    }
+    if (!/^[a-f0-9]{64}$/.test(input.expectedFingerprint)) {
+        throw new Error("Claude 凭证迁移预览指纹无效，请重新预览。");
+    }
+    const scopeKind = normalizedScopeKind(input.scopeKind);
+    const receipt = desktopCredentialReceipt(cwd, input.backupId);
+    if (receipt.taskId !== input.taskId) {
+        throw new Error("Claude 配置备份与当前迁移任务不匹配。");
+    }
+    const before = await scanDesktopScope(cwd, scopeKind);
+    const task = before.tasks.find((candidate) => candidate.taskId === input.taskId);
+    const applied = applyClaudeCredentialMigration({
+        cwd,
+        task,
+        taskId: input.taskId,
+        configDir: receipt.configDir,
+        backupId: input.backupId,
+        expectedFingerprint: input.expectedFingerprint,
+    });
+    let overview;
+    try {
+        overview = await scanDesktopScope(cwd, scopeKind);
+    }
+    catch (error) {
+        const preview = previewClaudeCredentialRestore({
+            cwd,
+            backupId: input.backupId,
+            configDir: receipt.configDir,
+        });
+        restoreClaudeCredentialBackup({
+            cwd,
+            backupId: input.backupId,
+            configDir: receipt.configDir,
+            expectedFingerprint: preview.fingerprint,
+        });
+        const reason = error instanceof Error ? error.message : String(error);
+        throw new Error(`迁移后的复扫失败，已自动恢复 Claude 配置：${reason}`);
+    }
+    const unresolved = overview.tasks.some((candidate) => candidate.requirements.some((requirement) => requirement.ruleId === "CLAUDE_PLAINTEXT_TOKEN"));
+    if (unresolved) {
+        const preview = previewClaudeCredentialRestore({
+            cwd,
+            backupId: input.backupId,
+            configDir: receipt.configDir,
+        });
+        restoreClaudeCredentialBackup({
+            cwd,
+            backupId: input.backupId,
+            configDir: receipt.configDir,
+            expectedFingerprint: preview.fingerprint,
+        });
+        receipt.migrationVerified = false;
+        return {
+            transaction: {
+                operation: "claude-credential",
+                taskId: input.taskId,
+                phase: "rolled-back",
+                backupId: input.backupId,
+                files: applied.files,
+                plaintextFieldsRemoved: applied.plaintextFieldsRemoved,
+                apiKeyHelperConfigured: applied.apiKeyHelperConfigured,
+                restoreAvailable: true,
+                message: "复扫仍发现 Claude 明文凭证任务，已自动恢复迁移前配置。",
+            },
+            verification: claudePostMigrationVerification(),
+            overview: await scanDesktopScope(cwd, scopeKind),
+        };
+    }
+    receipt.migrationVerified = true;
+    return {
+        transaction: {
+            operation: "claude-credential",
+            taskId: input.taskId,
+            phase: "verified",
+            backupId: input.backupId,
+            files: applied.files,
+            plaintextFieldsRemoved: applied.plaintextFieldsRemoved,
+            apiKeyHelperConfigured: applied.apiKeyHelperConfigured,
+            restoreAvailable: true,
+            message: "Claude 明文字段已删除，apiKeyHelper 已配置，复扫验证通过。",
+        },
+        verification: claudePostMigrationVerification(),
+        overview,
+    };
+}
+export async function cleanupDesktopClaudeCredentialBackup(input) {
+    const cwd = resolveDesktopProjectPath(input.projectPath);
+    assertTaskId(input.taskId);
+    if (!/^[A-Za-z0-9_-]+$/.test(input.backupId)) {
+        throw new Error("无效的备份 ID。");
+    }
+    const scopeKind = normalizedScopeKind(input.scopeKind);
+    const receipt = desktopCredentialReceipt(cwd, input.backupId);
+    if (receipt.taskId !== input.taskId || !receipt.migrationVerified) {
+        throw new Error("只能清理本次会话中已完成迁移和复扫验证的 Claude 配置备份。");
+    }
+    const backup = readClaudeCredentialBackupForMigration({
+        cwd,
+        backupId: input.backupId,
+        configDir: receipt.configDir,
+    });
+    if (backup.taskId !== input.taskId) {
+        throw new Error("Claude 配置备份与当前迁移任务不匹配。");
+    }
+    verifyClaudeCredentialMigrationState({
+        taskId: input.taskId,
+        configPaths: backup.files.map((file) => file.originalPath),
+    });
+    const overview = await scanDesktopScope(cwd, scopeKind);
+    if (overview.tasks.some((task) => task.requirements.some((requirement) => requirement.ruleId === "CLAUDE_PLAINTEXT_TOKEN"))) {
+        throw new Error("复扫仍发现 Claude 明文凭证任务，已保留备份，请先处理或恢复。");
+    }
+    verifyClaudeCredentialMigrationState({
+        taskId: input.taskId,
+        configPaths: backup.files.map((file) => file.originalPath),
+    });
+    const cleanup = deleteClaudeCredentialBackup({
+        cwd,
+        backupId: input.backupId,
+        configDir: receipt.configDir,
+    });
+    desktopCredentialBackupReceipts.delete(credentialReceiptKey(cwd, input.backupId));
+    return {
+        cleanup: {
+            backupId: cleanup.backupId,
+            files: cleanup.files,
+        },
+        transaction: {
+            operation: "claude-credential",
+            taskId: input.taskId,
+            phase: "backup-cleaned",
+            files: cleanup.files,
+            backupId: cleanup.backupId,
+            restoreAvailable: false,
+            message: "迁移备份已删除，当前会话不再提供一键恢复；该操作不等同于 SSD 安全擦除。",
+        },
+        overview,
     };
 }
 export async function previewDesktopBaseline(input, profile) {
@@ -503,6 +786,14 @@ export async function applyDesktopBaseline(input) {
     return {
         apply: result,
         restoreAvailable: true,
+        transaction: {
+            operation: "baseline",
+            phase: "verified",
+            files: result.files.length,
+            backupId: result.backupId,
+            restoreAvailable: true,
+            message: "Baseline 已应用、重新扫描并保留可恢复备份。",
+        },
         overview,
     };
 }
@@ -532,6 +823,14 @@ export async function restoreDesktopBaseline(input) {
         : await scanDesktopProject(cwd);
     return {
         restore: restored,
+        transaction: {
+            operation: "baseline",
+            phase: "restored",
+            files: restored.files,
+            backupId: restored.backupId,
+            restoreAvailable: false,
+            message: "已恢复 baseline 应用前配置并重新扫描。",
+        },
         overview,
     };
 }
@@ -567,15 +866,21 @@ export async function exportDesktopReport(input) {
         })()
         : await scanAndTriage(cwd);
     const { fullReport, triaged } = scan;
+    const context = desktopPostureContext(cwd, normalizedScopeKind(input.scopeKind));
+    const postureState = await inspectPostureWithDrift(context, desktopPostureStore(cwd, context.home), { tolerateStoreErrors: true });
     const content = input.format === "html"
         ? renderHtmlReport(fullReport, {
             acceptances: triaged.activeAcceptances,
             ruleIgnores: triaged.activeRuleIgnores,
+            posture: postureState.posture,
+            drift: postureState.drift,
         })
         : JSON.stringify(withOutputContract("report.json", {
             ...triaged.activeReport,
             acceptedTaskCount: triaged.acceptedTasks.length,
             ignoredFindingCount: triaged.ignoredFindings.length,
+            posture: postureState.posture,
+            drift: postureState.drift,
         }), null, 2);
     writeFileSync(outputPath, content, { encoding: "utf8", mode: 0o600 });
     chmodSync(outputPath, 0o600);

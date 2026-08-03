@@ -54,7 +54,9 @@ test("desktop: main process only exposes approved typed operations", () => {
   assert.match(main, /agentguard:applyBaseline/);
   assert.match(main, /agentguard:restoreBaseline/);
   assert.match(main, /agentguard:backupClaudeRemediation/);
+  assert.match(main, /agentguard:applyClaudeMigration/);
   assert.match(main, /agentguard:restoreClaudeRemediation/);
+  assert.match(main, /agentguard:cleanupClaudeCredentialBackup/);
   assert.match(main, /agentguard:acceptRisk/);
   assert.match(main, /agentguard:verifyRisk/);
   assert.match(main, /agentguard:revokeRisk/);
@@ -106,16 +108,20 @@ test("desktop: renderer uses preload bridge", () => {
   assert.match(renderer, /window\.agentguard\.applyBaseline/);
   assert.match(renderer, /window\.agentguard\.restoreBaseline/);
   assert.match(renderer, /window\.agentguard\.backupClaudeRemediation/);
+  assert.match(renderer, /window\.agentguard\.applyClaudeMigration/);
   assert.match(renderer, /window\.agentguard\.restoreClaudeRemediation/);
+  assert.match(renderer, /window\.agentguard\.cleanupClaudeCredentialBackup/);
   assert.match(preload, /agentguard:backupClaudeRemediation/);
+  assert.match(preload, /agentguard:applyClaudeMigration/);
   assert.match(preload, /agentguard:restoreClaudeRemediation/);
+  assert.match(preload, /agentguard:cleanupClaudeCredentialBackup/);
   assert.match(renderer, /window\.agentguard\.exportDiagnostics/);
   assert.match(renderer, /window\.agentguard\.onMenuCommand/);
   assert.match(renderer, /window\.agentguard\.updateMenuState/);
   assert.match(renderer, /handleNativeMenuCommand/);
   assert.match(renderer, /topTaskNavigation/);
   assert.match(renderer, /prioritizedTaskList/);
-  assert.match(renderer, /content\.toggleAttribute\("inert", working\)/);
+  assert.match(renderer, /content\.toggleAttribute\("inert", shouldInertContent\)/);
   assert.doesNotMatch(renderer, /JSON\.parse\(result\.stdout/);
   assert.match(renderer, /data-welcome-action/);
   assert.match(renderer, /task-detail/);
@@ -126,6 +132,8 @@ test("desktop: renderer uses preload bridge", () => {
   assert.match(renderer, /复制到 Terminal 依次执行/);
   assert.match(renderer, /一键备份/);
   assert.match(renderer, /迁移异常时恢复/);
+  assert.match(renderer, /鉴权正常，清理备份/);
+  assert.match(renderer, /普通删除也不等同于 SSD 安全擦除/);
   assert.match(renderer, /模型 \/ Provider \/ 鉴权/);
   assert.match(renderer, /chain\.agentLabel \|\| chain\.via/);
   assert.match(renderer, /经 \$\{chain\.owner\}/);
@@ -143,6 +151,11 @@ test("desktop: first-run recommends a clearly explained project scope and keeps 
   assert.match(html, /id="assertiveStatus"/);
   assert.match(html, /role="progressbar"/);
   assert.match(renderer, /选择项目并开始扫描/);
+  assert.match(renderer, /renderInitialScanProgress/);
+  assert.match(renderer, /renderInitialScanError/);
+  assert.match(renderer, /重新扫描所选项目/);
+  assert.match(renderer, /data-welcome-action="retry"/);
+  assert.match(renderer, /has-standalone-status/);
   assert.match(renderer, /包含 <code>\.git<\/code>/);
   assert.match(renderer, /普通源代码只检查文件名，不读取内容/);
   assert.match(renderer, /macOS 可能请求“桌面”“文稿”“下载”等文件夹权限/);
@@ -204,6 +217,10 @@ test("desktop: local launcher uses trusted Electron and release build requires n
     "utf8"
   );
   const afterPack = readFileSync(join(repoRoot, "scripts", "after-pack.cjs"), "utf8");
+  const notarizeHook = readFileSync(
+    join(repoRoot, "scripts", "notarize-macos.cjs"),
+    "utf8"
+  );
   const releaseBuild = readFileSync(
     join(repoRoot, "scripts", "build-macos-release.mjs"),
     "utf8"
@@ -228,8 +245,15 @@ test("desktop: local launcher uses trusted Electron and release build requires n
   assert.match(bundleVerify, /codesign.*--verify/s);
   assert.match(releaseConfig, /forceCodeSigning: true/);
   assert.match(releaseConfig, /hardenedRuntime: true/);
-  assert.match(releaseConfig, /notarize: true/);
+  assert.match(releaseConfig, /notarize: false/);
+  assert.match(releaseConfig, /afterSign: scripts\/notarize-macos\.cjs/);
   assert.match(releaseConfig, /entitlements\.mac\.plist/);
+  assert.match(notarizeHook, /notarytool/);
+  assert.match(notarizeHook, /--no-s3-acceleration/);
+  assert.match(notarizeHook, /--wait/);
+  assert.match(notarizeHook, /stapler.*staple/s);
+  assert.match(notarizeHook, /stapler.*validate/s);
+  assert.doesNotMatch(notarizeHook, /console\.(?:log|error).*PASSWORD/);
   assert.match(afterPack, /spawnSync\('xattr', \['-cr', appPath\]/);
   assert.match(releaseBuild, /mkdtempSync\(join\(tmpdir\(\), 'agentguard-macos-release-'/);
   assert.match(releaseBuild, /verify-macos-release\.mjs/);
@@ -241,6 +265,8 @@ test("desktop: local launcher uses trusted Electron and release build requires n
     "utf8"
   );
   assert.match(preflight, /desktop\/icon\.icns/);
+  assert.match(preflight, /notarytool[\s\S]*history/);
+  assert.match(preflight, /公证凭据或 Keychain Profile 验证失败/);
 });
 
 test("desktop: release workflow builds matching CLI and signed DMG candidates without publishing", () => {
@@ -280,6 +306,14 @@ test("desktop: synthetic demo is reproducible and contains no live capture path"
   assert.match(builder, /-map_metadata/);
   assert.match(capture, /\/Users\/example\/Project/);
   assert.match(capture, /workspace-report-menu/);
+  assert.match(capture, /welcome-dark/);
+  assert.match(capture, /project-scanning/);
+  assert.match(capture, /project-scan-error/);
+  assert.match(capture, /project-scan-error-compact/);
+  assert.match(capture, /workspace-credential-post-auth-dark/);
+  assert.match(capture, /workspace-credential-post-auth-compact/);
+  assert.match(capture, /workspace-codex-auth-guide/);
+  assert.match(capture, /workspace-cc-switch-token-guide/);
   assert.doesNotMatch(capture, /scanMachine|scanProject|selectProject/);
 });
 

@@ -2,9 +2,10 @@
 
 > 本文是“AgentGuard 现在实际能做什么”的规范化摘要；代码和测试是最终事实依据。
 >
-> 当前源码与 Public Preview：`0.0.5-pilot.3`；npm 包：`@wangmarsen/agentguard`。
+> 当前冻结候选：`0.0.6-pilot.4`；当前已公开 Public Preview：`0.0.5-pilot.3`；npm 包：
+> `@wangmarsen/agentguard`。
 >
-> 更新日期：2026-07-22。
+> 更新日期：2026-07-23。
 
 ## 1. 产品定位
 
@@ -16,12 +17,12 @@ AgentGuard 是面向开发型 AI Agent 的本地安全检测与配置治理工�
 1. 本机配置了哪些 Coding Agent，它们连接了哪些 Provider、代理和 MCP？
 2. 哪些配置是真正需要行动的风险，哪些只是需要确认或观察？
 3. 用户在当前操作系统上应该执行什么命令，如何验证整改结果？
-4. 哪些预期风险应接受当前任务、信任端点或按项目忽略规则，为什么，何时到期，如何撤销？
+4. 当前真正生效的 Provider、认证、权限和集成是什么，与上次确认的可信状态相比发生了什么？
 
 产品主流程：
 
 ```text
-发现 → 归因聚合 → 行动排序 → 本机处置 → 复扫验证
+发现 → 计算有效配置 → 与可信状态比较 → 归因聚合 → 本机处置 → 复扫验证
                        ↘ 接受任务 / 信任端点 / 忽略低优先级规则 → 审计保留
 ```
 
@@ -29,10 +30,10 @@ AgentGuard 是面向开发型 AI Agent 的本地安全检测与配置治理工�
 
 | 形态 | 状态 | 说明 |
 |---|---|---|
-| CLI | 主入口 | 裸执行一次完成发现、实际链路、三类任务、Top 3 与下一条命令；保留完整 scan、报告、baseline、备份恢复、风险接受、端点信任和项目规则忽略子命令 |
-| 自包含 HTML | 主报告 | 离线打开；显示行动任务、本机命令、接受/忽略状态和完整脱敏证据 |
-| JSON | 自动化接口 | `schemaVersion: 1`；用于 CI 和其它工具消费 |
-| Electron macOS 桌面端 | Public Preview | 单一首次 CTA、扫描结论、前三行动、按需展开的 macOS 指引、实际链路、风险接受、Provider 信任/撤销、项目规则忽略/撤销、验证、baseline 预览/备份应用/复扫/安全恢复、Claude 凭证迁移前备份/会话级恢复、HTML/JSON 与脱敏诊断导出；Apple Silicon DMG 经过 Developer ID 签名、公证、staple 与 Gatekeeper 验证 |
+| CLI | 主入口 | 裸执行一次完成发现、有效配置、可信状态比较、实际链路、三类任务、变化与风险共用 Top 3；保留完整 scan、posture、drift、报告、baseline、备份恢复、风险接受、端点信任和项目规则忽略子命令 |
+| 自包含 HTML | 主报告 | 离线打开；显示有效配置、漂移、认证冲突计划、行动任务、本机命令、接受/忽略状态和完整脱敏证据 |
+| JSON | 自动化接口 | `schemaVersion: 1`；以 additive 字段返回 posture/drift，旧消费者可忽略，用于 CI 和其它工具消费 |
+| Electron macOS 桌面端 | `0.0.6-pilot.4` 冻结候选 | 在既有 Public Preview 工作台上增加有效配置、漂移、Top 3 变化、认证冲突计划和原生确认的可信状态创建/替换/删除/复扫；renderer 仍无文件或命令权限。新版本 DMG 必须重新完成 Developer ID、公证、staple 与 Gatekeeper 门禁后才能发布 |
 | GitHub Actions 示例 | 可用 | 下载固定 Pre-release 包，执行扫描并存档报告 |
 
 首发平台口径：CLI 的 macOS 路径与真实环境验证最完整；Linux / Windows 为 Beta，已有命令模板测试但尚未
@@ -78,9 +79,10 @@ AgentGuard 是面向开发型 AI Agent 的本地安全检测与配置治理工�
 
 - 根据生成报告的操作系统输出 macOS、Linux 或 Windows PowerShell 命令。
 - baseline 项生成 dry-run、带备份 apply 和复扫命令。
-- macOS 明文凭证引导使用 Keychain；Claude Code 额外提供可复制命令，只修改实际含明文的
-  `settings.json/settings.local.json`，删除 `ANTHROPIC_AUTH_TOKEN/API_KEY` 并设置官方支持的 `apiKeyHelper`；
-  CLI 报告会在迁移命令前给出任务专属 `credential backup` 命令，Desktop 则使用一键备份；
+- macOS 明文凭证引导使用 Keychain；Claude Code CLI 提供可复制的手动命令，Desktop 使用受任务、备份和
+  配置指纹约束的两阶段事务，只修改实际含明文的 `settings.json/settings.local.json`，删除
+  `ANTHROPIC_AUTH_TOKEN/API_KEY` 并设置官方支持的固定 `apiKeyHelper`；CLI 报告会在迁移命令前给出任务专属
+  `credential backup` 命令，Desktop 则使用一键备份、原生确认、应用、复扫和恢复；
   Linux 使用 Secret Service，Windows 使用用户 DPAPI 凭证文件。
 - 仅为工具真实支持的变量生成当前进程/会话注入，不写 shell profile、普通 `.env` 或 Windows 用户环境。
 - HTML 提供“复制命令”按钮，但静态报告不会直接执行本地操作。
@@ -97,9 +99,11 @@ AgentGuard 是面向开发型 AI Agent 的本地安全检测与配置治理工�
 - `restore` 恢复最近或指定备份，并验证备份完整性与路径边界。
 - 桌面端只允许应用与已确认预览指纹一致的计划，并在主进程显示原生确认框；renderer 不能绕过确认直接写入。
 - 桌面恢复仅开放给当前会话创建的备份；如果应用后配置又被修改，会拒绝覆盖。
-- Claude Code 明文凭证引导可在执行 Terminal 命令前一键备份实际含明文字段的设置文件；恢复前校验
-  manifest、备份摘要和当前配置指纹，要求原生确认，多文件失败时回滚已恢复文件并立即复扫。备份与恢复
-  不会代替 Keychain 存储、配置迁移或旧凭证轮换。
+- Claude Code Desktop 明文凭证迁移会先一键备份实际含明文字段的设置文件；用户在 Terminal 写入并检查
+  Keychain 后，AgentGuard 再校验 taskId、预览指纹、manifest、备份摘要和当前配置，删除真实明文字段、
+  设置固定 helper 并立即复扫。多文件写入、写后校验或复扫失败会自动恢复原内容与权限。复扫通过后提供
+  `claude auth status --text`、完全重启和最小请求清单；备份不会自动过期，只有用户确认真实鉴权正常后才可通过
+  原生确认清理。AgentGuard 不读取 Keychain，也不代替目标工具真实鉴权验证或旧凭证轮换。
 - CLI 提供同一 core 的 `credential backup <task-id>` 与 `credential restore <backup-id>`；恢复默认只读预览，
   只有带回预览指纹的 `--confirm` 才写入，并拒绝预览后的并发修改。Desktop 在相同事务边界外继续增加
   当前会话备份授权、原生确认和自动复扫。
@@ -179,10 +183,16 @@ AgentGuard 是面向开发型 AI Agent 的本地安全检测与配置治理工�
 - 当前 profile 只复用已经脱敏的扫描证据；“未识别到显式模型/Provider”不等于没有配置。完整模型 inventory
   需要未来扩展各 Adapter 的只读 typed 契约，Desktop 不会为补齐展示而自行重复解析配置。
 - 纯 baseline 任务显示“预览并一键整改”，仍强制执行计划指纹、原生确认、备份、原子应用、复扫和恢复；
-  Claude 明文凭证显示“开始安全迁移”，展开当前 macOS Keychain 引导并提供迁移前备份和会话级恢复，
-  但不会误称为已经自动删除或轮换凭证。
-- Desktop 的“安全修改与恢复（高级）”区域明确区分手动凭证迁移与自动配置收敛：Terminal 命令可一键复制，
-  迁移备份仅在启动或鉴权异常时回退；自动整改仍先预览逐文件差异，且不自动改写明文凭证。
+  Claude 明文凭证显示“开始安全迁移”，按备份、Terminal Keychain 写入/检查、应用配置、复扫和恢复展示状态；
+  只有复扫确认规则消失才标为完成，但不会误称为已经验证目标工具鉴权或轮换旧凭证。
+- Desktop 的“安全修改与恢复（高级）”区域明确区分系统安全存储与配置事务：Keychain 写入/检查命令可复制，
+  凭证只输入 Terminal；AgentGuard 只在备份与指纹匹配时自动修改 Claude 设置并复扫，迁移备份仅在启动或
+  鉴权异常时回退；用户确认真实鉴权正常后可清理精确备份目录，删除后不再提供一键恢复，也不承诺 SSD
+  安全擦除。
+- Codex OAuth/API Key/自定义 Provider 冲突提供固定只读 `codex login status` 检查、重启、最小请求与
+  复扫引导；AgentGuard 不改写 `auth.json`。CC Switch 明文或共享 Token 提供独立 Token 创建、原应用替换、
+  请求验证和旧 Token 撤销清单；共享规则应在拆分后消失，但 SQLite 仍保存真实新 Token 时明文规则会继续
+  如实显示。
 - Claude Code、Codex 和 Gemini CLI live 配置中的 CC Switch `PROXY_MANAGED` 接管占位符不会被误判为
   真实明文凭证；Claude 因此也不会生成 Keychain 迁移任务。只有 CC Switch 全局代理服务与对应 Agent
   路由接管都开启时，AgentGuard 才把该 Agent 标为“经 CC Switch”，并展示本地端口、真实上游和鉴权占位符；
@@ -195,6 +205,8 @@ AgentGuard 是面向开发型 AI Agent 的本地安全检测与配置治理工�
   “默认不写入”。
 - 状态区域区分礼貌播报、错误的即时播报和不确定进度；异步操作期间主内容使用 `inert` / `aria-busy`，
   已打开的策略对话框会禁用控件并阻止 Escape 关闭，避免重复提交。renderer 仍不获得 Node、网络或任意文件权限。
+- 用户在原生目录选择器确认项目后，首次扫描页会持续显示已选项目名称和路径、只读/零上传边界及本次检查内容，
+  不伪造确定百分比；首次扫描失败时错误不会随加载状态消失，并提供原范围重试、更换项目和脱敏诊断入口。
 - 首次扫描完成后焦点进入结果标题；Agent 标签页、返回列表、任务详情与 Top 3 跳转都会把焦点送到新的上下文。
   键盘焦点可见，脚本滚动同样遵守 `prefers-reduced-motion`。
 - Agent 切换卡使用统一的“查看 › / 当前”操作提示：系统蓝色只表示交互与当前选择，红橙绿仍只表示风险状态；
@@ -223,11 +235,52 @@ AgentGuard 是面向开发型 AI Agent 的本地安全检测与配置治理工�
 - 窗口尺寸、位置和最大化标记以 0600 权限原子保存在 Electron userData；文件不包含项目路径、端点、taskId、
   扫描结果或配置内容。未知版本、损坏、越界或离屏状态会安全回退到默认窗口。
 
+### 3.13 Effective Configuration、可信状态与 Drift
+
+- core 已定义 CLI、JSON、HTML 和 Desktop 后续共用的 `EffectiveAgentState`、`DriftSnapshot` 与
+  `DriftEvent` typed schema，以及配置来源、认证来源、权限能力、代理和变化事件枚举。
+- Claude Code 已按 managed、命令行、项目 local、项目 shared、用户设置和进程环境计算有效设置、
+  OAuth/API Key/helper/cloud provider 认证、权限、MCP、Hook 与插件摘要。
+- Codex 已按命令行、可信项目、独立 profile、用户和 system 层计算有效 Provider、模型、认证、
+  sandbox/approval、permission profile、MCP 与 Hook；项目层不能覆盖 Provider 和认证重定向字段。
+- CC Switch 已从只读 SQLite 计算当前 Provider、代理接管和真实上游。只有消费 Agent、live 本地端点和
+  `PROXY_MANAGED` 占位认证同时匹配，core 才确认 Claude/Codex 的真实上游来自 CC Switch。
+- `inspectEffectiveStates` 是 Adapter 到 CLI/报告/Desktop 的唯一计算入口；Desktop typed service 委托
+  core，renderer 或主进程不重新实现优先级。
+- 运行时有效状态与持久化快照严格分离。快照只保存 Agent/版本、枚举类别、字段名、稳定冲突代码、已登记
+  规则 ID、接受/忽略状态，以及路径、端点、模型、集成和策略身份的 HMAC-SHA-256 摘要；不保存原始路径、
+  端点、模型名、集成身份、策略原因、evidence 或 taskId。
+- 本机身份密钥使用 32 字节随机值、0600 文件和 0700 目录；相同输入在同一密钥下稳定，不同本机密钥不能
+  关联。密钥缺失、损坏或权限过宽时不会静默重建并覆盖旧基线。
+- 基线快照按不可逆项目 scope 隔离，使用严格 schema、0600 文件和原子写入；损坏、未知字段、未知版本和
+  权限过宽均在写入前失败。
+- 默认 CLI、`posture`、`drift`、JSON、HTML 和 Desktop 共用当前有效状态与变化结果；推断、证据不完整和
+  不可用状态不会表述为已确认。
+- `drift baseline` 支持创建、显式替换和删除。预览不会创建快照；确认时重新校验当前状态指纹和存储版本，
+  防止覆盖确认后的状态或并发修改。
+- Drift 识别 Agent/版本、配置来源、Provider 路由、认证来源、权限、MCP/Skill/Hook 和规则变化；事件 ID
+  稳定，并区分当前变化、恢复与重新出现；可信状态中的任务接受或项目规则忽略到期后，会明确恢复为当前
+  行动。显式 `drift` 或 Desktop“复扫验证”才记录最小化观察状态。
+- Desktop 只回传已授权扫描范围、固定操作和 core 生成的预览指纹；主进程验证主 frame、范围与参数，并用
+  macOS 原生确认创建、替换或删除可信状态。
+- 高优先级变化与风险任务共用默认 Top 3 容量；已恢复事件保留说明，但不进入当前行动数。
+
+### 3.14 确定性认证冲突处置
+
+- Claude Code 冲突计划明确当前按优先级使用的 OAuth/API Key/helper/环境变量/代理来源、被覆盖来源、唯一
+  目标认证、清理顺序、已有迁移备份和复扫步骤。
+- Codex 计划把 `model_provider`、base URL、环境变量、Provider 认证命令、`auth.json` API Key 与 ChatGPT
+  OAuth 放在同一解释中，并明确项目配置不能替代用户级 Provider/认证定义。
+- CC Switch 计划区分未接管的官方/自定义直连、已接管且能确认真实上游、代理已开但上游不明三种状态；所有
+  切换都要求在 CC Switch 原应用中完成。
+- 这些计划是确定性 guided plan，不是自动凭证迁移。AgentGuard 不自动选择身份、修改 Codex `auth.json`
+  或 CC Switch SQLite，也不轮换、撤销或打印上游凭证。
+
 ## 4. 支持矩阵
 
 | 对象 | 当前支持 | 自动写入边界 |
 |---|---|---|
-| Claude Code | Provider、明文 token、权限模式、危险 allow、hooks、MCP | baseline 收敛权限/MCP；凭证只引导 |
+| Claude Code | Provider、明文 token、权限模式、危险 allow、hooks、MCP | baseline 收敛权限/MCP；Desktop 支持两阶段明文迁移，Keychain 输入和检查仍由用户完成 |
 | Codex | 自定义 Provider、MCP、明文 API Key、trusted projects、代理 | TOML 保持只读；提供 OAuth/安全存储建议，尚无 keyring 自动迁移 |
 | CC Switch | SQLite Provider、明文/共享密钥、内置代理、failover 真实上游 | SQLite 始终只读 |
 | OpenCode | Provider、明文 key、bash/通配权限、share、autoupdate、MCP | 部分 baseline 可写；凭证只引导 |
@@ -239,24 +292,39 @@ AgentGuard 是面向开发型 AI Agent 的本地安全检测与配置治理工�
 
 以下内容不能作为现有产品能力对外承诺：
 
-- 真正的一键凭证迁移：当前只有 Claude 引导命令的迁移前备份与恢复，尚无 `secret plan/migrate` 两阶段事务。
+- 完全一键且由应用验证的凭证迁移：Claude Desktop 已有两阶段配置事务、真实鉴权检查清单和受控备份清理，
+  但 Keychain 写入/检查由用户在 Terminal 完成，CLI 尚无 `credential migrate`，应用也不会读取 Keychain
+  或执行真实 API 请求。
 - 自动轮换或撤销上游 API Key。
 - 自动修改 CC Switch SQLite 或带注释的 Codex TOML。
 - 独立的结构化“误报”类型、批量策略管理、审批流程和团队共享 acceptance policy；当前只有单条、项目级、
   可审计的低优先级规则忽略。
 - Prompt 内容安全、Skills 内容审计或运行时 Prompt Injection 拦截。
-- 持久化 Workspace Inventory、配置漂移历史和跨机器 Dashboard。
+- 后台持续漂移监控、文件监听、系统登录项或实时通知；当前只有用户主动扫描和比较。
+- 持久化 Workspace Inventory 和跨机器 Dashboard。
 - 组织策略分发、多人审批、团队身份权限和服务端审计。
 - Runtime Tool Call/MCP Gateway 拦截。
-- 已具备强制签名、公证、staple 验证的发布配置和手动 CI；Developer ID 凭据与真实发布产物仍待 Apple Developer Program 审核通过后验证。
+- 全新 Apple Silicon Mac 上覆盖安装、首次启动、扫描、报告和卸载的独立设备回归；当前发布资产本身已通过
+  Developer ID 签名、公证、staple 与 Gatekeeper 验证。
 
 ## 6. 标准用户流程
 
 ```bash
 agentguard doctor
 agentguard scan
+agentguard posture
+agentguard drift
 agentguard map
 agentguard report --format html
+```
+
+审核当前状态后，可显式管理当前项目的本机可信状态：
+
+```bash
+agentguard drift baseline
+agentguard drift baseline --confirm
+agentguard drift baseline --replace --confirm
+agentguard drift baseline --remove --confirm
 ```
 
 报告为 baseline 和部分凭证场景给出本机命令模板，其余任务给出人工步骤。baseline 支持项先预览，再应用：
@@ -291,20 +359,12 @@ agentguard ignore remove OPENCODE_MCP_LOCAL --agent opencode --reason "项目已
 
 ## 7. 当前产品阶段与下一道门槛
 
-当前不是继续增加规则和 Agent 数量的阶段。项目作用域、聚合任务完整语义和单任务验证已经完成；
+当前不是继续增加规则和 Agent 数量的阶段。E2–E5 与 H0–H7 功能开发已经完成，并冻结为 `0.0.6-pilot.4` 联合公开候选；
 `npm run package:verify-install` 会构建真实 tarball，检查发布清单，在临时 HOME/prefix 安装并使用本地
-tarball 完成 npx 版本验证。本地发布包已经验证，独立公开候选仓库的全部可达历史也已通过敏感信息检查；
-接下来仍需从最终公开 Release 资产回装，并验证“发现后能否完成处置”。
+tarball 完成 npx 版本验证。候选达到公开标准后，必须冻结同一提交，并通过全量测试、Desktop 打包、
+tarball/DMG/app.asar 独立敏感信息扫描、Developer ID 签名、公证、staple、Gatekeeper 和隔离回装，
+再合并候选并创建 Pre-release。
 
-进入 Inventory、Drift 或 Dashboard 前，至少需要完成一轮 `0.0.5-pilot.3` 真实试用并证明：
-
-- 用户能独立找到并理解本机命令。
-- 至少一部分用户完成真实整改并复扫消除任务。
-- 用户能正确区分修复、接受和观察，不把“隐藏提示”当作修复。
-- 风险接受原因和到期机制符合用户预期。
-- 没有凭证泄漏、配置损坏或无法恢复事件。
-- 当前树、npm 发布内容和全部公开 Git 历史均通过敏感信息检查。
-
-Endpoint Trust 和项目规则忽略管理已经完成。下一步优先用 Pilot 验证三种处置语义是否被正确理解，并以
-真实误报和复扫数据决定规则质量调整；闭环成立后再以 Drift Tracking 建立重复使用价值。只有当 Pilot
-证明凭证迁移是主要阻塞时，才把只读 `secret plan` 提前。不要直接进入自动搬运凭证或 Dashboard。
+实现完成不等于外部发布完成。详细状态见 `docs/release-0.0.6-pilot.4.md`；在清单完成前不得声称新的 DMG
+已经签名、公证或公开，当前中断或未完成门禁的本地产物也不得复用为未来正式资产。本阶段仍不进入自动凭证
+轮换、后台监控、Runtime Gateway、通用 Secret Vault 或团队 Dashboard。

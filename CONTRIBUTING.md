@@ -52,7 +52,8 @@ npm run check
 
 ### 修改 macOS Desktop
 
-- 阅读 `.agents/skills/change-desktop-ipc/SKILL.md`。
+- 视觉、交互、无障碍或视觉回归任务先阅读 `.agents/skills/review-macos-ui/SKILL.md`；涉及 IPC、preload、
+  原生对话框、文件访问或主进程行为时，再阅读 `.agents/skills/change-desktop-ipc/SKILL.md`。
 - 业务逻辑进入 `src/desktop/service.ts`；Electron 主进程负责授权、原生确认和系统对话框。
 - 同步 main、preload、renderer、诊断白名单、service test 和 desktop smoke test。
 - 运行 `npm run desktop:pack`，确认没有默认 Electron 图标或立即启动崩溃。

@@ -113,6 +113,21 @@ function assertPolicyReason(reason) {
   }
 }
 
+function assertPostureFingerprint(value) {
+  if (typeof value !== "string" || !/^sha256:[a-f0-9]{64}$/.test(value)) {
+    throw new Error("可信状态预览指纹无效，请重新预览。");
+  }
+}
+
+function assertPostureStorageRevision(value) {
+  if (
+    typeof value !== "string" ||
+    (value !== "missing" && !/^sha256:[a-f0-9]{64}$/.test(value))
+  ) {
+    throw new Error("可信状态存储版本无效，请重新预览。");
+  }
+}
+
 function projectBackups(projectPath) {
   const existing = issuedBaselineBackups.get(projectPath) || new Set();
   issuedBaselineBackups.set(projectPath, existing);
@@ -120,7 +135,7 @@ function projectBackups(projectPath) {
 }
 
 function credentialBackups(scopePath) {
-  const existing = issuedCredentialBackups.get(scopePath) || new Set();
+  const existing = issuedCredentialBackups.get(scopePath) || new Map();
   issuedCredentialBackups.set(scopePath, existing);
   return existing;
 }
@@ -275,6 +290,129 @@ ipcMain.handle("agentguard:scanProject", async (event, projectPath) => {
 });
 
 ipcMain.handle(
+  "agentguard:previewPostureBaseline",
+  async (event, projectPath) => {
+    assertMainFrame(event);
+    assertApprovedScope(projectPath);
+    return tracked("posture.preview", async () => {
+      const service = await desktopService();
+      return service.previewDesktopPostureBaseline({
+        projectPath,
+        scopeKind: scopeKindFor(projectPath),
+      });
+    });
+  }
+);
+
+ipcMain.handle(
+  "agentguard:savePostureBaseline",
+  async (
+    event,
+    projectPath,
+    expectedCurrentFingerprint,
+    expectedStorageRevision,
+    replace
+  ) => {
+    assertMainFrame(event);
+    assertApprovedScope(projectPath);
+    assertPostureFingerprint(expectedCurrentFingerprint);
+    assertPostureStorageRevision(expectedStorageRevision);
+    if (typeof replace !== "boolean") {
+      throw new Error("可信状态操作类型无效。");
+    }
+    return tracked("posture.save", async () => {
+      const service = await desktopService();
+      const preview = await service.previewDesktopPostureBaseline({
+        projectPath,
+        scopeKind: scopeKindFor(projectPath),
+      });
+      if (
+        preview.currentFingerprint !== expectedCurrentFingerprint ||
+        preview.storageRevision !== expectedStorageRevision ||
+        preview.hasBaseline !== replace
+      ) {
+        throw new Error("有效配置或可信状态在预览后发生变化，请重新预览。");
+      }
+      const confirmation = await dialog.showMessageBox(mainWindow, {
+        type: replace ? "warning" : "question",
+        title: replace ? "确认替换可信状态" : "确认保存可信状态",
+        message: replace
+          ? "用当前有效配置替换原可信状态？"
+          : "把当前有效配置保存为可信状态？",
+        detail:
+          `将保存 ${preview.agentCount} 个 Agent 的配置结构、路由分类、认证来源、权限与集成身份。` +
+          "不会保存 API Token、原始端点、原始路径或 taskId。后续复扫会显示新增、变化、恢复与重新出现。",
+        buttons: ["取消", replace ? "确认替换" : "确认保存"],
+        defaultId: 0,
+        cancelId: 0,
+        noLink: true,
+      });
+      if (confirmation.response !== 1) return { canceled: true };
+      const result = await service.saveDesktopPostureBaseline({
+        projectPath,
+        scopeKind: scopeKindFor(projectPath),
+        expectedCurrentFingerprint,
+        expectedStorageRevision,
+        replace,
+      });
+      return { canceled: false, ...result };
+    });
+  }
+);
+
+ipcMain.handle(
+  "agentguard:removePostureBaseline",
+  async (event, projectPath, expectedStorageRevision) => {
+    assertMainFrame(event);
+    assertApprovedScope(projectPath);
+    assertPostureStorageRevision(expectedStorageRevision);
+    return tracked("posture.remove", async () => {
+      const service = await desktopService();
+      const preview = await service.previewDesktopPostureBaseline({
+        projectPath,
+        scopeKind: scopeKindFor(projectPath),
+      });
+      if (
+        !preview.hasBaseline ||
+        preview.storageRevision !== expectedStorageRevision
+      ) {
+        throw new Error("可信状态在预览后发生变化，请重新预览。");
+      }
+      const confirmation = await dialog.showMessageBox(mainWindow, {
+        type: "warning",
+        title: "确认删除可信状态",
+        message: "停止对当前扫描范围做配置漂移比较？",
+        detail:
+          "删除后不会改动任何 Agent 配置；只会移除当前范围的本机 HMAC 可信快照及观察历史。以后可重新审核并保存。",
+        buttons: ["取消", "确认删除"],
+        defaultId: 0,
+        cancelId: 0,
+        noLink: true,
+      });
+      if (confirmation.response !== 1) return { canceled: true };
+      const result = await service.removeDesktopPostureBaseline({
+        projectPath,
+        scopeKind: scopeKindFor(projectPath),
+        expectedStorageRevision,
+      });
+      return { canceled: false, ...result };
+    });
+  }
+);
+
+ipcMain.handle("agentguard:verifyPosture", async (event, projectPath) => {
+  assertMainFrame(event);
+  assertApprovedScope(projectPath);
+  return tracked("posture.verify", async () => {
+    const service = await desktopService();
+    return service.verifyDesktopPosture({
+      projectPath,
+      scopeKind: scopeKindFor(projectPath),
+    });
+  });
+});
+
+ipcMain.handle(
   "agentguard:previewBaseline",
   async (event, projectPath, profile) => {
     assertMainFrame(event);
@@ -406,7 +544,108 @@ ipcMain.handle(
         taskId,
         scopeKind: scopeKindFor(projectPath),
       });
-      credentialBackups(projectPath).add(result.backup.backupId);
+      credentialBackups(projectPath).set(result.backup.backupId, {
+        taskId,
+        fingerprint: result.migration.fingerprint,
+        migrationVerified: false,
+      });
+      return { canceled: false, ...result };
+    });
+  }
+);
+
+ipcMain.handle(
+  "agentguard:applyClaudeMigration",
+  async (event, projectPath, taskId, backupId, expectedFingerprint) => {
+    assertMainFrame(event);
+    assertApprovedScope(projectPath);
+    assertTaskId(taskId);
+    if (typeof backupId !== "string" || !/^[A-Za-z0-9_-]+$/.test(backupId)) {
+      throw new Error("无效的备份 ID。");
+    }
+    if (
+      typeof expectedFingerprint !== "string" ||
+      !/^[a-f0-9]{64}$/.test(expectedFingerprint)
+    ) {
+      throw new Error("Claude 凭证迁移预览指纹无效，请重新预览。");
+    }
+    const issued = credentialBackups(projectPath).get(backupId);
+    if (
+      !issued ||
+      issued.taskId !== taskId ||
+      issued.fingerprint !== expectedFingerprint
+    ) {
+      throw new Error("只能应用本次桌面会话中已备份且未变化的 Claude 迁移计划。");
+    }
+    return tracked("credential.migration", async () => {
+      const confirmation = await dialog.showMessageBox(mainWindow, {
+        type: "warning",
+        title: "应用 Claude Code 安全迁移",
+        message: "已在 Terminal 确认 Keychain 项可读取？",
+        detail:
+          "继续后，AgentGuard 将重新校验配置与备份，删除 ANTHROPIC_AUTH_TOKEN / ANTHROPIC_API_KEY 明文字段，写入固定 apiKeyHelper，并立即复扫。" +
+          "AgentGuard 不会读取 Keychain 或凭证明文；如果写入或复扫失败，会自动回滚，迁移前备份仍可一键恢复。",
+        buttons: ["取消", "已确认，应用并复扫"],
+        defaultId: 0,
+        cancelId: 0,
+        noLink: true,
+      });
+      if (confirmation.response !== 1) return { canceled: true };
+      const service = await desktopService();
+      const result = await service.applyDesktopClaudeMigration({
+        projectPath,
+        taskId,
+        backupId,
+        expectedFingerprint,
+        scopeKind: scopeKindFor(projectPath),
+      });
+      issued.migrationVerified = result.transaction.phase === "verified";
+      return { canceled: false, ...result };
+    });
+  }
+);
+
+ipcMain.handle(
+  "agentguard:cleanupClaudeCredentialBackup",
+  async (event, projectPath, taskId, backupId) => {
+    assertMainFrame(event);
+    assertApprovedScope(projectPath);
+    assertTaskId(taskId);
+    if (typeof backupId !== "string" || !/^[A-Za-z0-9_-]+$/.test(backupId)) {
+      throw new Error("无效的备份 ID。");
+    }
+    const issued = credentialBackups(projectPath).get(backupId);
+    if (
+      !issued ||
+      issued.taskId !== taskId ||
+      issued.migrationVerified !== true
+    ) {
+      throw new Error(
+        "只能清理本次桌面会话中已完成迁移和复扫验证的 Claude 配置备份。"
+      );
+    }
+    return tracked("credential.backup-cleanup", async () => {
+      const confirmation = await dialog.showMessageBox(mainWindow, {
+        type: "warning",
+        title: "删除 Claude 迁移备份",
+        message: "已完成真实启动、认证检查和一次最小请求？",
+        detail:
+          "继续后只删除本次迁移对应的精确备份目录，并在删除前重新校验配置、备份完整性和扫描结果。" +
+          "删除后无法再一键恢复迁移前配置；普通文件删除不承诺对 SSD 做安全擦除。",
+        buttons: ["保留备份", "确认鉴权正常并删除"],
+        defaultId: 0,
+        cancelId: 0,
+        noLink: true,
+      });
+      if (confirmation.response !== 1) return { canceled: true };
+      const service = await desktopService();
+      const result = await service.cleanupDesktopClaudeCredentialBackup({
+        projectPath,
+        taskId,
+        backupId,
+        scopeKind: scopeKindFor(projectPath),
+      });
+      credentialBackups(projectPath).delete(backupId);
       return { canceled: false, ...result };
     });
   }

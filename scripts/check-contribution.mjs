@@ -72,6 +72,7 @@ const adrFiles = [
   "0002-action-semantics-and-stable-tasks.md",
   "0003-transactional-configuration-writes.md",
   "0004-desktop-privilege-boundary.md",
+  "0005-effective-configuration-and-private-drift-snapshots.md",
 ];
 const adrIndex = read("docs/adr/README.md");
 for (const file of adrFiles) {
@@ -89,6 +90,7 @@ const skillNames = [
   "add-agent-adapter",
   "add-security-rule",
   "change-desktop-ipc",
+  "review-macos-ui",
 ];
 for (const name of skillNames) {
   const path = `.agents/skills/${name}/SKILL.md`;

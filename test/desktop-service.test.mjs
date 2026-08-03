@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -16,12 +17,16 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import {
+  applyDesktopClaudeMigration,
   applyDesktopBaseline,
   backupDesktopClaudeRemediation,
   buildDesktopOverview,
+  cleanupDesktopClaudeCredentialBackup,
   ignoreDesktopRule,
   previewDesktopBaseline,
   previewDesktopClaudeRestore,
+  previewDesktopPostureBaseline,
+  removeDesktopPostureBaseline,
   removeDesktopProviderTrust,
   removeDesktopRuleIgnore,
   resolveDesktopProjectPath,
@@ -29,8 +34,10 @@ import {
   restoreDesktopClaudeBackup,
   scanDesktopMachine,
   scanDesktopProject,
+  saveDesktopPostureBaseline,
   trustDesktopProvider,
   triageDesktopFixture,
+  verifyDesktopPosture,
 } from "../dist/desktop/service.js";
 import { buildFirstRunSummary } from "../dist/core/first-run/index.js";
 
@@ -72,6 +79,105 @@ test("desktop service: 本机扫描使用固定 home scope 且不启用项目级
     );
   } finally {
     rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("desktop service E4: 有效配置、可信状态与漂移通过同一 typed service 闭环", async () => {
+  const root = mkdtempSync(join(tmpdir(), "agentguard-desktop-posture-"));
+  const previous = {
+    HOME: process.env.HOME,
+    XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME,
+    AGENTGUARD_POSTURE_SNAPSHOT_PATH:
+      process.env.AGENTGUARD_POSTURE_SNAPSHOT_PATH,
+    AGENTGUARD_POSTURE_KEY_PATH: process.env.AGENTGUARD_POSTURE_KEY_PATH,
+  };
+  try {
+    const home = join(root, "home");
+    const cwd = join(root, "project");
+    const configDir = join(home, ".claude");
+    const configPath = join(configDir, "settings.json");
+    const snapshotPath = join(root, "state", "posture.json");
+    const keyPath = join(root, "state", "posture-key");
+    mkdirSync(home, { recursive: true });
+    mkdirSync(cwd, { recursive: true });
+    mkdirSync(configDir, { recursive: true });
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        env: { ANTHROPIC_BASE_URL: "https://relay-a.example.com/v1" },
+      })
+    );
+    process.env.HOME = home;
+    delete process.env.XDG_CONFIG_HOME;
+    process.env.AGENTGUARD_POSTURE_SNAPSHOT_PATH = snapshotPath;
+    process.env.AGENTGUARD_POSTURE_KEY_PATH = keyPath;
+
+    const initial = await scanDesktopProject(cwd);
+    assert.ok(initial.posture?.agents.some(
+      (entry) => entry.state.agentId === "claude-code"
+    ));
+    assert.equal(initial.drift?.status, "no-baseline");
+
+    const preview = await previewDesktopPostureBaseline({
+      projectPath: cwd,
+    });
+    assert.equal(preview.hasBaseline, false);
+    assert.equal(preview.mutation, "create");
+    assert.equal(preview.excludesSensitiveContent, true);
+    assert.equal(existsSync(snapshotPath), false);
+    assert.equal(statSync(keyPath).mode & 0o777, 0o600);
+
+    const created = await saveDesktopPostureBaseline({
+      projectPath: cwd,
+      expectedCurrentFingerprint: preview.currentFingerprint,
+      expectedStorageRevision: preview.storageRevision,
+      replace: false,
+    });
+    assert.equal(created.mutation.mutation, "create");
+    assert.equal(created.overview.drift?.status, "unchanged");
+    const stored = readFileSync(snapshotPath, "utf8");
+    assert.doesNotMatch(stored, /relay-a\.example\.com/u);
+    assert.equal(stored.includes(cwd), false);
+
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        env: { ANTHROPIC_BASE_URL: "https://relay-b.example.com/v1" },
+      })
+    );
+    const changed = await verifyDesktopPosture({ projectPath: cwd });
+    assert.equal(changed.drift?.status, "changed");
+    assert.ok(changed.drift?.events.some(
+      (event) =>
+        event.agentId === "claude-code" &&
+        event.kind === "provider-route-changed"
+    ));
+
+    const removePreview = await previewDesktopPostureBaseline({
+      projectPath: cwd,
+    });
+    assert.equal(removePreview.hasBaseline, true);
+    const removed = await removeDesktopPostureBaseline({
+      projectPath: cwd,
+      expectedStorageRevision: removePreview.storageRevision,
+    });
+    assert.equal(removed.mutation.mutation, "remove");
+    assert.equal(removed.overview.drift?.status, "no-baseline");
+    await assert.rejects(
+      saveDesktopPostureBaseline({
+        projectPath: cwd,
+        expectedCurrentFingerprint: removePreview.currentFingerprint,
+        expectedStorageRevision: removePreview.storageRevision,
+        replace: true,
+      }),
+      /发生变化|没有可替换/
+    );
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    rmSync(root, { recursive: true, force: true });
   }
 });
 
@@ -420,6 +526,14 @@ test("desktop service: baseline 必须匹配预览、强制备份、复扫且安
       expectedPlanFingerprint: preview.fingerprint,
     });
     assert.equal(applied.restoreAvailable, true);
+    assert.deepEqual(
+      {
+        operation: applied.transaction.operation,
+        phase: applied.transaction.phase,
+        restoreAvailable: applied.transaction.restoreAvailable,
+      },
+      { operation: "baseline", phase: "verified", restoreAvailable: true }
+    );
     assert.ok(applied.apply.backupId);
     assert.equal(JSON.parse(readFileSync(configPath, "utf8")).permission.bash, "ask");
     assert.equal(
@@ -438,6 +552,8 @@ test("desktop service: baseline 必须匹配预览、强制备份、复扫且安
       backupId: applied.apply.backupId,
     });
     assert.deepEqual(JSON.parse(readFileSync(configPath, "utf8")), original);
+    assert.equal(restored.transaction.phase, "restored");
+    assert.equal(restored.transaction.restoreAvailable, false);
     assert.equal(
       restored.overview.report.allFindings.some(
         (finding) => finding.id === "OPENCODE_BASH_UNRESTRICTED"
@@ -614,6 +730,176 @@ test("desktop service: Claude 迁移备份只覆盖明文设置，恢复校验�
           backupId: tampered.backup.backupId,
         }),
       /完整性/
+    );
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("desktop service: Claude 迁移绑定任务、备份和指纹，应用后自动复扫并保留恢复入口", async () => {
+  const home = mkdtempSync(join(tmpdir(), "agentguard-desktop-claude-migrate-"));
+  try {
+    const configDir = join(home, ".claude");
+    const settingsPath = join(configDir, "settings.json");
+    mkdirSync(configDir, { recursive: true });
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        env: {
+          ANTHROPIC_AUTH_TOKEN: "sk-ant-example-migration-placeholder",
+          SAFE_FLAG: "1",
+        },
+      }, null, 2) + "\n"
+    );
+    const overview = await scanDesktopMachine(home);
+    const task = overview.tasks.find((candidate) =>
+      candidate.requirements.some(
+        (requirement) => requirement.ruleId === "CLAUDE_PLAINTEXT_TOKEN"
+      )
+    );
+    assert.ok(task);
+    const backup = await backupDesktopClaudeRemediation({
+      projectPath: home,
+      taskId: task.taskId,
+      scopeKind: "machine",
+    });
+    assert.match(backup.migration.fingerprint, /^[a-f0-9]{64}$/);
+    assert.equal(backup.migration.plaintextFields, 1);
+    assert.equal(JSON.stringify(backup.migration).includes("sk-ant-"), false);
+    assert.deepEqual(backup.retention, {
+      policy: "until-user-confirmed-cleanup",
+      autoDelete: false,
+      secureErase: false,
+    });
+
+    const migrated = await applyDesktopClaudeMigration({
+      projectPath: home,
+      taskId: task.taskId,
+      backupId: backup.backup.backupId,
+      expectedFingerprint: backup.migration.fingerprint,
+      scopeKind: "machine",
+    });
+    assert.equal(migrated.transaction.phase, "verified");
+    assert.equal(migrated.transaction.operation, "claude-credential");
+    assert.equal(migrated.transaction.restoreAvailable, true);
+    assert.equal(migrated.verification.command, "claude auth status --text");
+    assert.equal(
+      migrated.overview.tasks.some((candidate) =>
+        candidate.requirements.some(
+          (requirement) => requirement.ruleId === "CLAUDE_PLAINTEXT_TOKEN"
+        )
+      ),
+      false
+    );
+    const settings = JSON.parse(readFileSync(settingsPath, "utf8"));
+    assert.deepEqual(settings.env, { SAFE_FLAG: "1" });
+    assert.match(settings.apiKeyHelper, /security find-generic-password/);
+
+    const restorePreview = previewDesktopClaudeRestore({
+      projectPath: home,
+      backupId: backup.backup.backupId,
+    });
+    const restored = await restoreDesktopClaudeBackup({
+      projectPath: home,
+      backupId: backup.backup.backupId,
+      expectedFingerprint: restorePreview.fingerprint,
+      scopeKind: "machine",
+    });
+    assert.ok(restored.overview.tasks.some((candidate) =>
+      candidate.requirements.some(
+        (requirement) => requirement.ruleId === "CLAUDE_PLAINTEXT_TOKEN"
+      )
+    ));
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("desktop service H4: 真实鉴权确认前保留备份，配置漂移时拒绝清理，稳定后只删精确备份", async () => {
+  const home = mkdtempSync(join(tmpdir(), "agentguard-desktop-claude-cleanup-"));
+  try {
+    const configDir = join(home, ".claude");
+    const settingsPath = join(configDir, "settings.json");
+    mkdirSync(configDir, { recursive: true });
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        env: {
+          ANTHROPIC_AUTH_TOKEN: "sk-ant-example-cleanup-placeholder",
+          SAFE_FLAG: "1",
+        },
+      }, null, 2) + "\n"
+    );
+    const overview = await scanDesktopMachine(home);
+    const task = overview.tasks.find((candidate) =>
+      candidate.requirements.some(
+        (requirement) => requirement.ruleId === "CLAUDE_PLAINTEXT_TOKEN"
+      )
+    );
+    assert.ok(task);
+    const backup = await backupDesktopClaudeRemediation({
+      projectPath: home,
+      taskId: task.taskId,
+      scopeKind: "machine",
+    });
+    const backupPath = join(
+      home,
+      ".agentguard",
+      "backups",
+      backup.backup.backupId
+    );
+    await assert.rejects(
+      cleanupDesktopClaudeCredentialBackup({
+        projectPath: home,
+        taskId: task.taskId,
+        backupId: backup.backup.backupId,
+        scopeKind: "machine",
+      }),
+      /已完成迁移和复扫验证/
+    );
+    assert.equal(existsSync(backupPath), true);
+
+    const migrated = await applyDesktopClaudeMigration({
+      projectPath: home,
+      taskId: task.taskId,
+      backupId: backup.backup.backupId,
+      expectedFingerprint: backup.migration.fingerprint,
+      scopeKind: "machine",
+    });
+    assert.equal(migrated.transaction.phase, "verified");
+    const stable = readFileSync(settingsPath, "utf8");
+    const changed = JSON.parse(stable);
+    changed.apiKeyHelper = "security find-generic-password -s AgentGuard/other -w";
+    writeFileSync(settingsPath, JSON.stringify(changed, null, 2) + "\n");
+    await assert.rejects(
+      cleanupDesktopClaudeCredentialBackup({
+        projectPath: home,
+        taskId: task.taskId,
+        backupId: backup.backup.backupId,
+        scopeKind: "machine",
+      }),
+      /暂不删除备份/
+    );
+    assert.equal(existsSync(backupPath), true);
+
+    writeFileSync(settingsPath, stable);
+    const cleaned = await cleanupDesktopClaudeCredentialBackup({
+      projectPath: home,
+      taskId: task.taskId,
+      backupId: backup.backup.backupId,
+      scopeKind: "machine",
+    });
+    assert.equal(cleaned.transaction.phase, "backup-cleaned");
+    assert.equal(cleaned.transaction.restoreAvailable, false);
+    assert.equal(existsSync(backupPath), false);
+    await assert.rejects(
+      cleanupDesktopClaudeCredentialBackup({
+        projectPath: home,
+        taskId: task.taskId,
+        backupId: backup.backup.backupId,
+        scopeKind: "machine",
+      }),
+      /本次应用会话/
     );
   } finally {
     rmSync(home, { recursive: true, force: true });

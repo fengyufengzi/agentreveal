@@ -1,6 +1,6 @@
 {
   "name": "@wangmarsen/agentguard",
-  "version": "0.0.5-pilot.3",
+  "version": "0.0.6-pilot.4",
   "description": "面向多 Agent、多模型、多 Provider 的 AI Coding Agent 安全配置中心",
   "type": "module",
   "bin": {

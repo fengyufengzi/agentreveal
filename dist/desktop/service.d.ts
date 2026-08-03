@@ -2,11 +2,15 @@ import type { ListedAcceptance } from "../core/acceptance/index.js";
 import { type ActionTask } from "../core/action/index.js";
 import { type BaselinePlan, type BaselineProfile } from "../core/baseline/index.js";
 import { type ApplyResult } from "../core/apply/index.js";
+import { type ClaudePostMigrationVerification, type ClaudeCredentialMigrationPreview } from "../core/credential-migration/index.js";
+import type { RemediationTransactionSummary } from "../core/remediation-transaction/index.js";
 import { type ProviderTrustKind, type ProviderTrustState } from "../core/config/trust.js";
 import { type ListedRuleIgnore, type RuleIgnoreState } from "../core/config/rule-ignore.js";
 import { type FirstRunSummaryV1 } from "../core/first-run/index.js";
 import type { ConfigMap } from "../core/map/index.js";
 import { type ScanReport } from "../core/scan/index.js";
+import { type BaselineMutationResult, type BaselinePreview, type DriftComparison, type EffectiveAgentState, type PostureReport } from "../core/posture/index.js";
+import type { DiscoveryContext } from "../adapters/types.js";
 import { type TriagedReport } from "../core/triage/index.js";
 import { type RiskVerificationResult } from "../core/verification/index.js";
 export declare const DESKTOP_SCHEMA_VERSION: 1;
@@ -35,6 +39,8 @@ export interface DesktopOverview {
     };
     /** 与裸 CLI 完全共用的首次运行摘要契约。 */
     firstRun: FirstRunSummaryV1;
+    posture?: PostureReport;
+    drift?: DriftComparison;
     summary: {
         configuredAgents: number;
         findingCount: number;
@@ -125,12 +131,14 @@ export interface DesktopBaselinePreview extends BaselinePlan {
 export interface DesktopBaselineApplyResult extends DesktopRiskOperationResult {
     apply: ApplyResult;
     restoreAvailable: true;
+    transaction: RemediationTransactionSummary;
 }
 export interface DesktopBaselineRestoreResult extends DesktopRiskOperationResult {
     restore: {
         backupId: string;
         files: number;
     };
+    transaction: RemediationTransactionSummary;
 }
 export interface DesktopCredentialBackupResult {
     backup: {
@@ -138,7 +146,15 @@ export interface DesktopCredentialBackupResult {
         files: number;
         createdAt: string;
     };
+    migration: ClaudeCredentialMigrationPreview;
+    verification: ClaudePostMigrationVerification;
+    retention: {
+        policy: "until-user-confirmed-cleanup";
+        autoDelete: false;
+        secureErase: false;
+    };
     restoreAvailable: true;
+    transaction: RemediationTransactionSummary;
 }
 export interface DesktopCredentialRestorePreview {
     backupId: string;
@@ -151,11 +167,43 @@ export interface DesktopCredentialRestoreResult extends DesktopRiskOperationResu
         backupId: string;
         files: number;
     };
+    transaction: RemediationTransactionSummary;
+}
+export interface DesktopCredentialMigrationResult extends DesktopRiskOperationResult {
+    transaction: RemediationTransactionSummary & {
+        taskId: string;
+        phase: "verified" | "rolled-back";
+        backupId: string;
+        plaintextFieldsRemoved: number;
+        apiKeyHelperConfigured: boolean;
+    };
+    verification: ClaudePostMigrationVerification;
+}
+export interface DesktopCredentialBackupCleanupResult extends DesktopRiskOperationResult {
+    cleanup: {
+        backupId: string;
+        files: number;
+    };
+    transaction: RemediationTransactionSummary & {
+        taskId: string;
+        phase: "backup-cleaned";
+    };
+}
+export interface DesktopPostureBaselinePreview extends BaselinePreview {
+    hasBaseline: boolean;
+}
+export interface DesktopPostureMutationResult extends DesktopRiskOperationResult {
+    mutation: BaselineMutationResult;
 }
 /** 返回真实目录路径；不存在、不是目录或空路径都会被拒绝。 */
 export declare function resolveDesktopProjectPath(input: string): string;
+/**
+ * E1 的 Desktop typed service 入口；E2 才把结果加入 renderer schema。
+ * 保持直接委托 core，防止桌面端复制配置优先级。
+ */
+export declare function inspectDesktopEffectiveStates(ctx: DiscoveryContext): Promise<EffectiveAgentState[]>;
 /** 纯转换函数，便于用固定扫描夹具验证桌面与 core 的任务语义一致。 */
-export declare function buildDesktopOverview(cwd: string, triaged: TriagedReport, generatedAt?: string, trustState?: ProviderTrustState, ruleIgnoreState?: RuleIgnoreState, scopeKind?: DesktopScopeKind): DesktopOverview;
+export declare function buildDesktopOverview(cwd: string, triaged: TriagedReport, generatedAt?: string, trustState?: ProviderTrustState, ruleIgnoreState?: RuleIgnoreState, scopeKind?: DesktopScopeKind, posture?: PostureReport, drift?: DriftComparison): DesktopOverview;
 export declare function scanDesktopProject(input: string): Promise<DesktopOverview>;
 /**
  * 扫描主进程固定提供的用户主目录，不读取或应用任何项目级策略。
@@ -202,6 +250,26 @@ export declare function removeDesktopRuleIgnore(input: {
     agent: string;
     reason: string;
 }): Promise<DesktopRuleIgnoreResult>;
+export declare function previewDesktopPostureBaseline(input: {
+    projectPath: string;
+    scopeKind?: DesktopScopeKind;
+}): Promise<DesktopPostureBaselinePreview>;
+export declare function saveDesktopPostureBaseline(input: {
+    projectPath: string;
+    scopeKind?: DesktopScopeKind;
+    expectedCurrentFingerprint: string;
+    expectedStorageRevision: string;
+    replace?: boolean;
+}): Promise<DesktopPostureMutationResult>;
+export declare function removeDesktopPostureBaseline(input: {
+    projectPath: string;
+    scopeKind?: DesktopScopeKind;
+    expectedStorageRevision: string;
+}): Promise<DesktopPostureMutationResult>;
+export declare function verifyDesktopPosture(input: {
+    projectPath: string;
+    scopeKind?: DesktopScopeKind;
+}): Promise<DesktopOverview>;
 export declare function backupDesktopClaudeRemediation(input: {
     projectPath: string;
     taskId: string;
@@ -217,6 +285,19 @@ export declare function restoreDesktopClaudeBackup(input: {
     expectedFingerprint: string;
     scopeKind?: DesktopScopeKind;
 }): Promise<DesktopCredentialRestoreResult>;
+export declare function applyDesktopClaudeMigration(input: {
+    projectPath: string;
+    taskId: string;
+    backupId: string;
+    expectedFingerprint: string;
+    scopeKind?: DesktopScopeKind;
+}): Promise<DesktopCredentialMigrationResult>;
+export declare function cleanupDesktopClaudeCredentialBackup(input: {
+    projectPath: string;
+    taskId: string;
+    backupId: string;
+    scopeKind?: DesktopScopeKind;
+}): Promise<DesktopCredentialBackupCleanupResult>;
 export declare function previewDesktopBaseline(input: string, profile: BaselineProfile): Promise<DesktopBaselinePreview>;
 export declare function applyDesktopBaseline(input: {
     projectPath: string;

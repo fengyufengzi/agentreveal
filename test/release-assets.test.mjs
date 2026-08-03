@@ -15,7 +15,7 @@ import packageJson from "../package.json" with { type: "json" };
 
 test("release candidate: scoped npm 包保持 agentguard 可执行命令", () => {
   assert.equal(packageJson.name, "@wangmarsen/agentguard");
-  assert.equal(packageJson.version, "0.0.5-pilot.3");
+  assert.equal(packageJson.version, "0.0.6-pilot.4");
   assert.equal(packageJson.bin.agentguard, "bin/agentguard");
 });
 
@@ -40,12 +40,12 @@ test("release assets: 参数必须显式区分最终 tarball 与 DMG", () => {
 });
 
 test("release candidate: 版本必须与 package.json 和版本化说明一致", () => {
-  assert.deepEqual(verifyReleaseVersion("0.0.5-pilot.3"), {
-    version: "0.0.5-pilot.3",
-    notes: join(process.cwd(), "docs", "release-0.0.5-pilot.3.md"),
+  assert.deepEqual(verifyReleaseVersion("0.0.6-pilot.4"), {
+    version: "0.0.6-pilot.4",
+    notes: join(process.cwd(), "docs", "release-0.0.6-pilot.4.md"),
   });
   assert.throws(() => verifyReleaseVersion("0.0.5"), /pilot/);
-  assert.throws(() => verifyReleaseVersion("0.0.5-pilot.1"), /不一致/);
+  assert.throws(() => verifyReleaseVersion("0.0.6-pilot.1"), /不一致/);
 });
 
 test("release assets: 解包后的资产拒绝符号链接", () => {

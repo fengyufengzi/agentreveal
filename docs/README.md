@@ -27,7 +27,8 @@
 - [机器输出契约 v1](output-schema-v1.md)
 - [规则处置矩阵](rule-disposition-matrix.md)
 - [macOS 签名与公证](macos-release.md)
-- [当前版本说明](release-0.0.5-pilot.3.md)
+- [当前候选版本说明](release-0.0.6-pilot.4.md)
+- [上一公开版本说明](release-0.0.5-pilot.3.md)
 - [版本记录](../CHANGELOG.md)
 
 ## 语言约定

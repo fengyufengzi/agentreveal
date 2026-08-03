@@ -5,6 +5,8 @@ import type {
   FirstRunSummaryV1,
 } from "../first-run/index.js";
 import { FIRST_RUN_TOP_TASK_LIMIT } from "../first-run/index.js";
+import { formatPosture } from "./posture-format.js";
+import { formatDrift } from "./drift-format.js";
 
 const SEVERITY_LABEL: Record<RiskLevel, string> = {
   critical: "严重",
@@ -46,6 +48,10 @@ export function formatFirstRun(summary: FirstRunSummaryV1): string {
     "AgentGuard",
     "本机运行 · 默认只读 · 不自动上传",
     "",
+    ...(summary.posture
+      ? [formatPosture(summary.posture), ""]
+      : []),
+    ...(summary.drift ? [formatDrift(summary.drift), ""] : []),
     ...formatConnections(summary),
     "",
     "行动摘要",
@@ -59,13 +65,24 @@ export function formatFirstRun(summary: FirstRunSummaryV1): string {
   ];
 
   if (summary.topTasks.length === 0) {
-    lines.push("  当前没有需要处理的行动任务。");
+    if ((summary.topDriftEvents?.length ?? 0) === 0) {
+      lines.push("  当前没有需要处理的行动任务。");
+    }
+  }
+
+  for (const [index, entry] of (summary.topDriftEvents ?? []).entries()) {
+    lines.push(
+      `  ${index + 1}. [${entry.priority}/${SEVERITY_LABEL[entry.severity]}] ${entry.currentSummary}`,
+      `     ${entry.agentId} · ${entry.eventId}`,
+      `     下一步：${entry.action[0] ?? "审核变化是否符合预期。"}`,
+      `     验证：${entry.verification[0] ?? "复扫确认变化状态。"}`
+    );
   }
 
   summary.topTasks.forEach((task, index) => {
     const action = task.primary.action;
     lines.push(
-      `  ${index + 1}. [${task.priority}/${SEVERITY_LABEL[task.severity]}] ` +
+      `  ${index + 1 + (summary.topDriftEvents?.length ?? 0)}. [${task.priority}/${SEVERITY_LABEL[task.severity]}] ` +
         task.primary.finding.title
     );
     lines.push(`     ${task.displayName} · ${task.taskId}`);

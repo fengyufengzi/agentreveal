@@ -80,7 +80,10 @@ export function buildFirstRunSummary(report, options = {}) {
     const mustHandle = actionable.filter((task) => isImmediate(task.priority));
     const shouldReview = actionable.filter((task) => !isImmediate(task.priority));
     const informational = tasks.filter((task) => task.disposition === "observe");
-    const topTasks = actionable.slice(0, FIRST_RUN_TOP_TASK_LIMIT);
+    const topDriftEvents = (options.drift?.events ?? [])
+        .filter((entry) => entry.change !== "removed")
+        .slice(0, FIRST_RUN_TOP_TASK_LIMIT);
+    const topTasks = actionable.slice(0, Math.max(0, FIRST_RUN_TOP_TASK_LIMIT - topDriftEvents.length));
     const remediationGuides = Object.fromEntries(topTasks.map((task) => [
         task.taskId,
         buildRemediationGuide(task, { platform: options.platform }),
@@ -110,6 +113,9 @@ export function buildFirstRunSummary(report, options = {}) {
         },
         remediationGuides,
         nextCommands: buildNextCommands(topTasks),
+        ...(options.posture ? { posture: options.posture } : {}),
+        ...(options.drift ? { drift: options.drift } : {}),
+        ...(options.drift ? { topDriftEvents } : {}),
     });
 }
 //# sourceMappingURL=index.js.map

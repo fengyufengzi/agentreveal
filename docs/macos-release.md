@@ -1,7 +1,7 @@
 # AgentGuard macOS 签名与公证
 
-> 状态：`0.0.5-pilot.3` 已完成 Developer ID 签名、公证、staple、Gatekeeper 和最终资产验证。后续每个
-> 发布版本仍必须重新执行完整流程；任何凭据都不得提交到 Git。
+> 状态：发布骨架已就绪；只有 Apple Developer Program 审核通过、Developer ID 证书和公证凭据均可用后，
+> 才能完成真实发布验证。任何凭据都不得提交到 Git。
 
 ## 1. 本地开发包
 
@@ -28,6 +28,11 @@ macOS 26 会以系统策略终止缺少公证 ticket 的独立 Electron App，�
 1. `APPLE_API_KEY`、`APPLE_API_KEY_ID`、`APPLE_API_ISSUER`；其中 `APPLE_API_KEY` 是 `.p8` 文件路径；
 2. `APPLE_ID`、`APPLE_APP_SPECIFIC_PASSWORD`、`APPLE_TEAM_ID`；
 3. `APPLE_KEYCHAIN_PROFILE`，可选配 `APPLE_KEYCHAIN`。
+
+正式构建通过 `scripts/notarize-macos.cjs` 调用 `notarytool`，默认关闭 S3 Transfer Acceleration，以降低
+大体积 Electron App 在部分网络环境中的 multipart upload 超时；公证返回 Accepted 后才 staple 并继续生成
+DMG。预检会在签名前调用 `notarytool history` 验证当前凭据和 Apple 服务连接，避免完成耗时签名后才发现
+Keychain profile 已缺失。脚本不会输出凭据值。
 
 推荐本机使用 notarytool Keychain Profile，CI 使用 GitHub Secrets。不要把凭据写入 `.env`、脚本或 YAML。
 
@@ -78,7 +83,7 @@ Notes 一致。配置以下 GitHub Actions Secrets 后才能运行：
 保留 7 天。它不会自动发布 npm、创建 GitHub Release 或把仓库公开；这些不可逆操作必须等待干净机和 Pilot
 验收完成。
 
-## 5. 每次发布仍需人工验证
+## 5. 首次发布前仍需人工验证
 
 - 在全新 Apple Silicon Mac 上从 DMG 安装到 `/Applications`；
 - 首次启动没有 Gatekeeper 绕过步骤；

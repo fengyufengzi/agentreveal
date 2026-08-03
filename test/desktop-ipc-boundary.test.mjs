@@ -2,6 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 
 import {
   childFrameEvent,
@@ -21,7 +30,7 @@ test("desktop main: 开发入口与打包入口都从 main 所在根目录解析
 
 test("desktop IPC: handlers reject child frames and unapproved project paths", async () => {
   const { handlers, eventHandlers } = loadDesktopMainHarness();
-  assert.equal(handlers.size, 18);
+  assert.equal(handlers.size, 24);
   assert.equal(eventHandlers.size, 1);
   assert.doesNotThrow(() => eventHandlers.get("agentguard:menuState")(
     childFrameEvent(),
@@ -95,6 +104,31 @@ test("desktop IPC: privileged inputs fail before service or shell access", async
     /预览指纹无效/
   );
   await assert.rejects(
+    handlers.get("agentguard:savePostureBaseline")(
+      mainFrameEvent(),
+      approved,
+      "renderer-controlled-fingerprint",
+      "missing",
+      false
+    ),
+    /可信状态预览指纹无效/
+  );
+  await assert.rejects(
+    handlers.get("agentguard:removePostureBaseline")(
+      mainFrameEvent(),
+      approved,
+      "renderer-controlled-revision"
+    ),
+    /可信状态存储版本无效/
+  );
+  await assert.rejects(
+    handlers.get("agentguard:verifyPosture")(
+      mainFrameEvent(),
+      "/tmp/not-approved"
+    ),
+    /目录选择器确认/
+  );
+  await assert.rejects(
     handlers.get("agentguard:exportReport")(
       mainFrameEvent(),
       approved,
@@ -147,6 +181,25 @@ test("desktop IPC: privileged inputs fail before service or shell access", async
     ),
     /无效的备份 ID/
   );
+  await assert.rejects(
+    handlers.get("agentguard:applyClaudeMigration")(
+      mainFrameEvent(),
+      approved,
+      "task-abcdef123456",
+      "backup-example",
+      "renderer-controlled-fingerprint"
+    ),
+    /迁移预览指纹无效/
+  );
+  await assert.rejects(
+    handlers.get("agentguard:cleanupClaudeCredentialBackup")(
+      mainFrameEvent(),
+      approved,
+      "task-abcdef123456",
+      "renderer/controlled"
+    ),
+    /无效的备份 ID/
+  );
   assert.deepEqual(shellCalls, []);
 });
 
@@ -175,6 +228,84 @@ test("desktop IPC: Claude 备份必须原生确认，取消时不进入 service"
     ),
     /本次桌面会话/
   );
+});
+
+test("desktop IPC: Claude 迁移只接受本会话签发的任务、备份和指纹，并完成复扫", async () => {
+  const home = mkdtempSync(join(tmpdir(), "agentguard-ipc-migration-"));
+  try {
+    const configDir = join(home, ".claude");
+    const settingsPath = join(configDir, "settings.json");
+    mkdirSync(configDir);
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        env: {
+          ANTHROPIC_AUTH_TOKEN: "example-credential-placeholder",
+          SAFE_FLAG: "1",
+        },
+      })
+    );
+    const { handlers, shellCalls, diagnosticsEvents } = loadDesktopMainHarness({
+      appPaths: { home },
+      messageBoxResult: { response: 1 },
+    });
+    const overview = await handlers.get("agentguard:scanMachine")(
+      mainFrameEvent()
+    );
+    const task = overview.tasks.find((candidate) =>
+      candidate.requirements.some(
+        (requirement) => requirement.ruleId === "CLAUDE_PLAINTEXT_TOKEN"
+      )
+    );
+    assert.ok(task);
+    const backup = await handlers.get("agentguard:backupClaudeRemediation")(
+      mainFrameEvent(),
+      overview.scope.path,
+      task.taskId
+    );
+    const migrated = await handlers.get("agentguard:applyClaudeMigration")(
+      mainFrameEvent(),
+      overview.scope.path,
+      task.taskId,
+      backup.backup.backupId,
+      backup.migration.fingerprint
+    );
+    assert.equal(migrated.transaction.phase, "verified");
+    assert.deepEqual(
+      JSON.parse(readFileSync(settingsPath, "utf8")).env,
+      { SAFE_FLAG: "1" }
+    );
+    assert.deepEqual(shellCalls, []);
+    assert.deepEqual(diagnosticsEvents.slice(-2), [
+      { operation: "credential.migration", outcome: "started" },
+      { operation: "credential.migration", outcome: "success" },
+    ]);
+    const backupPath = join(
+      home,
+      ".agentguard",
+      "backups",
+      backup.backup.backupId
+    );
+    assert.equal(existsSync(backupPath), true);
+    const cleaned = await handlers.get(
+      "agentguard:cleanupClaudeCredentialBackup"
+    )(
+      mainFrameEvent(),
+      overview.scope.path,
+      task.taskId,
+      backup.backup.backupId
+    );
+    assert.equal(cleaned.transaction.phase, "backup-cleaned");
+    assert.equal(cleaned.transaction.restoreAvailable, false);
+    assert.equal(existsSync(backupPath), false);
+    assert.deepEqual(shellCalls, []);
+    assert.deepEqual(diagnosticsEvents.slice(-2), [
+      { operation: "credential.backup-cleanup", outcome: "started" },
+      { operation: "credential.backup-cleanup", outcome: "success" },
+    ]);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
 });
 
 test("desktop IPC: canceled selection does not authorize a renderer path", async () => {

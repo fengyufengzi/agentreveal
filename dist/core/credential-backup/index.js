@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { claudePlaintextSettingsFiles } from "../../adapters/claude-code/parse.js";
-import { backupRestoreFileState, createBackup, readBackup, restoreBackupTransaction, } from "../backup/index.js";
+import { backupRestoreFileState, createBackup, deleteBackup, readBackup, restoreBackupTransaction, } from "../backup/index.js";
 const CLAUDE_CREDENTIAL_LABEL_PREFIX = "claude-credential-";
 const CLAUDE_SETTINGS_NAMES = new Set([
     "settings.json",
@@ -44,6 +44,28 @@ function validatedCredentialBackup(cwd, backupId, configDir) {
         throw new Error("Claude 凭证备份的目标路径或 Agent 边界无效。");
     }
     return { manifest, taskId };
+}
+/** 仅供受控迁移事务核对备份目标与原始摘要，不返回备份内容。 */
+export function readClaudeCredentialBackupForMigration(input) {
+    const { manifest, taskId } = validatedCredentialBackup(input.cwd, input.backupId, input.configDir);
+    return {
+        taskId,
+        files: manifest.files.map((file) => ({
+            originalPath: file.originalPath,
+            sha256: file.sha256,
+            mode: file.mode,
+        })),
+    };
+}
+/** 删除已完成迁移的 Claude 备份；调用方负责先验证当前迁移状态和用户确认。 */
+export function deleteClaudeCredentialBackup(input) {
+    const { manifest, taskId } = validatedCredentialBackup(input.cwd, input.backupId, input.configDir);
+    const removed = deleteBackup(input.cwd, manifest.id);
+    return {
+        backupId: removed.backupId,
+        taskId,
+        files: removed.files,
+    };
 }
 function restoreFingerprint(backupId, taskId, state) {
     return createHash("sha256")

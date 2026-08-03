@@ -8,8 +8,11 @@ const state = {
   pendingTrust: undefined,
   pendingIgnore: undefined,
   lastBaselineApply: undefined,
+  posturePreview: undefined,
   credentialBackups: [],
   selectedAgent: undefined,
+  initialScanState: "idle",
+  initialScanError: undefined,
   working: false,
 };
 
@@ -60,6 +63,10 @@ function setStatus(text, kind = "idle", hint = "") {
         : ""
   );
   status.className = `status ${kind}`;
+  document.body.classList.toggle(
+    "has-standalone-status",
+    !state.overview && text !== "等待选择项目"
+  );
   statusText.textContent = text;
   statusHint.textContent = resolvedHint;
   statusHint.hidden = !resolvedHint;
@@ -92,7 +99,9 @@ function setWorking(working) {
   state.working = working;
   document.body.classList.toggle("is-working", working);
   $("mainContent").setAttribute("aria-busy", String(working));
-  content.toggleAttribute("inert", working);
+  const shouldInertContent = working
+    && (Boolean(state.overview) || state.initialScanState !== "scanning");
+  content.toggleAttribute("inert", shouldInertContent);
   $("runBtn").disabled = working || !state.overview;
   $("machineScopeBtn").disabled = working;
   $("selectProjectBtn").disabled = working;
@@ -110,6 +119,20 @@ function focusResultsHeading() {
   if (!heading) return;
   heading.focus({ preventScroll: true });
   scrollMainTo("agentsSection");
+}
+
+function focusInitialScanHeading() {
+  const heading = $("initialScanTitle");
+  if (!heading) return;
+  heading.focus({ preventScroll: true });
+  scrollMainTo("initialScanTitle");
+}
+
+function focusInitialScanError() {
+  const heading = $("initialScanErrorTitle");
+  if (!heading) return;
+  heading.focus({ preventScroll: true });
+  scrollMainTo("initialScanError");
 }
 
 function focusTask(taskId) {
@@ -210,6 +233,31 @@ function credentialBackupForTask(taskId) {
   );
 }
 
+function transactionLabel(transaction) {
+  const labels = {
+    "awaiting-external-verification": "等待外部验证",
+    verified: "已应用并复扫",
+    "rolled-back": "验证失败，已回滚",
+    restored: "已恢复",
+    "backup-cleaned": "备份已清理",
+  };
+  return labels[transaction?.phase] || "处理中";
+}
+
+function postMigrationVerification(backup) {
+  if (backup.phase !== "verified" || !backup.verification) return "";
+  return `<div class="credential-auth-check">
+    <strong>最后确认真实鉴权</strong>
+    <p>AgentGuard 已验证配置与复扫，但无法代替一次真实请求。请在新 Terminal 检查认证状态，再重启 Claude Code 完成一次最小请求。</p>
+    <div class="command-list"><div class="command-item">
+      <div class="command-heading"><span>${escapeHtml(backup.verification.label)}</span><button type="button" class="command-copy" data-copy-command="${escapeHtml(backup.verification.command)}" aria-label="复制 Claude 认证状态检查命令">复制命令</button></div>
+      <code>${escapeHtml(backup.verification.command)}</code>
+    </div></div>
+    ${list(backup.verification.successEvidence)}
+    <p>确认上述结果正常后可删除迁移备份；删除后不能一键恢复，普通删除也不等同于 SSD 安全擦除。</p>
+  </div>`;
+}
+
 function credentialSafetyControls(task, guide) {
   const supportsBackup = guide?.commands?.some(
     (command) => command.id === "macos-claude-keychain-helper"
@@ -217,9 +265,23 @@ function credentialSafetyControls(task, guide) {
   if (!supportsBackup) return "";
   const backup = credentialBackupForTask(task.taskId);
   if (backup) {
+    const currentTransactionLabel = transactionLabel(backup.transaction);
+    const applyDisabled = backup.phase === "verified" ? "disabled" : "";
     return `<section class="credential-safety" data-credential-backup="${escapeHtml(backup.backupId)}">
-      <div><strong>迁移前配置已备份</strong><p>已安全备份 ${escapeHtml(backup.files)} 个 Claude 设置文件。若迁移后启动或鉴权异常，可恢复到执行命令前；恢复会重新带回旧明文字段。</p></div>
-      <button class="danger-ghost" data-credential-action="restore" data-backup-id="${escapeHtml(backup.backupId)}">一键恢复</button>
+      <div class="credential-safety-copy"><strong>${escapeHtml(currentTransactionLabel)}</strong>
+        <ol class="credential-steps">
+          <li data-step-state="complete">已备份 ${escapeHtml(backup.files)} 个 Claude 设置文件</li>
+          <li data-step-state="${backup.phase === "verified" ? "complete" : "current"}">在 Terminal 写入并检查 Keychain；凭证只输入 Terminal</li>
+          <li data-step-state="${backup.phase === "verified" ? "complete" : "pending"}">AgentGuard 删除明文字段、设置 apiKeyHelper 并复扫</li>
+        </ol>
+        <p>${escapeHtml(backup.transaction?.message || "应用前会重新核对任务、配置指纹和备份。失败会自动回滚。")}</p>
+        ${postMigrationVerification(backup)}
+      </div>
+      <div class="credential-actions">
+        <button class="primary-action" data-credential-action="apply" data-task-id="${escapeHtml(task.taskId)}" data-backup-id="${escapeHtml(backup.backupId)}" ${applyDisabled}>${backup.phase === "verified" ? "已完成复扫" : "Terminal 已验证，应用并复扫"}</button>
+        <button class="danger-ghost" data-credential-action="restore" data-backup-id="${escapeHtml(backup.backupId)}">一键恢复</button>
+        ${backup.phase === "verified" ? `<button class="danger-ghost" data-credential-action="cleanup" data-task-id="${escapeHtml(task.taskId)}" data-backup-id="${escapeHtml(backup.backupId)}">鉴权正常，清理备份</button>` : ""}
+      </div>
     </section>`;
   }
   return `<section class="credential-safety">
@@ -236,8 +298,8 @@ function credentialBackupPanel() {
   return backups
     .map(
       (backup) => `<article class="finding credential-restore-panel">
-        <div><h3><span class="badge low">故障回退</span>Claude Code 迁移前备份</h3><p>正常迁移成功后不需要操作。只有执行 Terminal 命令后出现启动或鉴权异常时才恢复；恢复会重新带回旧明文字段，之后仍需轮换旧凭证。</p><div class="meta">${escapeHtml(backup.files)} 个设置文件 · 本次 Desktop 会话可恢复</div></div>
-        <button class="danger-ghost" data-credential-action="restore" data-backup-id="${escapeHtml(backup.backupId)}">迁移异常时恢复</button>
+        <div><h3><span class="badge low">${escapeHtml(transactionLabel(backup.transaction))}</span>Claude Code 迁移前备份</h3><p>${escapeHtml(backup.transaction?.message || "只有迁移后出现启动或鉴权异常时才恢复。")}</p>${postMigrationVerification(backup)}<div class="meta">${escapeHtml(backup.files)} 个设置文件 · 用户确认真实鉴权并主动清理前不会自动删除 · 本次 Desktop 会话可恢复</div></div>
+        <div class="credential-actions"><button class="danger-ghost" data-credential-action="restore" data-backup-id="${escapeHtml(backup.backupId)}">迁移异常时恢复</button>${backup.phase === "verified" ? `<button class="danger-ghost" data-credential-action="cleanup" data-task-id="${escapeHtml(backup.taskId)}" data-backup-id="${escapeHtml(backup.backupId)}">鉴权正常，清理备份</button>` : ""}</div>
       </article>`
     )
     .join("");
@@ -246,12 +308,16 @@ function credentialBackupPanel() {
 function taskActions(task, accepted = false) {
   const projectPoliciesAvailable = state.scopeKind === "project";
   const guide = state.overview?.firstRun?.remediationGuides?.[task.taskId];
+  const activeCredentialBackup = credentialBackupForTask(task.taskId);
   const remediationAction =
     guide?.mode === "baseline"
       ? `<button class="primary-action task-primary" data-task-action="baseline" data-task-id="${escapeHtml(
           task.taskId
         )}">预览并一键整改</button>`
-      : guide?.commands?.some((command) => command.kind === "store")
+      : guide?.commands?.some((command) => command.kind === "store") &&
+          activeCredentialBackup
+        ? ""
+        : guide?.commands?.some((command) => command.kind === "store")
         ? `<button class="primary-action task-primary" data-task-action="guide" data-task-id="${escapeHtml(
             task.taskId
           )}">开始安全迁移</button>`
@@ -331,11 +397,15 @@ function taskCard(task, options = {}) {
   const headingId = `${taskDomId(task.taskId)}-title`;
   const rationaleId = `${taskDomId(task.taskId)}-rationale`;
   const guide = state.overview?.firstRun?.remediationGuides?.[task.taskId];
+  const credentialBackup = credentialBackupForTask(task.taskId);
   const desktopCommands = guide?.commands?.filter(
-    (item) => item.kind !== "verify" && item.id !== "claude-credential-backup"
+    (item) =>
+      item.kind !== "verify" &&
+      item.id !== "claude-credential-backup" &&
+      item.id !== "macos-claude-keychain-helper"
   ) || [];
   const commands = desktopCommands.length
-    ? `<h4>复制到 Terminal 依次执行</h4><div class="command-list">${desktopCommands
+    ? `<h4>${credentialBackup ? "复制到 Terminal 依次执行，再返回应用配置" : "备份后复制到 Terminal 依次执行"}</h4><div class="command-list">${desktopCommands
         .map(
           (item) =>
             `<div class="command-item"><div class="command-heading"><span>${escapeHtml(
@@ -410,13 +480,34 @@ function prioritizedTaskList(tasks) {
 
 function topTaskNavigation(overview, actionable, configured) {
   const configuredAgents = new Set(configured.map((result) => result.agent));
-  const candidates = (overview.topTasks || actionable)
+  const driftCandidates = (overview.firstRun?.topDriftEvents || []).map(
+    (event) => ({ kind: "drift", event })
+  );
+  const taskCandidates = (overview.topTasks || actionable)
     .filter((task) => task.disposition !== "observe")
-    .slice(0, 3);
+    .map((task) => ({ kind: "task", task }));
+  const candidates = [...driftCandidates, ...taskCandidates].slice(0, 3);
   if (!candidates.length) return "";
   return `<section class="priority-queue" aria-labelledby="priorityQueueTitle">
-    <div class="priority-queue-heading"><div><span class="eyebrow">NEXT BEST ACTIONS</span><h3 id="priorityQueueTitle">建议先处理</h3></div><p>按行动优先级排列；选择后直接进入对应 Agent 的任务。</p></div>
-    <ol>${candidates.map((task, index) => {
+    <div class="priority-queue-heading"><div><span class="eyebrow">NEXT BEST ACTIONS</span><h3 id="priorityQueueTitle">建议先处理</h3></div><p>配置变化与风险任务共用前三项；选择后进入对应 Agent。</p></div>
+    <ol>${candidates.map((candidate, index) => {
+      if (candidate.kind === "drift") {
+        const drift = candidate.event;
+        const targetAgent = configuredAgents.has(drift.agentId)
+          ? drift.agentId
+          : "cross-agent";
+        return `<li><button class="priority-task drift-priority" data-priority-drift="${escapeHtml(
+          drift.eventId
+        )}" data-priority-agent="${escapeHtml(targetAgent)}" aria-label="第 ${index + 1} 项，${escapeHtml(
+          drift.priority
+        )} 配置变化，${escapeHtml(drift.currentSummary)}">
+          <span class="priority-rank" aria-hidden="true">${index + 1}</span>
+          <span class="priority-task-copy"><strong>${escapeHtml(drift.currentSummary)}</strong><small>${escapeHtml(
+            drift.agentId
+          )} · 配置变化 · ${escapeHtml(drift.priority)}</small></span><span class="priority-task-arrow" aria-hidden="true">›</span>
+        </button></li>`;
+      }
+      const task = candidate.task;
       const targetAgent = task.agent && configuredAgents.has(task.agent)
         ? task.agent
         : "cross-agent";
@@ -431,6 +522,142 @@ function topTaskNavigation(overview, actionable, configured) {
         )} · ${escapeHtml(task.priority)}</small></span><span class="priority-task-arrow" aria-hidden="true">›</span>
       </button></li>`;
     }).join("")}</ol>
+  </section>`;
+}
+
+function postureAgent(overview, agentId) {
+  return overview.posture?.agents?.find(
+    (entry) => entry.state.agentId === agentId
+  );
+}
+
+function driftEventsForAgent(overview, agentId) {
+  return (overview.drift?.events || []).filter(
+    (entry) => entry.agentId === agentId
+  );
+}
+
+function effectiveStatePanel(overview, agentId) {
+  const report = postureAgent(overview, agentId);
+  if (!report) {
+    return `<article><span>当前真正生效</span><strong>证据不足，尚未计算</strong></article>`;
+  }
+  const effective = report.state;
+  const sourceSummary = effective.configSources.map(
+    (source) => `${source.scope}/${source.kind} · ${source.status}`
+  );
+  const route = [
+    effective.route.providerClass,
+    effective.route.model,
+    effective.route.proxyKind !== "none"
+      ? `经 ${effective.route.proxyKind}`
+      : undefined,
+    effective.route.effectiveEndpoint,
+    effective.route.realUpstream
+      ? `真实上游 ${effective.route.realUpstream}`
+      : undefined,
+  ].filter(Boolean);
+  const auth = [
+    effective.auth.method,
+    effective.auth.sourceKind,
+    effective.auth.status,
+  ].filter(Boolean);
+  const permissions = effective.permissions.map(
+    (entry) => `${entry.capability} · ${entry.decision} · ${entry.scope}`
+  );
+  const integrations = effective.integrations
+    .filter((entry) => entry.enabled)
+    .map((entry) => `${entry.kind} · ${entry.identity}`);
+  return `<article class="effective-summary"><span>当前真正生效</span>
+    <strong>${escapeHtml(effective.confidence === "confirmed" ? "已确认" : effective.confidence === "inferred" ? "根据本机证据推断" : "证据不完整")}</strong>
+    <div class="effective-facts">
+      <div><b>配置来源</b>${factValue(sourceSummary, "未识别")}</div>
+      <div><b>请求链路</b>${factValue(route, "未确认")}</div>
+      <div><b>认证来源</b>${factValue(auth, "未确认")}</div>
+      <div><b>权限</b>${factValue(permissions, "未识别显式权限")}</div>
+      <div><b>集成</b>${factValue(integrations, "未发现已启用集成")}</div>
+    </div>
+    ${report.uncertainty?.length
+      ? `<details class="posture-uncertainty"><summary>仍缺少 ${escapeHtml(report.uncertainty.length)} 类证据</summary><ul>${report.uncertainty
+          .map((entry) => `<li>${escapeHtml(entry.message)}</li>`)
+          .join("")}</ul></details>`
+      : ""}
+  </article>`;
+}
+
+function posturePlansPanel(overview, agentId) {
+  const report = postureAgent(overview, agentId);
+  const plans = (report?.remediationPlans || []).map(
+    (plan) => `<details class="posture-plan">
+      <summary>${escapeHtml(plan.title)} · ${escapeHtml(plan.status)}</summary>
+      <p><strong>当前：</strong>${escapeHtml(plan.currentExplanation)}</p>
+      <p><strong>目标：</strong>${escapeHtml(plan.targetState)}</p>
+      <ol>${plan.steps.map(
+        (step) => `<li><strong>${escapeHtml(step.title)}</strong>：${escapeHtml(step.detail)}${
+          step.terminalCommand
+            ? `<div class="command-list"><div class="command-item">
+                <div class="command-heading"><span>${escapeHtml(step.terminalCommand.label)}</span><button type="button" class="command-copy" data-copy-command="${escapeHtml(step.terminalCommand.command)}" aria-label="复制只读验证命令：${escapeHtml(step.terminalCommand.label)}">复制命令</button></div>
+                <code>${escapeHtml(step.terminalCommand.command)}</code>
+                <p>${escapeHtml(step.terminalCommand.successEvidence)}</p>
+              </div></div>`
+            : ""
+        }</li>`
+      ).join("")}</ol>
+      <p><strong>不自动执行：</strong>${escapeHtml(plan.automation.reason)}</p>
+    </details>`
+  ).join("");
+  if (!plans) return "";
+  return `<section class="posture-guidance" aria-label="有效配置处置计划">
+    <div class="agent-problems-heading"><div><h4>有效配置处置计划</h4><p>先核对当前认证与请求链路，再按步骤操作；AgentGuard 不自动改写外部登录态或凭证库。</p></div></div>
+    ${plans}
+  </section>`;
+}
+
+function agentDriftPanel(overview, agentId) {
+  const events = driftEventsForAgent(overview, agentId);
+  if (!events.length) return "";
+  return `<section class="agent-drift" aria-label="此 Agent 的配置变化">
+    <div class="agent-problems-heading"><div><h4>自可信状态以来</h4><p>已恢复项只保留结果，不会继续要求处理。</p></div><span>${escapeHtml(events.length)} 项</span></div>
+    <div class="agent-drift-list">${events.map((entry) => {
+      const resolved = entry.change === "removed";
+      return `<article id="drift-${escapeHtml(entry.eventId)}" class="finding drift-event ${resolved ? "resolved" : ""}" tabindex="-1" data-drift-card="${escapeHtml(entry.eventId)}">
+        <h3><span class="badge ${resolved ? "low" : entry.priority === "P0" || entry.priority === "P1" ? "high" : "medium"}">${escapeHtml(resolved ? "已恢复" : entry.priority)}</span>${escapeHtml(entry.currentSummary)}</h3>
+        <p>${escapeHtml(entry.kind)} · ${escapeHtml(entry.change)}</p>
+        ${resolved ? "" : `<div class="guide-notes">${list(entry.action)}</div>`}
+        <details><summary>如何验证</summary>${list(entry.verification)}</details>
+      </article>`;
+    }).join("")}</div>
+  </section>`;
+}
+
+function postureBaselinePanel(overview) {
+  const drift = overview.drift;
+  if (!drift) return "";
+  const hasBaseline =
+    drift.status === "unchanged" || drift.status === "changed";
+  const statusLabel =
+    drift.status === "no-baseline"
+      ? "尚未保存可信状态"
+      : drift.status === "unchanged"
+        ? "与可信状态一致"
+        : drift.status === "unavailable"
+          ? "可信状态暂时不可用"
+          : `发现 ${drift.activeEventCount} 项当前变化`;
+  return `<section id="postureSection" class="workspace-section posture-workspace" aria-labelledby="postureSectionTitle">
+    <div class="section-heading"><div><h3 id="postureSectionTitle" tabindex="-1">有效配置与可信状态</h3><p>先审核当前真正生效的 Provider、认证、权限和集成，再决定是否保存为比较基准。</p></div><span class="posture-status ${escapeHtml(drift.status)}">${escapeHtml(statusLabel)}</span></div>
+    <div class="posture-baseline-copy">
+      <div><strong>当前 ${escapeHtml(overview.posture?.summary?.agentCount || 0)} 个 Agent · ${escapeHtml(drift.activeEventCount)} 项变化 · ${escapeHtml(drift.resolvedEventCount)} 项已恢复</strong><p>可信快照只保存结构、分类、稳定代码和本机 HMAC 身份；不保存 Token、原始端点、原始路径或 taskId。</p></div>
+      <div class="posture-actions">
+        <button class="quiet-action" data-posture-action="verify">复扫验证</button>
+        ${drift.status === "unavailable"
+          ? ""
+          : `<button class="primary-action" data-posture-action="save">${hasBaseline ? "替换可信状态" : "保存为可信状态"}</button>`}
+        ${hasBaseline ? `<button class="danger-ghost" data-posture-action="remove">删除可信状态</button>` : ""}
+      </div>
+    </div>
+    ${drift.status === "no-baseline"
+      ? `<p class="baseline-note">首次扫描不会自动信任当前状态。请先逐个查看 Agent 的“当前真正生效”，确认后再保存。</p>`
+      : ""}
   </section>`;
 }
 
@@ -454,6 +681,79 @@ function renderWelcome() {
     <div><span class="privacy-icon" aria-hidden="true">✓</span><span><strong>零上传</strong>配置、代码和结果不会自动离开本机</span></div>
     <div><span class="privacy-icon" aria-hidden="true">✓</span><span><strong>凭证脱敏</strong>证据只保留指纹和变量名</span></div>
     <div><span class="privacy-icon" aria-hidden="true">✓</span><span><strong>操作可逆</strong>整改前预览并备份，完成后可以恢复</span></div>
+  </section>`;
+}
+
+function projectDisplayName(projectPath) {
+  const parts = String(projectPath || "")
+    .split(/[\\/]/)
+    .filter(Boolean);
+  return parts.at(-1) || "所选项目";
+}
+
+function renderInitialScanProgress() {
+  const machineScope = state.scopeKind === "machine";
+  const scopeName = machineScope
+    ? "整台 Mac"
+    : projectDisplayName(state.projectPath);
+  const scopeDetail = machineScope
+    ? "用户主目录 · macOS 可能请求受保护文件夹权限"
+    : state.projectPath;
+  renderCards([]);
+  content.innerHTML = `<section class="initial-scan-view" aria-labelledby="initialScanTitle" aria-describedby="initialScanDescription">
+    <div class="initial-scan-copy">
+      <div class="scan-spinner" aria-hidden="true"><span></span></div>
+      <span class="eyebrow">LOCAL READ-ONLY SCAN</span>
+      <h3 id="initialScanTitle" tabindex="-1">正在检查${machineScope ? "整台 Mac" : `项目 ${escapeHtml(scopeName)}`}</h3>
+      <p id="initialScanDescription">正在本机发现已配置 Agent，并检查连接、权限和需要优先处理的安全任务。</p>
+      <div class="selected-scope" aria-label="已确认的检查范围">
+        <span>${machineScope ? "检查范围" : "已选择项目"}</span>
+        <strong>${escapeHtml(scopeName)}</strong>
+        <code>${escapeHtml(scopeDetail)}</code>
+      </div>
+      <p class="scan-wait-note">请保持窗口打开。扫描没有确定百分比，但下方状态会持续确认应用仍在工作。</p>
+    </div>
+    <div class="scan-plan" aria-label="本次扫描内容">
+      <strong>本次会在本机完成</strong>
+      <div><span aria-hidden="true">✓</span><p><b>范围已确认</b><small>${machineScope ? "用户主目录" : "单个代码项目"}</small></p></div>
+      <div><span aria-hidden="true">···</span><p><b>发现 Agent 与读取配置</b><small>包括常见 Agent 的本机配置</small></p></div>
+      <div><span aria-hidden="true">···</span><p><b>整理连接、权限与行动任务</b><small>普通源代码只检查文件名，不读取内容</small></p></div>
+      <footer>默认只读 · 配置和结果不会上传</footer>
+    </div>
+  </section>`;
+}
+
+function renderInitialScanError() {
+  const machineScope = state.scopeKind === "machine";
+  const scopeName = machineScope
+    ? "整台 Mac"
+    : projectDisplayName(state.projectPath);
+  renderCards([]);
+  content.innerHTML = `<section id="initialScanError" class="initial-scan-view scan-error-view" aria-labelledby="initialScanErrorTitle" aria-describedby="initialScanErrorDescription">
+    <div class="initial-scan-copy">
+      <div class="scan-error-symbol" aria-hidden="true">!</div>
+      <span class="eyebrow">SCAN NOT COMPLETED</span>
+      <h3 id="initialScanErrorTitle" tabindex="-1">没有完成${machineScope ? "整机检查" : `项目 ${escapeHtml(scopeName)} 的检查`}</h3>
+      <p id="initialScanErrorDescription">${escapeHtml(state.initialScanError || "扫描遇到问题，结果尚未生成。")}</p>
+      <div class="selected-scope" aria-label="上次检查范围">
+        <span>${machineScope ? "检查范围" : "上次选择"}</span>
+        <strong>${escapeHtml(scopeName)}</strong>
+        ${machineScope ? "" : `<code>${escapeHtml(state.projectPath)}</code>`}
+      </div>
+      <div class="welcome-actions">
+        <button class="primary-action" data-welcome-action="retry">${machineScope ? "重新扫描整台 Mac" : "重新扫描所选项目"}</button>
+        <button class="quiet-action" data-welcome-action="select">${machineScope ? "选择项目（推荐）" : "更换项目"}</button>
+      </div>
+      <small class="welcome-help">重试仍保持只读；也可以先导出脱敏诊断，诊断不会包含项目路径、端点或配置内容。</small>
+    </div>
+    <div class="scan-error-help">
+      <strong>可以先这样处理</strong>
+      <ol>
+        <li>确认项目文件夹仍然存在且当前用户可以读取。</li>
+        <li>如果 macOS 刚刚拒绝了文件夹权限，可在系统设置中核对后重试。</li>
+        <li>若问题持续，使用顶部“报告”菜单导出脱敏诊断。</li>
+      </ol>
+    </div>
   </section>`;
 }
 
@@ -510,6 +810,7 @@ function renderOverview(overview) {
     ? `aria-labelledby="${selectedTabId}"`
     : `aria-label="Agent 检查结果"`;
   content.innerHTML = `${topTaskNavigation(overview, actionable, configured)}
+    ${postureBaselinePanel(overview)}
     <section id="agentsSection" class="workspace-section agent-focus-section">
       <div class="agent-section-intro"><div><h3 id="agentsSectionTitle" tabindex="-1">已配置的 Agent</h3><p>选择一个 Agent 查看配置状态、重点问题和安全下一步，也可使用左右方向键切换。</p></div><span>${escapeHtml(configured.length)} 个已配置</span></div>
       ${agentNavigation}
@@ -672,6 +973,7 @@ function agentWorkspace(result, overview, actionable) {
       <aside class="agent-inspector" aria-label="${escapeHtml(result.displayName)} 配置摘要">
         <div class="agent-inspector-heading"><span>配置摘要</span><small>只读证据</small></div>
         <div class="agent-facts">
+          ${effectiveStatePanel(overview, result.agent)}
           <article><span>配置位置</span><strong class="path-value">${escapeHtml(result.discovery.configPath || "未发现主配置路径")}</strong></article>
           <article><span>连接 / 上游</span>${factValue(connections, "未识别到显式自定义端点")}</article>
           <article><span>模型 / Provider / 鉴权</span>${factValue(providers, "未识别到显式模型、Provider 或鉴权占位符")}</article>
@@ -681,6 +983,8 @@ function agentWorkspace(result, overview, actionable) {
         </div>
       </aside>
       <section class="agent-task-pane">
+        ${posturePlansPanel(overview, result.agent)}
+        ${agentDriftPanel(overview, result.agent)}
         <div class="agent-problems-heading"><div><h4>问题与修复建议</h4><p>优先显示需要处理的任务，技术证据保留在详情中。</p></div><span>${escapeHtml(tasks.length)} 项</span></div>
         <div class="agent-task-list">${taskContent}</div>
       </section>
@@ -909,8 +1213,8 @@ function baselineRestorePanel() {
     0
   );
   return `<article class="finding baseline-restore">
-    <h3><span class="badge low">已应用</span>${escapeHtml(last.profile)} baseline</h3>
-    <p>已修改 ${last.files.length} 个文件、${changes} 项配置，并完成重新扫描。</p>
+    <h3><span class="badge low">${escapeHtml(transactionLabel(last.transaction))}</span>${escapeHtml(last.profile)} baseline</h3>
+    <p>${escapeHtml(last.transaction?.message || `已修改 ${last.files.length} 个文件、${changes} 项配置，并完成重新扫描。`)}</p>
     <div class="meta">备份 ID：${escapeHtml(last.backupId)}</div>
     <div class="task-actions"><button class="danger-ghost" data-baseline-action="restore">恢复应用前配置</button></div>
   </article>`;
@@ -938,7 +1242,9 @@ function renderCurrentView() {
   if (!state.overview) {
     $("viewTitle").textContent = "选择一个开发项目开始检查";
     $("viewSubtitle").textContent = "从明确的项目范围开始，避免不必要的 macOS 文件夹权限请求。";
-    renderWelcome();
+    if (state.initialScanState === "scanning") renderInitialScanProgress();
+    else if (state.initialScanState === "error") renderInitialScanError();
+    else renderWelcome();
     updateNativeMenuState();
     return;
   }
@@ -991,7 +1297,14 @@ function requestMachineScan() {
 
 async function scanMachine() {
   const shouldFocusResults = !state.overview;
+  if (shouldFocusResults) {
+    state.scopeKind = "machine";
+    state.initialScanState = "scanning";
+    state.initialScanError = undefined;
+    renderCurrentView();
+  }
   setWorking(true);
+  if (shouldFocusResults) focusInitialScanHeading();
   setStatus(
     "正在扫描整台 Mac；macOS 可能询问受保护文件夹权限…",
     "working",
@@ -1000,7 +1313,9 @@ async function scanMachine() {
   try {
     state.overview = await window.agentguard.scanMachine();
     state.baseline = undefined;
+    state.posturePreview = undefined;
     state.lastBaselineApply = undefined;
+    state.initialScanState = "idle";
     updateScope(state.overview);
     setStatus(
       `检查完成：发现 ${state.overview.summary.configuredAgents} 个已配置 Agent，${state.overview.summary.taskCount} 个行动任务`,
@@ -1008,17 +1323,30 @@ async function scanMachine() {
     );
     renderCurrentView();
   } catch (error) {
+    if (shouldFocusResults) {
+      state.initialScanState = "error";
+      state.initialScanError = error.message || String(error);
+      renderCurrentView();
+    }
     setStatus(error.message || String(error), "error");
   } finally {
     setWorking(false);
     if (shouldFocusResults && state.overview) focusResultsHeading();
+    else if (shouldFocusResults) focusInitialScanError();
   }
 }
 
 async function scanProject() {
   if (!state.projectPath) return;
   const shouldFocusResults = !state.overview;
+  if (shouldFocusResults) {
+    state.scopeKind = "project";
+    state.initialScanState = "scanning";
+    state.initialScanError = undefined;
+    renderCurrentView();
+  }
   setWorking(true);
+  if (shouldFocusResults) focusInitialScanHeading();
   setStatus(
     "正在扫描所选项目、检查常见 Agent 配置并整理行动任务…",
     "working",
@@ -1027,6 +1355,8 @@ async function scanProject() {
   try {
     state.overview = await window.agentguard.scanProject(state.projectPath);
     state.baseline = undefined;
+    state.posturePreview = undefined;
+    state.initialScanState = "idle";
     updateScope(state.overview);
     setStatus(
       `扫描完成：${state.overview.summary.findingCount} 项发现，${state.overview.summary.taskCount} 个行动任务`,
@@ -1034,10 +1364,16 @@ async function scanProject() {
     );
     renderCurrentView();
   } catch (error) {
+    if (shouldFocusResults) {
+      state.initialScanState = "error";
+      state.initialScanError = error.message || String(error);
+      renderCurrentView();
+    }
     setStatus(error.message || String(error), "error");
   } finally {
     setWorking(false);
     if (shouldFocusResults && state.overview) focusResultsHeading();
+    else if (shouldFocusResults) focusInitialScanError();
   }
 }
 
@@ -1059,6 +1395,107 @@ async function previewBaseline() {
   }
 }
 
+async function savePostureBaseline() {
+  if (!state.projectPath || state.working) return;
+  setWorking(true);
+  setStatus("正在重新核对当前有效配置并生成可信状态预览…", "working");
+  try {
+    const preview = await window.agentguard.previewPostureBaseline(
+      state.projectPath
+    );
+    state.posturePreview = preview;
+    setStatus("可信状态预览已生成，等待你在原生确认框确认…", "working");
+    const result = await window.agentguard.savePostureBaseline(
+      state.projectPath,
+      preview.currentFingerprint,
+      preview.storageRevision,
+      preview.hasBaseline
+    );
+    if (result.canceled) {
+      setStatus("已取消，可信状态没有变化。");
+      return;
+    }
+    state.overview = result.overview;
+    updateScope(state.overview);
+    setStatus(
+      result.mutation.mutation === "replace"
+        ? "可信状态已替换；后续复扫会以当前状态为新基准。"
+        : "可信状态已保存；后续复扫会显示新增、变化、恢复与重新出现。",
+      "ok"
+    );
+    renderCurrentView();
+    $("postureSectionTitle")?.focus({ preventScroll: true });
+  } catch (error) {
+    setStatus(error.message || String(error), "error");
+  } finally {
+    state.posturePreview = undefined;
+    setWorking(false);
+  }
+}
+
+async function removePostureBaseline() {
+  if (!state.projectPath || state.working) return;
+  setWorking(true);
+  setStatus("正在校验当前可信状态…", "working");
+  try {
+    const preview = await window.agentguard.previewPostureBaseline(
+      state.projectPath
+    );
+    state.posturePreview = preview;
+    if (!preview.hasBaseline) {
+      throw new Error("当前没有可删除的可信状态。");
+    }
+    setStatus("等待你在原生确认框确认删除…", "working");
+    const result = await window.agentguard.removePostureBaseline(
+      state.projectPath,
+      preview.storageRevision
+    );
+    if (result.canceled) {
+      setStatus("已取消，可信状态没有变化。");
+      return;
+    }
+    state.overview = result.overview;
+    updateScope(state.overview);
+    setStatus("可信状态已删除；Agent 配置未修改。", "ok");
+    renderCurrentView();
+    $("postureSectionTitle")?.focus({ preventScroll: true });
+  } catch (error) {
+    setStatus(error.message || String(error), "error");
+  } finally {
+    state.posturePreview = undefined;
+    setWorking(false);
+  }
+}
+
+async function verifyPosture() {
+  if (!state.projectPath || state.working) return;
+  setWorking(true);
+  setStatus("正在复扫并比较可信状态…", "working");
+  try {
+    state.overview = await window.agentguard.verifyPosture(state.projectPath);
+    updateScope(state.overview);
+    const drift = state.overview.drift;
+    setStatus(
+      drift?.status === "changed"
+        ? `复扫完成：仍有 ${drift.activeEventCount} 项当前变化。`
+        : drift?.status === "unchanged"
+          ? "复扫完成：当前有效配置与可信状态一致。"
+          : drift?.status === "no-baseline"
+            ? "复扫完成：尚未保存可信状态。"
+            : "复扫完成，但可信状态暂时不可用。",
+      drift?.status === "changed" || drift?.status === "unavailable"
+        ? "warn"
+        : "ok"
+    );
+    renderCurrentView();
+    $("postureSectionTitle")?.focus({ preventScroll: true });
+  } catch (error) {
+    setStatus(error.message || String(error), "error");
+  } finally {
+    setWorking(false);
+  }
+}
+
 async function chooseProject() {
   setWorking(true);
   setStatus("等待选择项目文件夹…", "working", "取消选择不会改变当前检查结果。");
@@ -1073,6 +1510,7 @@ async function chooseProject() {
       state.baseline = undefined;
     }
     state.projectPath = result.projectPath;
+    state.scopeKind = "project";
     await scanProject();
   } catch (error) {
     setStatus(error.message || String(error), "error");
@@ -1098,10 +1536,13 @@ async function applyBaselinePreview() {
     }
     state.overview = result.overview;
     updateScope(state.overview);
-    state.lastBaselineApply = result.apply;
+    state.lastBaselineApply = {
+      ...result.apply,
+      transaction: result.transaction,
+    };
     state.baseline = undefined;
     setStatus(
-      `Baseline 已应用并复扫；备份 ${result.apply.backupId} 可用于恢复。`,
+      result.transaction.message,
       "ok"
     );
     renderCurrentView();
@@ -1130,7 +1571,7 @@ async function restoreLastBaseline() {
     updateScope(state.overview);
     state.lastBaselineApply = undefined;
     state.baseline = undefined;
-    setStatus(`已从备份 ${result.restore.backupId} 恢复并重新扫描。`, "ok");
+    setStatus(result.transaction.message, "ok");
     renderCurrentView();
   } catch (error) {
     setStatus(error.message || String(error), "error");
@@ -1334,6 +1775,11 @@ async function backupClaudeRemediation(taskId) {
       taskId,
       backupId: result.backup.backupId,
       files: result.backup.files,
+      fingerprint: result.migration.fingerprint,
+      phase: result.transaction.phase,
+      transaction: result.transaction,
+      verification: result.verification,
+      retention: result.retention,
     });
     setStatus(
       `已备份 ${result.backup.files} 个 Claude 设置文件；现在可以执行迁移命令。`,
@@ -1341,6 +1787,79 @@ async function backupClaudeRemediation(taskId) {
     );
     renderCurrentView();
     reopenTaskDetail(taskId);
+  } catch (error) {
+    setStatus(error.message || String(error), "error");
+  } finally {
+    setWorking(false);
+  }
+}
+
+async function applyClaudeMigration(taskId, backupId) {
+  const backup = state.credentialBackups.find(
+    (candidate) =>
+      candidate.scopePath === state.projectPath &&
+      candidate.taskId === taskId &&
+      candidate.backupId === backupId
+  );
+  if (!backup) return;
+  setWorking(true);
+  setStatus("正在重新校验、应用 Claude 配置并复扫…", "working");
+  try {
+    const result = await window.agentguard.applyClaudeMigration(
+      backup.scopePath,
+      backup.taskId,
+      backup.backupId,
+      backup.fingerprint
+    );
+    if (result.canceled) {
+      setStatus("已取消迁移，Claude 配置未修改。");
+      return;
+    }
+    backup.phase = result.transaction.phase;
+    backup.transaction = result.transaction;
+    backup.verification = result.verification;
+    state.overview = result.overview;
+    updateScope(state.overview);
+    setStatus(
+      result.transaction.message,
+      result.transaction.phase === "verified" ? "ok" : "error"
+    );
+    renderCurrentView();
+    if (result.transaction.phase !== "verified") reopenTaskDetail(taskId);
+  } catch (error) {
+    setStatus(error.message || String(error), "error");
+  } finally {
+    setWorking(false);
+  }
+}
+
+async function cleanupClaudeCredentialBackup(taskId, backupId) {
+  const backup = state.credentialBackups.find(
+    (candidate) =>
+      candidate.scopePath === state.projectPath &&
+      candidate.taskId === taskId &&
+      candidate.backupId === backupId
+  );
+  if (!backup) return;
+  setWorking(true);
+  setStatus("正在重新校验迁移状态与精确备份边界…", "working");
+  try {
+    const result = await window.agentguard.cleanupClaudeCredentialBackup(
+      backup.scopePath,
+      backup.taskId,
+      backup.backupId
+    );
+    if (result.canceled) {
+      setStatus("已保留迁移备份，仍可一键恢复。");
+      return;
+    }
+    state.credentialBackups = state.credentialBackups.filter(
+      (candidate) => candidate.backupId !== backup.backupId
+    );
+    state.overview = result.overview;
+    updateScope(state.overview);
+    setStatus(result.transaction.message, "ok");
+    renderCurrentView();
   } catch (error) {
     setStatus(error.message || String(error), "error");
   } finally {
@@ -1447,6 +1966,10 @@ content.addEventListener("click", (event) => {
   if (welcomeAction && !state.working) {
     if (welcomeAction.dataset.welcomeAction === "machine") requestMachineScan();
     if (welcomeAction.dataset.welcomeAction === "select") chooseProject();
+    if (welcomeAction.dataset.welcomeAction === "retry") {
+      if (state.scopeKind === "machine") requestMachineScan();
+      else scanProject();
+    }
     return;
   }
   const sectionJump = event.target.closest("[data-section-jump]");
@@ -1459,6 +1982,20 @@ content.addEventListener("click", (event) => {
     state.selectedAgent = priorityTask.dataset.priorityAgent;
     renderOverview(state.overview);
     focusTask(priorityTask.dataset.priorityTask);
+    return;
+  }
+  const priorityDrift = event.target.closest("[data-priority-drift]");
+  if (priorityDrift) {
+    state.selectedAgent = priorityDrift.dataset.priorityAgent;
+    renderOverview(state.overview);
+    const card = document.querySelector(
+      `[data-drift-card="${CSS.escape(priorityDrift.dataset.priorityDrift)}"]`
+    );
+    card?.focus({ preventScroll: true });
+    card?.scrollIntoView({
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+      block: "center",
+    });
     return;
   }
   const agentView = event.target.closest("[data-agent-view]");
@@ -1481,6 +2018,19 @@ content.addEventListener("click", (event) => {
   if (scopeAction && !state.working) {
     if (scopeAction.dataset.scopeAction === "machine") requestMachineScan();
     if (scopeAction.dataset.scopeAction === "project") chooseProject();
+    return;
+  }
+  const postureAction = event.target.closest("[data-posture-action]");
+  if (postureAction && !state.working) {
+    if (postureAction.dataset.postureAction === "save") {
+      savePostureBaseline();
+    }
+    if (postureAction.dataset.postureAction === "remove") {
+      removePostureBaseline();
+    }
+    if (postureAction.dataset.postureAction === "verify") {
+      verifyPosture();
+    }
     return;
   }
   const button = event.target.closest("[data-task-action]");
@@ -1525,8 +2075,20 @@ content.addEventListener("click", (event) => {
   if (button.dataset.credentialAction === "backup") {
     backupClaudeRemediation(button.dataset.taskId);
   }
+  if (button.dataset.credentialAction === "apply") {
+    applyClaudeMigration(
+      button.dataset.taskId,
+      button.dataset.backupId
+    );
+  }
   if (button.dataset.credentialAction === "restore") {
     restoreClaudeRemediation(button.dataset.backupId);
+  }
+  if (button.dataset.credentialAction === "cleanup") {
+    cleanupClaudeCredentialBackup(
+      button.dataset.taskId,
+      button.dataset.backupId
+    );
   }
 });
 

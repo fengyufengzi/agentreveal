@@ -35,8 +35,8 @@ AI Coding Agent 的安全配置。它扫描 **Claude Code / OpenCode / Codex / C
 
 ## 🚀 快速开始
 
-> 当前源码为 **Public Preview 候选版本（`0.0.5-pilot.3`）**，联合提供 npm CLI 和完成
-> Developer ID 签名、Apple 公证的 macOS 桌面版。npm 包使用个人 scope，避免与现有 `agent-guard` 包混淆。
+> 下一公开版本为 **Public Preview 候选（`0.0.6-pilot.4`）**，联合提供 npm CLI 和完成 Developer ID 签名、
+> Apple 公证的 macOS 桌面版。npm 包使用个人 scope，避免与现有 `agent-guard` 包混淆。
 
 **环境要求**：Node.js ≥ 22（`scan`/`map` 读取 CC Switch 的 SQLite 配置依赖
 `node:sqlite`；开发环境使用 Node 24+）。
@@ -51,8 +51,8 @@ agentguard
 
 **首发支持边界**：CLI 以 macOS 为主要端到端验证平台；Linux / Windows 当前标为 Beta，已有修复模板测试，
 但六类 Agent 的真实配置路径尚未完成三平台全覆盖。macOS Desktop 首发目标为 **macOS 12+、Apple Silicon**；
-Intel 构建尚未验证。本地 `.app` 是依赖当前源码与受信任 Electron 开发运行时的启动器；正式独立 DMG
-必须通过 Developer ID 签名、公证和 staple 后才会发布。
+Intel 构建尚未验证。本地 `.app` 是依赖当前源码与受信任 Electron 开发运行时的启动器；公开的独立 DMG
+已经通过 Developer ID 签名、Apple 公证、staple 和 Gatekeeper 验证。
 
 ### 从源码验证
 
@@ -127,7 +127,8 @@ agentguard restore
 本地运行、默认只读和不上传，首次打开以“选择项目并开始扫描”为主行动，整机检查是提示权限影响的次级入口。完成后进入按 Agent
 切换的单页安全工作台，配置摘要、实际 Provider / 代理 / 上游链路、重点问题和修复步骤保持在同一处理路径；
 完整技术证据按需展开，并可将 HTML 或 JSON 报告保存到用户选择的目录。同版本 GitHub Pre-release 提供
-完成 Developer ID 签名、Apple 公证和 staple 的 Apple Silicon DMG。
+完成 Developer ID 签名、Apple 公证和 staple 的
+[Apple Silicon DMG](https://github.com/fengyufengzi/AgentGuard/releases/tag/v0.0.6-pilot.4)。
 
 这里的“项目”是你正在开发的单个代码项目根目录，通常包含 `.git`、`package.json`、`pyproject.toml`
 等标识。项目扫描会解析项目内的 Agent 配置；普通源代码只检查文件名，不读取内容，同时仍会读取常见
@@ -218,7 +219,7 @@ npm run desktop:release:verify
 
 ## 🧭 命令一览
 
-下表以当前 `0.0.5-pilot.3` 候选源码为准。
+下表以当前 `0.0.6-pilot.4` 候选源码为准。
 
 主要扫描与变更命令支持 `--json`（`report` 用 `--format json`）；`risk` 当前输出人类可读审计信息。
 机器输出带有
@@ -585,7 +586,7 @@ npm run clean     # 删除 dist/
 跨模块长期决策记录在 [`docs/adr/`](docs/adr/README.md)；无额外提示的 AI 贡献评测协议位于
 [`evals/`](evals/README.md)。
 
-仓库公开前仍需完成 Git 历史、发布资产、CI 和仓库权限检查。安全问题请通过
+公开仓库历史、最终发布资产、CI 和仓库权限门禁已经完成发布前复核；后续变更仍由相同检查持续保护。安全问题请通过
 [`SECURITY.md`](SECURITY.md) 中的私密渠道报告，不要在公开 Issue 中粘贴真实配置或凭证。
 
 ---

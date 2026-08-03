@@ -1,0 +1,108 @@
+import type { AgentId } from "../../adapters/types.js";
+import { getRuleAction } from "../../rules/action-matrix.js";
+import { RULE_IDS, type RuleId } from "../../rules/ids.js";
+import {
+  AcceptanceStore,
+  type ListedAcceptance,
+} from "../acceptance/index.js";
+import { listRuleIgnores } from "../config/rule-ignore.js";
+import type { DriftPolicyState } from "./types.js";
+
+const KNOWN_RULE_IDS = new Set<string>(RULE_IDS);
+const KNOWN_AGENTS = new Set<AgentId>([
+  "claude-code",
+  "codex",
+  "cc-switch",
+  "opencode",
+  "gemini",
+  "openclaw",
+  "workspace",
+]);
+
+function acceptanceAgent(record: ListedAcceptance): AgentId {
+  const agent = record.task.agent as AgentId | undefined;
+  return agent && KNOWN_AGENTS.has(agent) ? agent : "workspace";
+}
+
+function knownRuleIds(values: readonly string[]): RuleId[] {
+  return [...new Set(values.filter((value): value is RuleId =>
+    KNOWN_RULE_IDS.has(value)
+  ))].sort();
+}
+
+function acceptancePolicies(
+  cwd: string,
+  path: string | undefined,
+  now: Date
+): DriftPolicyState[] {
+  const records = new AcceptanceStore({
+    cwd,
+    now: () => now,
+    ...(path ? { path } : {}),
+  }).list();
+  const latestByTask = new Map<string, ListedAcceptance>();
+  for (const record of records) {
+    if (!latestByTask.has(record.taskId)) latestByTask.set(record.taskId, record);
+  }
+  return [...latestByTask.values()].flatMap((record) => {
+    if (record.status !== "active" && record.status !== "expired") return [];
+    const ruleIds = knownRuleIds(record.task.ruleIds);
+    if (ruleIds.length === 0) return [];
+    return [{
+      kind: "acceptance" as const,
+      agentId: acceptanceAgent(record),
+      subject: record.taskId,
+      status: record.status,
+      ruleIds,
+      priority: record.task.priority,
+      severity: record.task.severity,
+    }];
+  });
+}
+
+function ignorePolicies(cwd: string, now: Date): DriftPolicyState[] {
+  return listRuleIgnores(cwd, now).entries.map((entry) => {
+    const action = getRuleAction(entry.ruleId);
+    return {
+      kind: "ignore" as const,
+      agentId: entry.agent,
+      subject: `${entry.agent}:${entry.ruleId}`,
+      status: entry.status,
+      ruleIds: [entry.ruleId],
+      priority: action?.priority ?? "P3",
+      severity: action?.priority === "P2" ? "medium" : "low",
+    };
+  });
+}
+
+/**
+ * 策略文件异常不能掩盖有效配置扫描；对应配置读取流程会单独报告解析问题。
+ */
+export function loadDriftPolicyStates(
+  cwd: string,
+  options: {
+    acceptancePath?: string;
+    now?: Date;
+  } = {}
+): DriftPolicyState[] {
+  const now = options.now ?? new Date();
+  const output: DriftPolicyState[] = [];
+  try {
+    output.push(
+      ...acceptancePolicies(cwd, options.acceptancePath, now)
+    );
+  } catch {
+    // fail closed：不把无法验证的接受记录写入可信状态。
+  }
+  try {
+    output.push(...ignorePolicies(cwd, now));
+  } catch {
+    // fail closed：不把无法验证的忽略策略写入可信状态。
+  }
+  return output.sort(
+    (left, right) =>
+      left.kind.localeCompare(right.kind) ||
+      left.agentId.localeCompare(right.agentId) ||
+      left.subject.localeCompare(right.subject)
+  );
+}

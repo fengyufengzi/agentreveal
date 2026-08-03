@@ -8,6 +8,7 @@ import { dirExists, fileExists } from "../../core/discovery/fs-utils.js";
 import { parseCodex } from "./parse.js";
 import { buildCodexFindings } from "./risk.js";
 import { buildParseFailureFinding } from "../../core/parse-failure.js";
+import { buildCodexEffectiveState } from "./posture.js";
 export const codexAdapter = {
     agent: "codex",
     displayName: "Codex",
@@ -73,6 +74,22 @@ export const codexAdapter = {
                     format: "TOML",
                 })];
         }
+    },
+    async inspectPosture(ctx, found) {
+        const findings = await this.deepScan(ctx, found);
+        return {
+            state: buildCodexEffectiveState({
+                baseDir: dirname(found.configPath),
+                configPath: found.configPath,
+                cwd: ctx.cwd,
+                env: ctx.env,
+                findings,
+                providerPolicy: ctx.providerPolicy,
+                ...(process.platform === "win32"
+                    ? {}
+                    : { systemConfigPath: "/etc/codex/config.toml" }),
+            }),
+        };
     },
 };
 //# sourceMappingURL=index.js.map

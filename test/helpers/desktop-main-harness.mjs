@@ -22,6 +22,7 @@ export function loadDesktopMainHarness({
   openDialogResult = { canceled: false, filePaths: ["/tmp/agentguard-approved-project"] },
   saveDialogResult = { canceled: true },
   messageBoxResult = { response: 0 },
+  appPaths = {},
 } = {}) {
   const handlers = new Map();
   const eventHandlers = new Map();
@@ -53,7 +54,7 @@ export function loadDesktopMainHarness({
   const electron = {
     app: {
       getAppPath: () => repoRoot,
-      getPath: (name) => `/tmp/agentguard-${name}`,
+      getPath: (name) => appPaths[name] || `/tmp/agentguard-${name}`,
       getVersion: () => "0.0.0-test",
       whenReady: () => ({ then: () => undefined }),
       on: () => undefined,
@@ -63,7 +64,10 @@ export function loadDesktopMainHarness({
     dialog: {
       showOpenDialog: async () => openDialogResult,
       showSaveDialog: async () => saveDialogResult,
-      showMessageBox: async () => messageBoxResult,
+      showMessageBox: async (...args) =>
+        typeof messageBoxResult === "function"
+          ? messageBoxResult(...args)
+          : messageBoxResult,
     },
     ipcMain: {
       handle(channel, handler) {
@@ -104,7 +108,9 @@ export function loadDesktopMainHarness({
   };
   vm.runInNewContext(readFileSync(mainPath, "utf8"), sandbox, {
     filename: mainPath,
-    importModuleDynamically: (specifier) => import(specifier),
+    importModuleDynamically:
+      vm.constants?.USE_MAIN_CONTEXT_DEFAULT_LOADER ??
+      ((specifier) => import(specifier)),
   });
   return {
     handlers,

@@ -7,6 +7,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `0.0.6-pilot.4` 联合公开候选：Claude Code、Codex 与 CC Switch 的有效配置说明、私密可信快照、稳定漂移事件、
+  Desktop 可信状态管理和确定性认证冲突处置计划；CLI 与 macOS Desktop 使用同一 core、schema 和版本。
+- macOS 正式构建使用独立公证 hook，以非 S3 加速模式提交、等待 Accepted，并在生成 DMG 前完成 staple 验证，
+  降低大体积 Electron App 的 multipart upload 超时风险。
+- `agentguard posture`、`agentguard drift` 与显式 `drift baseline` 管理：可信快照只保存结构、分类、规则 ID
+  和本机 keyed HMAC 身份，支持项目隔离、并发校验、接受/忽略到期、恢复/重新出现识别及最小化审计。
+- CLI、JSON、HTML 与 Desktop 展示 Provider/真实上游、认证来源、权限、集成、不确定证据与配置漂移；
+  高优先级变化和风险任务共用 Top 3 行动容量。
+- Claude/Codex 认证冲突按当前生效来源和被覆盖来源生成固定处置顺序；CC Switch 区分官方直连、代理接管和
+  真实上游异常。身份选择保持人工确认，不自动轮换凭证，不改写 Codex auth.json 或 CC Switch SQLite。
 - CLI 增加 Claude Code 凭证迁移专用 `credential backup <task-id>` 与两阶段 `credential restore`：备份要求
   最新扫描任务，恢复默认只读预览，并以指纹确认、路径边界、完整性和并发修改校验保护事务写入；Desktop
   改为复用同一 core，同时保留当前会话授权、原生确认和自动复扫。
@@ -15,8 +25,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   多文件失败自动回滚并复扫。即使原任务已消失，全局整改区仍保留当前会话恢复入口。
 - macOS Claude Code 明文凭证引导增加完整 Keychain `apiKeyHelper` 迁移命令：只处理实际含明文的设置文件，
   删除 `ANTHROPIC_AUTH_TOKEN/API_KEY`、收紧权限且不打印凭证；Desktop 验证统一使用“复扫验证”按钮。
-- `0.0.5-pilot.3` 联合候选门禁：手动工作流校验版本化 Release Notes，生成同版本 npm tarball 与签名、
-  公证 Apple Silicon DMG，联合执行 Gitleaks 与 SHA-256 后只上传 7 天候选 artifact，不自动公开发布。
+- `0.0.5-pilot.3` 联合 Public Preview：同版本 scoped npm CLI 与签名、公证 Apple Silicon DMG 已进入
+  GitHub Pre-release；最终 tarball、DMG 和 `app.asar` 通过 Gitleaks、SHA-256 与公开位置回装验证。
 - npm 发布名改为 `@wangmarsen/agentguard`，保留 `agentguard` 可执行命令；避免与现有 `agent-guard` 包触发
   registry 相似名称保护，并同步 scoped tarball 文件名、安装说明和联合发布工作流。
 - `npm run release:scan-assets`：安全解包最终 npm tarball、只读挂载 DMG 并解包 `app.asar`，使用 100%
@@ -27,6 +37,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - macOS Desktop 首次主行动改为选择单个代码项目并解释项目根目录、实际读取范围与普通源代码边界；整机扫描
   降为带 macOS 受保护文件夹权限提示的次级入口。五页导航收敛为单页安全工作台，并区分可事务执行的
   baseline 一键整改与明文凭证的系统专属安全迁移引导。
+- macOS Desktop 首次项目选择后增加持续可见的扫描中与可恢复失败状态：保留所选范围、只读/不上云说明，
+  不伪造确定百分比，并提供原范围重试、更换项目和脱敏诊断入口。
 - Desktop 扫描结果改为按 Agent 连续分组：先展示配置位置、连接/上游、显式模型或 Provider、安全相关权限、
   MCP 与凭证状态，再展示该 Agent 的问题和修复建议；跨 Agent 与项目任务保持独立分组。
 - Desktop 移除左侧步骤菜单，报告与支持迁移到顶部应用栏；首屏改为 Agent 状态导航卡，取消独立全局统计区，
