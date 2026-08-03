@@ -86,10 +86,25 @@ function storageToken(
   target: RiskFinding | ActionTask,
   ruleIds: string[]
 ): string {
-  const rule = safeRuleToken(ruleIds);
+  const rule = ruleIds.includes("CLAUDE_PLAINTEXT_TOKEN")
+    ? "CLAUDE_PLAINTEXT_TOKEN"
+    : safeRuleToken(ruleIds);
   if (!isActionTask(target)) return rule;
   const task = target.taskId.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 64);
   return task ? `${rule}_${task}` : rule;
+}
+
+/** Claude 凭证迁移使用的稳定 Keychain service；只由已校验 taskId 派生。 */
+export function claudeCredentialKeychainService(taskId: string): string {
+  if (!/^task-[A-Za-z0-9_-]{6,128}$/.test(taskId)) {
+    throw new Error("无效的任务 ID。");
+  }
+  return `AgentGuard/CLAUDE_PLAINTEXT_TOKEN_${taskId}`;
+}
+
+/** 写入 Claude 设置的固定 helper，不包含凭证、路径或 renderer 输入。 */
+export function claudeCredentialApiKeyHelper(taskId: string): string {
+  return `security find-generic-password -a "$USER" -s "${claudeCredentialKeychainService(taskId)}" -w`;
 }
 
 /** 仅映射目标工具确实读取的标准变量；未知 Provider/渠道绝不虚构变量名。 */

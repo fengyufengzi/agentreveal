@@ -21,6 +21,7 @@ Public Preview。优先提升安装成功率、首次价值、风险准确性、
    - 新增或扩展 Agent：`.agents/skills/add-agent-adapter/SKILL.md`
    - 新增或修改规则：`.agents/skills/add-security-rule/SKILL.md`
    - 修改桌面 IPC：`.agents/skills/change-desktop-ipc/SKILL.md`
+   - 审查或持续改进 macOS 界面：`.agents/skills/review-macos-ui/SKILL.md`
 5. 在修改前明确影响面：core schema、CLI、JSON、HTML、Desktop、文档和发布产物。
 
 ## 3. 架构地图

@@ -64,6 +64,44 @@ if (process.platform !== "darwin") {
   if (apiCredentials && !existsSync(process.env.APPLE_API_KEY)) {
     fail("APPLE_API_KEY 必须指向本机可读的 .p8 文件。");
   }
+
+  const notaryAuthorization = keychainProfile
+    ? [
+        "--keychain-profile",
+        process.env.APPLE_KEYCHAIN_PROFILE,
+        ...(process.env.APPLE_KEYCHAIN
+          ? ["--keychain", process.env.APPLE_KEYCHAIN]
+          : []),
+      ]
+    : apiCredentials
+      ? [
+          "--key",
+          process.env.APPLE_API_KEY,
+          "--key-id",
+          process.env.APPLE_API_KEY_ID,
+          "--issuer",
+          process.env.APPLE_API_ISSUER,
+        ]
+      : appleIdCredentials
+        ? [
+            "--apple-id",
+            process.env.APPLE_ID,
+            "--password",
+            process.env.APPLE_APP_SPECIFIC_PASSWORD,
+            "--team-id",
+            process.env.APPLE_TEAM_ID,
+          ]
+        : [];
+  if (
+    notaryAuthorization.length > 0 &&
+    command("xcrun", [
+      "notarytool",
+      "history",
+      ...notaryAuthorization,
+    ]).status !== 0
+  ) {
+    fail("Apple 公证凭据或 Keychain Profile 验证失败。");
+  }
 }
 
 if (!process.exitCode) {

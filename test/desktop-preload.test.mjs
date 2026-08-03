@@ -42,6 +42,8 @@ test("desktop preload: sandboxed runtime exposes the complete typed bridge", () 
   assert.equal(exposed.name, "agentguard");
   assert.equal(typeof exposed.bridge.selectProject, "function");
   assert.equal(typeof exposed.bridge.backupClaudeRemediation, "function");
+  assert.equal(typeof exposed.bridge.applyClaudeMigration, "function");
+  assert.equal(typeof exposed.bridge.cleanupClaudeCredentialBackup, "function");
   assert.equal(typeof exposed.bridge.updateMenuState, "function");
   exposed.bridge.selectProject();
   assert.deepEqual(invocations.at(-1), ["agentguard:selectProject"]);

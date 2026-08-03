@@ -15,6 +15,7 @@ import { dirExists, fileExists } from "../../core/discovery/fs-utils.js";
 import { parseClaudeCode } from "./parse.js";
 import { buildClaudeCodeFindings } from "./risk.js";
 import { buildParseFailureFinding } from "../../core/parse-failure.js";
+import { buildClaudeEffectiveState } from "./posture.js";
 
 export const claudeCodeAdapter: Adapter = {
   agent: "claude-code",
@@ -72,5 +73,26 @@ export const claudeCodeAdapter: Adapter = {
         format: "JSON",
       })];
     }
+  },
+
+  async inspectPosture(ctx, found) {
+    const findings = await this.deepScan!(ctx, found);
+    const managedSettingsPaths =
+      process.platform === "darwin"
+        ? ["/Library/Application Support/ClaudeCode/managed-settings.json"]
+        : process.platform === "win32"
+          ? []
+          : ["/etc/claude-code/managed-settings.json"];
+    return {
+      state: buildClaudeEffectiveState({
+        configDir: found.configPath!,
+        home: ctx.home,
+        cwd: ctx.cwd,
+        env: ctx.env,
+        findings,
+        providerPolicy: ctx.providerPolicy,
+        managedSettingsPaths,
+      }),
+    };
   },
 };

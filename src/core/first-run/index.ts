@@ -20,6 +20,9 @@ import {
   type RemediationGuide,
 } from "../remediation/index.js";
 import type { ScanReport } from "../scan/index.js";
+import type { PostureReport } from "../posture/report.js";
+import type { DriftComparison } from "../posture/types.js";
+import type { DriftEvent } from "../posture/types.js";
 
 export const FIRST_RUN_TOP_TASK_LIMIT = 3 as const;
 
@@ -66,6 +69,12 @@ export interface FirstRunSummaryPayload {
   /** 当前操作系统的安全命令模板；命令不会包含原始凭证。 */
   remediationGuides: Record<string, RemediationGuide>;
   nextCommands: FirstRunNextCommand[];
+  /** E2+ 可选扩展；旧 v1 消费方可忽略。 */
+  posture?: PostureReport;
+  /** E3+ 可选扩展；没有可信基线时为 no-baseline。 */
+  drift?: DriftComparison;
+  /** 与 Top 3 行动共用容量的高优先级变化。 */
+  topDriftEvents?: DriftEvent[];
 }
 
 export type FirstRunSummaryV1 = FirstRunSummaryPayload & {
@@ -77,6 +86,8 @@ export interface FirstRunSummaryOptions {
   acceptedTaskCount?: number;
   ignoredFindingCount?: number;
   platform?: NodeJS.Platform;
+  posture?: PostureReport;
+  drift?: DriftComparison;
 }
 
 function isImmediate(priority: ActionPriority): boolean {
@@ -170,7 +181,13 @@ export function buildFirstRunSummary(
   const mustHandle = actionable.filter((task) => isImmediate(task.priority));
   const shouldReview = actionable.filter((task) => !isImmediate(task.priority));
   const informational = tasks.filter((task) => task.disposition === "observe");
-  const topTasks = actionable.slice(0, FIRST_RUN_TOP_TASK_LIMIT);
+  const topDriftEvents = (options.drift?.events ?? [])
+    .filter((entry) => entry.change !== "removed")
+    .slice(0, FIRST_RUN_TOP_TASK_LIMIT);
+  const topTasks = actionable.slice(
+    0,
+    Math.max(0, FIRST_RUN_TOP_TASK_LIMIT - topDriftEvents.length)
+  );
   const remediationGuides = Object.fromEntries(
     topTasks.map((task) => [
       task.taskId,
@@ -206,5 +223,8 @@ export function buildFirstRunSummary(
     },
     remediationGuides,
     nextCommands: buildNextCommands(topTasks),
+    ...(options.posture ? { posture: options.posture } : {}),
+    ...(options.drift ? { drift: options.drift } : {}),
+    ...(options.drift ? { topDriftEvents } : {}),
   });
 }

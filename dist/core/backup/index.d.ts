@@ -29,6 +29,15 @@ interface RestoreTransactionOptions {
 export declare function createBackup(cwd: string, targets: BackupTarget[], label?: string): BackupManifest;
 export declare function latestBackup(cwd: string): BackupManifest | undefined;
 export declare function readBackup(cwd: string, id: string): BackupManifest;
+/**
+ * 删除一个已完整校验的精确备份目录。
+ *
+ * 该操作不可恢复，也不承诺对 SSD 做安全擦除；调用方必须先确认业务状态稳定并获得显式用户确认。
+ */
+export declare function deleteBackup(cwd: string, id: string): {
+    backupId: string;
+    files: number;
+};
 /** 读取恢复目标的当前摘要；只返回路径与不可逆哈希，不返回配置内容。 */
 export declare function backupRestoreFileState(manifest: BackupManifest): BackupRestoreFileState[];
 /**

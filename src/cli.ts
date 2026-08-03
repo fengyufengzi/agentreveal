@@ -49,6 +49,14 @@ import {
   previewClaudeCredentialRestore,
   restoreClaudeCredentialBackup,
 } from "./core/credential-backup/index.js";
+import {
+  PostureSnapshotStore,
+  inspectPosture,
+  inspectPostureWithDrift,
+  loadDriftPolicyStates,
+} from "./core/posture/index.js";
+import { formatPosture } from "./core/report/posture-format.js";
+import { formatDrift } from "./core/report/drift-format.js";
 
 const program = new Command();
 const invocationArgs = process.argv.slice(2);
@@ -69,6 +77,22 @@ function taskSnapshotStore(): TaskSnapshotStore {
   return new TaskSnapshotStore(path ? { path } : {});
 }
 
+function postureSnapshotStore(cwd = process.cwd()): PostureSnapshotStore {
+  const path = process.env.AGENTGUARD_POSTURE_SNAPSHOT_PATH;
+  const keyPath = process.env.AGENTGUARD_POSTURE_KEY_PATH;
+  const acceptancePath = process.env.AGENTGUARD_ACCEPTANCE_PATH;
+  return new PostureSnapshotStore({
+    cwd,
+    ...(path ? { path } : {}),
+    ...(keyPath ? { keyPath } : {}),
+    policyStates: (now) =>
+      loadDriftPolicyStates(cwd, {
+        ...(acceptancePath ? { acceptancePath } : {}),
+        now,
+      }),
+  });
+}
+
 function triageReport(report: ScanReport) {
   const records = acceptanceStore().list({ activeOnly: true });
   return applyAcceptances(report, records, activeRuleIgnoresSafely(process.cwd()));
@@ -87,7 +111,7 @@ async function currentClaudeConfigDir(): Promise<string> {
 program
   .name("agentguard")
   .description("面向多 Agent、多模型、多 Provider 的 AI Coding Agent 安全配置中心")
-  .version("0.0.5-pilot.3")
+  .version("0.0.6-pilot.4")
   .addHelpText("after", "\nBare JSON: agentguard --json");
 
 program
@@ -118,10 +142,19 @@ program.action(async () => {
     process.exitCode = 1;
     return;
   }
-  const triaged = triageReport(await scanAll());
+  const ctx = buildContext();
+  const [scanReport, postureState] = await Promise.all([
+    scanAll(ctx),
+    inspectPostureWithDrift(ctx, postureSnapshotStore(ctx.cwd), {
+      tolerateStoreErrors: true,
+    }),
+  ]);
+  const triaged = triageReport(scanReport);
   const summary = buildFirstRunSummary(triaged.activeReport, {
     acceptedTaskCount: triaged.acceptedTasks.length,
     ignoredFindingCount: triaged.ignoredFindings.length,
+    posture: postureState.posture,
+    drift: postureState.drift,
   });
   taskSnapshotStore().capture(summary.tasks);
   if (bareJson) {
@@ -150,16 +183,27 @@ program
   .description("扫描全部已发现 Agent 的风险（深度解析 Provider / 代理链路 / 密钥）")
   .option("--json", "以 JSON 输出，便于自动化")
   .action(async (opts: { json?: boolean }) => {
-    const triaged = triageReport(await scanAll());
+    const ctx = buildContext();
+    const [scanReport, postureState] = await Promise.all([
+      scanAll(ctx),
+      inspectPostureWithDrift(ctx, postureSnapshotStore(ctx.cwd), {
+        tolerateStoreErrors: true,
+      }),
+    ]);
+    const triaged = triageReport(scanReport);
     const report = triaged.activeReport;
     if (opts.json) {
       printJson("scan", {
         ...report,
         acceptedTaskCount: triaged.acceptedTasks.length,
         ignoredFindingCount: triaged.ignoredFindings.length,
+        posture: postureState.posture,
+        drift: postureState.drift,
       });
     } else {
       console.log(formatScan(report));
+      console.log(`\n${formatPosture(postureState.posture)}`);
+      console.log(`\n${formatDrift(postureState.drift)}`);
       if (triaged.acceptedTasks.length > 0) {
         console.log(
           `\n已隐藏 ${triaged.acceptedTasks.length} 个已接受风险任务；运行 agentguard risk list 查看。`
@@ -173,6 +217,157 @@ program
     }
     // 有高危及以上风险时以非零码退出，便于 CI 集成（含跨 Agent 关联项）。
     if (hasHighRisk(report)) process.exitCode = 2;
+  });
+
+const driftCommand = program
+  .command("drift")
+  .description("比较当前有效状态与用户确认的本机可信状态")
+  .option("--json", "以 JSON 输出，便于自动化")
+  .action(async (opts: { json?: boolean }) => {
+    const ctx = buildContext();
+    const result = await inspectPostureWithDrift(
+      ctx,
+      postureSnapshotStore(ctx.cwd),
+      { recordObservation: true }
+    );
+    if (opts.json) {
+      printJson("drift", result);
+    } else {
+      console.log(formatPosture(result.posture));
+      console.log(`\n${formatDrift(result.drift)}`);
+      console.log("\n本次显式 drift 比较已记录最小化观察状态，用于识别恢复和重新出现；未保存原始路径或端点。");
+    }
+    if (result.drift.activeEventCount > 0) process.exitCode = 2;
+  });
+
+driftCommand
+  .command("baseline")
+  .description("预览、创建、替换或删除当前项目的本机可信状态")
+  .option("--replace", "替换已有可信状态")
+  .option("--remove", "删除当前项目的可信状态")
+  .option("--confirm", "确认已审核预览并执行写入")
+  .option("--json", "以 JSON 输出")
+  .action(
+    async (opts: {
+      replace?: boolean;
+      remove?: boolean;
+      confirm?: boolean;
+      json?: boolean;
+    }) => {
+      const json = Boolean(opts.json || driftCommand.opts().json);
+      if (opts.replace && opts.remove) {
+        throw new Error("--replace 与 --remove 不能同时使用。");
+      }
+      const ctx = buildContext();
+      const store = postureSnapshotStore(ctx.cwd);
+      const posture = await inspectPosture(ctx);
+      const states = posture.agents.map((entry) => entry.state);
+      const preview = store.previewBaseline(states);
+      const existing = preview.mutation === "replace";
+
+      if (opts.remove) {
+        const removalPreview = {
+          mutation: "remove" as const,
+          changed: existing,
+          previousCapturedAt: preview.previousCapturedAt,
+          storageRevision: preview.storageRevision,
+          excludesSensitiveContent: true as const,
+        };
+        if (!opts.confirm) {
+          if (json) {
+            printJson("drift.baseline", {
+              applied: false,
+              preview: removalPreview,
+            });
+          } else {
+            console.log(
+              existing
+                ? `删除预览：将删除当前项目 ${preview.previousCapturedAt} 的可信状态。`
+                : "删除预览：当前项目没有可信状态。"
+            );
+            console.log("确认删除：agentguard drift baseline --remove --confirm");
+          }
+          process.exitCode = 1;
+          return;
+        }
+        const result = store.removeBaselineConfirmed(
+          preview.storageRevision
+        );
+        if (json) {
+          printJson("drift.baseline", { applied: true, result });
+        } else {
+          console.log(
+            result.changed
+              ? "当前项目的可信状态已删除。"
+              : "当前项目没有可删除的可信状态。"
+          );
+        }
+        return;
+      }
+
+      if (existing && !opts.replace) {
+        console.error(
+          "当前项目已有可信状态；审核新预览后使用 --replace --confirm，避免意外覆盖。"
+        );
+        process.exitCode = 1;
+        return;
+      }
+      if (!existing && opts.replace) {
+        console.error("当前项目尚无可信状态；请去掉 --replace 后创建。");
+        process.exitCode = 1;
+        return;
+      }
+
+      if (!opts.confirm) {
+        if (json) {
+          printJson("drift.baseline", { applied: false, preview });
+        } else {
+          console.log(
+            `${preview.mutation === "create" ? "创建" : "替换"}预览：将保存 ${preview.agentCount} 个 Agent 的以下类别：`
+          );
+          preview.savedCategories.forEach((entry) =>
+            console.log(`- ${entry}`)
+          );
+          console.log(
+            "不会保存 API Key、Token、原始路径、原始端点、模型名、配置值、evidence 或 taskId。"
+          );
+          console.log(
+            preview.mutation === "create"
+              ? "确认创建：agentguard drift baseline --confirm"
+              : "确认替换：agentguard drift baseline --replace --confirm"
+          );
+        }
+        process.exitCode = 1;
+        return;
+      }
+
+      const freshPosture = await inspectPosture(ctx);
+      const result = store.saveBaselineConfirmed(
+        freshPosture.agents.map((entry) => entry.state),
+        preview
+      );
+      if (json) {
+        printJson("drift.baseline", { applied: true, result });
+      } else {
+        console.log(
+          `${result.mutation === "create" ? "已创建" : "已替换"}当前项目可信状态：${result.agentCount} 个 Agent。`
+        );
+        console.log("后续运行 agentguard 或 agentguard drift 查看变化。");
+      }
+    }
+  );
+
+program
+  .command("posture")
+  .description("解释 Claude Code、Codex、CC Switch 当前真正生效的配置、认证、路由和权限")
+  .option("--json", "以 JSON 输出，便于自动化")
+  .action(async (opts: { json?: boolean }) => {
+    const posture = await inspectPosture();
+    if (opts.json) {
+      printJson("posture", posture);
+    } else {
+      console.log(formatPosture(posture));
+    }
   });
 
 program
@@ -773,7 +968,13 @@ program
       return;
     }
 
-    const report = await scanAll();
+    const ctx = buildContext();
+    const [report, postureState] = await Promise.all([
+      scanAll(ctx),
+      inspectPostureWithDrift(ctx, postureSnapshotStore(ctx.cwd), {
+        tolerateStoreErrors: true,
+      }),
+    ]);
     taskSnapshotStore().capture(buildActionTasks(buildActionPlan(report)));
     const triaged = triageReport(report);
     const content =
@@ -783,6 +984,8 @@ program
               ...triaged.activeReport,
               acceptedTaskCount: triaged.acceptedTasks.length,
               ignoredFindingCount: triaged.ignoredFindings.length,
+              posture: postureState.posture,
+              drift: postureState.drift,
             }),
             null,
             2
@@ -790,6 +993,8 @@ program
         : renderHtmlReport(report, {
             acceptances: triaged.activeAcceptances,
             ruleIgnores: triaged.activeRuleIgnores,
+            posture: postureState.posture,
+            drift: postureState.drift,
           });
 
     // 默认输出路径按格式取扩展名；-o - 走标准输出。

@@ -22,6 +22,7 @@ Superseded。实现事实仍以代码和测试为准；若两者与 Accepted ADR
 | [0002](0002-action-semantics-and-stable-tasks.md) | Accepted | 统一规则处置语义与稳定任务身份 |
 | [0003](0003-transactional-configuration-writes.md) | Accepted | 配置写入必须是可预览、可恢复事务 |
 | [0004](0004-desktop-privilege-boundary.md) | Accepted | Electron renderer 保持无权限，业务复用 typed core |
+| [0005](0005-effective-configuration-and-private-drift-snapshots.md) | Accepted | 有效配置使用统一 core 契约，漂移快照只保存 keyed HMAC 身份与最小摘要 |
 
 ## 新建 ADR
 

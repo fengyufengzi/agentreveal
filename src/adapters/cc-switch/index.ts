@@ -15,6 +15,7 @@ import { dirExists, fileExists } from "../../core/discovery/fs-utils.js";
 import { parseCcSwitchDb } from "./parse.js";
 import { buildCcSwitchFindings } from "./risk.js";
 import { buildParseFailureFinding } from "../../core/parse-failure.js";
+import { buildCcSwitchPosture } from "./posture.js";
 
 export const ccSwitchAdapter: Adapter = {
   agent: "cc-switch",
@@ -80,6 +81,80 @@ export const ccSwitchAdapter: Adapter = {
         format: "SQLite",
         recommendation: "关闭正在写入数据库的 CC Switch 后重试；如持续失败请反馈 schema 版本。",
       })];
+    }
+  },
+
+  async inspectPosture(ctx, found) {
+    if (!found.configPath?.endsWith(".db")) {
+      return {
+        state: {
+          agentId: "cc-switch",
+          displayName: this.displayName,
+          confidence: "incomplete",
+          configSources: [
+            {
+              kind: "proxy",
+              scope: "user",
+              status: "unreadable",
+              path: found.configPath,
+              fields: ["legacyConfig"],
+            },
+          ],
+          route: { proxyKind: "unknown" },
+          auth: {
+            method: "unknown",
+            status: "unknown",
+            conflicts: [],
+          },
+          permissions: [],
+          integrations: [],
+          findingIds: [],
+          taskIds: [],
+        },
+      };
+    }
+    try {
+      const data = parseCcSwitchDb(found.configPath);
+      const findings = buildCcSwitchFindings(data, ctx.providerPolicy);
+      return buildCcSwitchPosture(
+        data,
+        found.configPath,
+        findings,
+        ctx.providerPolicy
+      );
+    } catch {
+      const findings = await this.deepScan!(ctx, found);
+      return {
+        state: {
+          agentId: "cc-switch",
+          displayName: this.displayName,
+          confidence: "incomplete",
+          configSources: [
+            {
+              kind: "proxy",
+              scope: "user",
+              status: "unreadable",
+              path: found.configPath,
+              fields: ["database"],
+            },
+          ],
+          route: { proxyKind: "unknown" },
+          auth: {
+            method: "unknown",
+            status: "unknown",
+            conflicts: [],
+          },
+          permissions: [],
+          integrations: [],
+          findingIds: findings
+            .map((finding) => finding.id)
+            .filter(
+              (id): id is "CCSWITCH_PARSE_FAILED" =>
+                id === "CCSWITCH_PARSE_FAILED"
+            ),
+          taskIds: [],
+        },
+      };
     }
   },
 };

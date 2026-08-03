@@ -16,6 +16,9 @@ AgentGuard 的机器可读 JSON 输出从 Pilot Ready 阶段起带有两个保�
 | `agentguard --json` | `first-run` |
 | `doctor --json` | `doctor` |
 | `scan --json` | `scan` |
+| `posture --json` | `posture` |
+| `drift --json` | `drift` |
+| `drift baseline ... --json` | `drift.baseline` |
 | `provider scan --json` | `provider.scan` |
 | `map --json` | `map` |
 | `report --format json` | `report.json` |
@@ -41,6 +44,17 @@ AgentGuard 的机器可读 JSON 输出从 Pilot Ready 阶段起带有两个保�
 - `first-run` 是 CLI 与 Desktop 共用的首次运行摘要，包含 `summary`、`map`、统一 `tasks`、前三个
   `topTasks`、三类 `buckets`、当前平台 `remediationGuides` 和可复制的 `nextCommands`。Desktop 在
   `overview.firstRun` 原样返回该契约，同时保留现有顶层兼容字段。
+- `first-run`、`scan` 和 `report.json` 可以增加可选 `posture` 与 `drift`。`posture.agents[]` 包含运行时
+  有效状态、不确定证据和确定性认证/路由处置计划；该运行时输出可以为本机用户展示规范化路径与端点，
+  但不得直接作为可信快照持久化。
+- `drift.status` 固定为 `no-baseline | unchanged | changed | unavailable`；`events[]` 使用稳定 `eventId`、
+  Agent、变化类型、priority/severity、非敏感摘要、行动和验证。`activeEventCount` 不包含已恢复事件。
+  已接受任务或项目规则忽略从有效变为到期时，分别产生 `acceptance-expired` / `ignore-expired`，
+  且不会把接受原因、忽略原因或 taskId 放入事件。
+- `first-run.topDriftEvents` 与 `topTasks` 共用最多三项容量；已恢复事件不会进入 Top 3 当前行动。
+- `drift baseline` 未确认时返回 `applied: false` 与预览指纹/存储版本；创建、替换、删除确认后返回
+  `applied: true` 和 mutation 结果。替换必须显式 `--replace --confirm`，删除必须显式
+  `--remove --confirm`。
 - `buckets.mustHandle` 是 P0/P1 的非观察任务，`shouldReview` 是其它非观察任务，`informational` 是
   `observe`；bucket 只保存稳定 taskId 和计数，具体语义从 `tasks` 读取。
 - `remediationGuides` 中的命令是本机展示用安全模板，不代表已经执行或完成整改；renderer 和 HTML
@@ -76,3 +90,7 @@ AgentGuard 的机器可读 JSON 输出从 Pilot Ready 阶段起带有两个保�
 
 机器输出不得包含完整 API Key、Token 或私钥。密钥关联只使用不可逆指纹前缀；MCP 环境变量只输出键名。
 处置矩阵中的行动和验证说明也不得回显原始敏感值。若发现泄漏，应立即停止试点并按安全缺陷处理。
+可信快照是独立的持久化 schema：只保存 allowlist 枚举、字段名、稳定代码、规则 ID、策略状态与 keyed HMAC 身份，
+不得保存 JSON/HTML `posture` 中的原始路径、端点、模型或集成身份。机器输出中的确定性处置计划不得包含
+凭证值、任意 shell 命令或自动轮换承诺。策略快照只用本机 HMAC 区分接受/忽略记录，不保存原因、taskId、
+项目路径或原始策略身份。

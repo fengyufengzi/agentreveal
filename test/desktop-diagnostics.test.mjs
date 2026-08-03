@@ -33,7 +33,9 @@ test("desktop diagnostics: 只导出固定事件字段，不记录原始错误�
     });
     diagnostics.record("app.ready", "success");
     diagnostics.record("credential.backup", "success");
+    diagnostics.record("credential.migration", "success");
     diagnostics.record("credential.restore", "canceled");
+    diagnostics.record("credential.backup-cleanup", "success");
     await assert.rejects(
       diagnostics.track("project.scan", async () => {
         const error = new Error(
@@ -55,7 +57,7 @@ test("desktop diagnostics: 只导出固定事件字段，不记录原始错误�
       nodeVersion: "24.0.0",
       ignoredPrivateField: "/Users/example/project",
     });
-    assert.equal(result.eventCount, 5);
+    assert.equal(result.eventCount, 7);
     assert.equal(statSync(outputPath).mode & 0o777, 0o600);
     const raw = readFileSync(outputPath, "utf8");
     assert.equal(raw.includes("/Users/example"), false);

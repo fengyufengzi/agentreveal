@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review macOS UI"
+  short_description: "持续审查并改进 AgentGuard 的 macOS 界面体验"
+  default_prompt: "使用 $review-macos-ui 审查并改进 AgentGuard 下一轮 macOS 界面。"

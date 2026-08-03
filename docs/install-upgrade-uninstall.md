@@ -23,16 +23,16 @@ node --version
 gh auth status
 ```
 
-下载并安装当前 `0.0.5-pilot.3`：
+下载并安装当前 `0.0.6-pilot.4`：
 
 ```bash
 mkdir -p /tmp/agentguard-pilot
-gh release download v0.0.5-pilot.3 \
+gh release download v0.0.6-pilot.4 \
   --repo fengyufengzi/AgentGuard \
-  --pattern 'wangmarsen-agentguard-0.0.5-pilot.3.tgz' \
+  --pattern 'wangmarsen-agentguard-0.0.6-pilot.4.tgz' \
   --dir /tmp/agentguard-pilot \
   --clobber
-npm install -g /tmp/agentguard-pilot/wangmarsen-agentguard-0.0.5-pilot.3.tgz
+npm install -g /tmp/agentguard-pilot/wangmarsen-agentguard-0.0.6-pilot.4.tgz
 agentguard --version
 agentguard
 ```
@@ -45,7 +45,7 @@ agentguard
 没有 GitHub CLI 时，可以从仓库 Releases 页面下载 `.tgz`，再执行：
 
 ```bash
-npm install -g ~/Downloads/wangmarsen-agentguard-0.0.5-pilot.3.tgz
+npm install -g ~/Downloads/wangmarsen-agentguard-0.0.6-pilot.4.tgz
 agentguard --version
 ```
 

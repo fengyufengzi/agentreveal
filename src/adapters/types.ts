@@ -7,6 +7,7 @@
  * - 字段命名对齐 PRD §10 数据结构设计。
  */
 import type { ProviderTrustPolicy } from "../rules/provider.js";
+import type { EffectivePostureInspection } from "../core/posture/types.js";
 
 /** 风险等级（PRD §8）。 */
 export type RiskLevel = "critical" | "high" | "medium" | "low" | "info";
@@ -121,6 +122,15 @@ export interface Adapter {
    * 深度解析配置并产出风险发现。骨架阶段可未实现（返回 []）。
    */
   deepScan?(ctx: DiscoveryContext, found: AgentDiscovery): Promise<RiskFinding[]>;
+
+  /**
+   * 只读计算当前可证明的有效配置。不会由 renderer 或报告自行重算；
+   * 缺少会话级 CLI 参数时必须降低 confidence，而不是假装已确认。
+   */
+  inspectPosture?(
+    ctx: DiscoveryContext,
+    found: AgentDiscovery
+  ): Promise<EffectivePostureInspection>;
 }
 
 /**

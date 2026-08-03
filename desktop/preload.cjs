@@ -18,6 +18,29 @@ contextBridge.exposeInMainWorld("agentguard", {
   selectProject: () => ipcRenderer.invoke("agentguard:selectProject"),
   scanProject: (projectPath) =>
     ipcRenderer.invoke("agentguard:scanProject", projectPath),
+  previewPostureBaseline: (projectPath) =>
+    ipcRenderer.invoke("agentguard:previewPostureBaseline", projectPath),
+  savePostureBaseline: (
+    projectPath,
+    expectedCurrentFingerprint,
+    expectedStorageRevision,
+    replace
+  ) =>
+    ipcRenderer.invoke(
+      "agentguard:savePostureBaseline",
+      projectPath,
+      expectedCurrentFingerprint,
+      expectedStorageRevision,
+      replace
+    ),
+  removePostureBaseline: (projectPath, expectedStorageRevision) =>
+    ipcRenderer.invoke(
+      "agentguard:removePostureBaseline",
+      projectPath,
+      expectedStorageRevision
+    ),
+  verifyPosture: (projectPath) =>
+    ipcRenderer.invoke("agentguard:verifyPosture", projectPath),
   previewBaseline: (projectPath, profile) =>
     ipcRenderer.invoke("agentguard:previewBaseline", projectPath, profile),
   applyBaseline: (projectPath, profile, expectedPlanFingerprint) =>
@@ -39,10 +62,30 @@ contextBridge.exposeInMainWorld("agentguard", {
       projectPath,
       taskId
     ),
+  applyClaudeMigration: (
+    projectPath,
+    taskId,
+    backupId,
+    expectedFingerprint
+  ) =>
+    ipcRenderer.invoke(
+      "agentguard:applyClaudeMigration",
+      projectPath,
+      taskId,
+      backupId,
+      expectedFingerprint
+    ),
   restoreClaudeRemediation: (projectPath, backupId) =>
     ipcRenderer.invoke(
       "agentguard:restoreClaudeRemediation",
       projectPath,
+      backupId
+    ),
+  cleanupClaudeCredentialBackup: (projectPath, taskId, backupId) =>
+    ipcRenderer.invoke(
+      "agentguard:cleanupClaudeCredentialBackup",
+      projectPath,
+      taskId,
       backupId
     ),
   acceptRisk: (projectPath, taskId, reason, expiresAt) =>

@@ -33,4 +33,8 @@ export interface RemediationOptions {
     /** baseline 命令使用的 profile；缺省 balanced。 */
     profile?: "safe" | "balanced";
 }
+/** Claude 凭证迁移使用的稳定 Keychain service；只由已校验 taskId 派生。 */
+export declare function claudeCredentialKeychainService(taskId: string): string;
+/** 写入 Claude 设置的固定 helper，不包含凭证、路径或 renderer 输入。 */
+export declare function claudeCredentialApiKeyHelper(taskId: string): string;
 export declare function buildRemediationGuide(target: RiskFinding | ActionTask, options?: RemediationOptions): RemediationGuide;

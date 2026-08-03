@@ -7,9 +7,11 @@ import {
   chmodSync,
   copyFileSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
@@ -112,6 +114,8 @@ function validateManifest(
       !isAbsolute(file.originalPath) ||
       !isWithin(dir, file.backupPath) ||
       !existsSync(file.backupPath) ||
+      lstatSync(file.backupPath).isSymbolicLink() ||
+      !lstatSync(file.backupPath).isFile() ||
       !Number.isInteger(file.mode) ||
       file.mode < 0 ||
       file.mode > 0o777 ||
@@ -191,8 +195,37 @@ export function latestBackup(cwd: string): BackupManifest | undefined {
 
 export function readBackup(cwd: string, id: string): BackupManifest {
   assertSafeId(id);
-  const raw = JSON.parse(readFileSync(manifestPath(cwd, id), "utf8")) as BackupManifest;
+  const path = manifestPath(cwd, id);
+  if (lstatSync(path).isSymbolicLink() || !lstatSync(path).isFile()) {
+    throw new Error(`备份 manifest 无效：${id}`);
+  }
+  const raw = JSON.parse(readFileSync(path, "utf8")) as BackupManifest;
   return validateManifest(cwd, id, raw);
+}
+
+/**
+ * 删除一个已完整校验的精确备份目录。
+ *
+ * 该操作不可恢复，也不承诺对 SSD 做安全擦除；调用方必须先确认业务状态稳定并获得显式用户确认。
+ */
+export function deleteBackup(cwd: string, id: string): {
+  backupId: string;
+  files: number;
+} {
+  assertSafeId(id);
+  const dir = join(backupRoot(cwd), id);
+  const root = backupRoot(cwd);
+  if (
+    !isWithin(root, dir) ||
+    lstatSync(root).isSymbolicLink() ||
+    lstatSync(dir).isSymbolicLink() ||
+    !lstatSync(dir).isDirectory()
+  ) {
+    throw new Error(`备份删除目标边界无效：${id}`);
+  }
+  const manifest = readBackup(cwd, id);
+  rmSync(dir, { recursive: true, force: false });
+  return { backupId: id, files: manifest.files.length };
 }
 
 /** 读取恢复目标的当前摘要；只返回路径与不可逆哈希，不返回配置内容。 */

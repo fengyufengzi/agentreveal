@@ -27,6 +27,8 @@ import {
   type ListedRuleIgnore,
 } from "../config/rule-ignore.js";
 import { applyRuleIgnores, type IgnoredFinding } from "../triage/index.js";
+import type { PostureReport } from "../posture/report.js";
+import type { DriftComparison } from "../posture/types.js";
 
 export interface HtmlAcceptedTask {
   taskId: string;
@@ -41,6 +43,10 @@ export interface HtmlReportOptions {
   acceptances?: readonly HtmlAcceptedTask[];
   /** 当前项目有效的低优先级规则忽略；技术证据仍保留在完整报告中。 */
   ruleIgnores?: readonly ListedRuleIgnore[];
+  /** 当前运行时有效状态；只用于本机主动生成的报告，不进入可信快照。 */
+  posture?: PostureReport;
+  /** 与可信状态的比较；事件摘要不包含原始路径或端点。 */
+  drift?: DriftComparison;
 }
 
 const SEVERITY_ORDER: Record<RiskLevel, number> = {
@@ -133,6 +139,124 @@ function actionList(title: string, values: string[], className = ""): string {
   )}</strong><ol>${values
     .map((value) => `<li>${escapeHtml(value)}</li>`)
     .join("")}</ol></div>`;
+}
+
+function postureSection(posture: PostureReport | undefined): string {
+  if (!posture) return "";
+  const cards = posture.agents
+    .map(({ state, uncertainty, remediationPlans }) => {
+      const sources = state.configSources
+        .map(
+          (source) =>
+            `<li><strong>${escapeHtml(source.kind)}/${escapeHtml(
+              source.scope
+            )}</strong> <span>${escapeHtml(source.status)}</span>${
+              source.path ? ` <code>${escapeHtml(source.path)}</code>` : ""
+            }<br><small>${escapeHtml(source.fields.join("、") || "无可识别字段")}</small></li>`
+        )
+        .join("");
+      const permissions = state.permissions
+        .map(
+          (permission) =>
+            `<li><code>${escapeHtml(permission.capability)}</code> ${escapeHtml(
+              permission.decision
+            )} · ${escapeHtml(permission.scope)}</li>`
+        )
+        .join("");
+      const uncertainties = uncertainty.length
+        ? `<div class="posture-uncertainty"><strong>仍缺少的证据</strong><ul>${uncertainty
+            .map((entry) => `<li>${escapeHtml(entry.message)}</li>`)
+            .join("")}</ul></div>`
+        : "";
+      const plans = remediationPlans
+        .map(
+          (plan) => `<details class="posture-plan"><summary>${escapeHtml(
+            plan.title
+          )} · ${escapeHtml(plan.status)}</summary>
+<p><strong>当前：</strong>${escapeHtml(plan.currentExplanation)}</p>
+<p><strong>目标：</strong>${escapeHtml(plan.targetState)}</p>
+<ol>${plan.steps
+  .map(
+    (step) =>
+      `<li><strong>${escapeHtml(step.title)}</strong>：${escapeHtml(
+        step.detail
+      )}</li>`
+  )
+  .join("")}</ol>
+<p><strong>为什么不自动执行：</strong>${escapeHtml(
+            plan.automation.reason
+          )}</p>
+<ul>${plan.constraints
+  .map((constraint) => `<li>${escapeHtml(constraint)}</li>`)
+  .join("")}</ul>
+</details>`
+        )
+        .join("");
+      return `<article class="posture-card">
+<div class="posture-head"><h3>${escapeHtml(state.displayName)}</h3><span class="posture-confidence">${escapeHtml(
+        state.confidence
+      )}</span></div>
+<dl class="posture-facts">
+<div><dt>Provider / 模型</dt><dd>${escapeHtml(
+        state.route.providerClass ?? "未确认"
+      )} / ${escapeHtml(state.route.model ?? "未确认")}</dd></div>
+<div><dt>请求链路</dt><dd>${escapeHtml(
+        state.route.effectiveEndpoint ?? "未确认"
+      )} · ${escapeHtml(state.route.proxyKind)}${
+        state.route.realUpstream
+          ? ` → ${escapeHtml(state.route.realUpstream)}`
+          : ""
+      }</dd></div>
+<div><dt>认证来源</dt><dd>${escapeHtml(state.auth.method)} · ${escapeHtml(
+        state.auth.status
+      )}${state.auth.sourceKind ? ` · ${escapeHtml(state.auth.sourceKind)}` : ""}</dd></div>
+</dl>
+<details><summary>配置来源与覆盖</summary><ul class="posture-list">${sources || "<li>没有可展示的配置来源。</li>"}</ul></details>
+<details><summary>权限与集成</summary><ul class="posture-list">${permissions || "<li>没有可展示的权限摘要。</li>"}</ul><p>${state.integrations.filter((entry) => entry.enabled).length} 个集成已启用。</p></details>
+${plans}
+${uncertainties}
+</article>`;
+    })
+    .join("");
+  return `<section class="posture-section" id="effective-posture">
+<h2>当前真正生效</h2>
+<p>按 Agent 配置优先级计算 Provider、认证、权限与工具；“推断/证据不完整”不会表述为已确认。</p>
+<div class="posture-summary">已确认 ${posture.summary.confirmedCount} · 推断 ${posture.summary.inferredCount} · 证据不完整 ${posture.summary.incompleteCount} · 认证冲突 ${posture.summary.authConflictCount}</div>
+<div class="posture-grid">${cards || "<p>当前没有可计算有效状态的配置。</p>"}</div>
+</section>`;
+}
+
+function driftSection(drift: DriftComparison | undefined): string {
+  if (!drift) return "";
+  const status =
+    drift.status === "no-baseline"
+      ? "尚未保存可信状态"
+      : drift.status === "unchanged"
+        ? "与可信状态一致"
+        : drift.status === "unavailable"
+          ? "可信状态暂时不可用"
+          : "检测到变化";
+  const events = drift.events
+    .map(
+      (entry) =>
+        `<li><div><span class="priority pri-${escapeHtml(
+          entry.priority.toLowerCase()
+        )}">${escapeHtml(entry.priority)}</span> <strong>${escapeHtml(
+          entry.currentSummary
+        )}</strong></div><p>${escapeHtml(entry.agentId)} · ${escapeHtml(
+          entry.kind
+        )} · ${escapeHtml(entry.change)}</p>${actionList(
+          "建议处理",
+          entry.action
+        )}${actionList("如何验证", entry.verification, "verify")}</li>`
+    )
+    .join("");
+  return `<section class="drift-section" id="drift">
+<h2>自可信状态以来</h2>
+<p><strong>${escapeHtml(status)}</strong> · 当前变化 ${drift.activeEventCount} · 已恢复 ${drift.resolvedEventCount}</p>
+${drift.status === "no-baseline" ? "<p>首次扫描不会自动信任当前状态。请审核后显式保存可信状态。</p>" : ""}
+${events ? `<ol class="drift-list">${events}</ol>` : ""}
+</section>`;
 }
 
 function taskAgents(task: ActionTask): string[] {
@@ -667,6 +791,18 @@ body{font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-se
 h1{font-size:22px;margin:0 0 4px}
 .meta{color:#8a90a0;font-size:12px;margin-bottom:20px}
 .snapshot-notice{margin:0 0 18px;padding:10px 12px;border-left:3px solid #3b82f6;background:#151c2a;color:#bfdbfe;font-size:12px}
+.posture-section,.drift-section{margin:18px 0 24px;padding:18px;border:1px solid #263044;border-radius:12px;background:#111722}
+.posture-section h2,.drift-section h2{margin-top:0}
+.posture-summary{margin:10px 0 14px;color:#bfdbfe}
+.posture-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.posture-card{padding:14px;border:1px solid #2d3748;border-radius:10px;background:#0d121c}
+.posture-head{display:flex;justify-content:space-between;gap:12px;align-items:center}
+.posture-head h3{margin:0}.posture-confidence{font-size:12px;color:#93c5fd}
+.posture-facts{margin:12px 0}.posture-facts div{margin:7px 0}.posture-facts dt{font-size:12px;color:#94a3b8}.posture-facts dd{margin:2px 0;overflow-wrap:anywhere}
+.posture-list,.drift-list{padding-left:20px}.posture-list li,.drift-list>li{margin:8px 0}
+.posture-uncertainty{margin-top:10px;padding:10px;border-left:3px solid #f59e0b;background:#20190d;color:#fde68a}
+.posture-uncertainty ul{margin-bottom:0}
+.drift-list>li{padding:10px;border-bottom:1px solid #263044}.drift-list>li:last-child{border-bottom:0}
 .action-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0 24px}
 .action-count{display:flex;align-items:baseline;gap:8px;padding:13px 14px;border:1px solid #303746;border-radius:10px;background:#161a22;color:#e6e6e6;text-decoration:none}
 .action-count:hover{border-color:#64748b}
@@ -871,6 +1007,8 @@ export function renderHtmlReport(
 <h1>AgentGuard 下一步行动报告</h1>
 <div class="meta">生成时间 ${escapeHtml(when)} · 共 ${total} 项发现 · ${activeTasks.length} 个行动任务 · ${actionable} 个需要行动${acceptedTasks.length > 0 ? ` · ${acceptedTasks.length} 个已接受` : ""}${ignored.ignoredFindings.length > 0 ? ` · ${ignored.ignoredFindings.length} 条项目规则已忽略` : ""}</div>
 <p class="snapshot-notice">这是生成时刻的静态快照，不会因配置修改自动刷新。完成处置后请运行卡片中的 <code>agentguard risk verify task-...</code>，并重新生成报告。</p>
+${postureSection(opts.posture)}
+${driftSection(opts.drift)}
 ${actionSummary(activeTasks)}
 ${topActions(activeTasks)}
 ${actionSections(activeTasks, p0ExpiresOn)}

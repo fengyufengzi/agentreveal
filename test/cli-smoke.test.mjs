@@ -35,6 +35,8 @@ function withCliProject(config, fn) {
       AGENTGUARD_TEST_ROOT: root,
       AGENTGUARD_ACCEPTANCE_PATH: join(root, "acceptances.json"),
       AGENTGUARD_TASK_SNAPSHOT_PATH: join(root, "task-snapshots.json"),
+      AGENTGUARD_POSTURE_SNAPSHOT_PATH: join(root, "posture-snapshots.json"),
+      AGENTGUARD_POSTURE_KEY_PATH: join(root, "posture-state-key"),
     };
 
     return fn({
@@ -42,6 +44,7 @@ function withCliProject(config, fn) {
       cwd,
       configPath,
       acceptancePath: env.AGENTGUARD_ACCEPTANCE_PATH,
+      posturePath: env.AGENTGUARD_POSTURE_SNAPSHOT_PATH,
       runAt: (runCwd, args) =>
         spawnSync(process.execPath, [binPath, ...args], {
           cwd: runCwd,
@@ -113,6 +116,130 @@ test("cli: 未知命令不会被裸入口静默接受", () => {
   assert.equal(res.status, 1);
   assert.match(res.stderr, /未知命令/);
   assert.equal(res.stdout, "");
+});
+
+test("cli: posture 的终端与 JSON 共用有效状态契约", () => {
+  withCliProject({}, ({ home, run }) => {
+    const claudeDir = join(home, ".claude");
+    mkdirSync(claudeDir, { recursive: true });
+    writeFileSync(
+      join(claudeDir, "settings.json"),
+      JSON.stringify({
+        env: {
+          ANTHROPIC_BASE_URL: "https://relay.posture-example.net/v1",
+          ANTHROPIC_API_KEY: "SECRET_PLACEHOLDER",
+        },
+        permissions: { defaultMode: "plan" },
+      })
+    );
+
+    const terminal = run(["posture"]);
+    assert.equal(terminal.status, 0, terminal.stderr);
+    assert.match(terminal.stdout, /当前真正生效/);
+    assert.match(terminal.stdout, /relay\.posture-example\.net/);
+    assert.match(terminal.stdout, /证据不完整|推断/);
+
+    const machine = run(["posture", "--json"]);
+    assert.equal(machine.status, 0, machine.stderr);
+    const parsed = JSON.parse(machine.stdout);
+    assert.equal(parsed.schemaVersion, 1);
+    assert.equal(parsed.command, "posture");
+    assert.equal(parsed.agents[0].state.agentId, "claude-code");
+    assert.ok(parsed.agents[0].uncertainty.length > 0);
+    assert.doesNotMatch(machine.stdout, /SECRET_PLACEHOLDER/);
+  });
+});
+
+test("cli: drift baseline 显式确认、比较、恢复、重新出现和删除闭环", () => {
+  withCliProject({}, ({ home, posturePath, run }) => {
+    const claudeDir = join(home, ".claude");
+    const settingsPath = join(claudeDir, "settings.json");
+    mkdirSync(claudeDir, { recursive: true });
+    const writeSettings = (defaultMode) =>
+      writeFileSync(
+        settingsPath,
+        JSON.stringify({
+          env: { ANTHROPIC_BASE_URL: "https://api.anthropic.com" },
+          permissions: { defaultMode },
+        })
+      );
+    writeSettings("plan");
+
+    const preview = run(["drift", "baseline", "--json"]);
+    assert.equal(preview.status, 1, preview.stderr);
+    const previewJson = JSON.parse(preview.stdout);
+    assert.equal(previewJson.command, "drift.baseline");
+    assert.equal(previewJson.applied, false);
+    assert.equal(previewJson.preview.mutation, "create");
+    assert.equal(existsSync(posturePath), false);
+
+    const created = run(["drift", "baseline", "--confirm", "--json"]);
+    assert.equal(created.status, 0, created.stderr);
+    assert.equal(JSON.parse(created.stdout).result.mutation, "create");
+    assert.equal(statSync(posturePath).mode & 0o777, 0o600);
+    assert.doesNotMatch(
+      readFileSync(posturePath, "utf8"),
+      /api\.anthropic\.com|settings\.json/
+    );
+
+    const unchanged = run(["drift", "--json"]);
+    assert.equal(unchanged.status, 0, unchanged.stderr);
+    assert.equal(JSON.parse(unchanged.stdout).drift.status, "unchanged");
+
+    writeSettings("bypassPermissions");
+    const changed = run(["drift", "--json"]);
+    assert.equal(changed.status, 2, changed.stderr);
+    const changedJson = JSON.parse(changed.stdout);
+    assert.equal(changedJson.drift.status, "changed");
+    assert.ok(
+      changedJson.drift.events.some(
+        (entry) =>
+          entry.kind === "permission-changed" && entry.priority === "P0"
+      )
+    );
+
+    writeSettings("plan");
+    const restored = run(["drift", "--json"]);
+    assert.equal(restored.status, 0, restored.stderr);
+    assert.ok(JSON.parse(restored.stdout).drift.resolvedEventCount > 0);
+
+    writeSettings("bypassPermissions");
+    const reappeared = run(["drift", "--json"]);
+    assert.equal(reappeared.status, 2, reappeared.stderr);
+    assert.ok(
+      JSON.parse(reappeared.stdout).drift.events.some(
+        (entry) => entry.change === "reappeared"
+      )
+    );
+
+    const refusedReplace = run(["drift", "baseline", "--confirm"]);
+    assert.equal(refusedReplace.status, 1);
+    assert.match(refusedReplace.stderr, /--replace --confirm/);
+
+    const replaced = run([
+      "drift",
+      "baseline",
+      "--replace",
+      "--confirm",
+      "--json",
+    ]);
+    assert.equal(replaced.status, 0, replaced.stderr);
+    assert.equal(JSON.parse(replaced.stdout).result.mutation, "replace");
+
+    const removePreview = run(["drift", "baseline", "--remove", "--json"]);
+    assert.equal(removePreview.status, 1, removePreview.stderr);
+    assert.equal(JSON.parse(removePreview.stdout).applied, false);
+    const removed = run([
+      "drift",
+      "baseline",
+      "--remove",
+      "--confirm",
+      "--json",
+    ]);
+    assert.equal(removed.status, 0, removed.stderr);
+    assert.equal(JSON.parse(removed.stdout).result.mutation, "remove");
+    assert.equal(JSON.parse(removed.stdout).result.changed, true);
+  });
 });
 
 test("package: Release tarball 使用预编译 dist，不依赖安装期构建", () => {
