@@ -1,7 +1,15 @@
 # AgentGuard 0.0.6-pilot.4 · 有效配置与漂移 Public Preview
 
-> 状态：Frozen Candidate。只有同一冻结提交生成的 CLI 与 macOS 资产通过全部门禁后，才能更新为
-> Published 并上传 npm 与 GitHub Pre-release。
+> 状态：Published。2026-08-04 已完成 npm CLI 与 GitHub Pre-release 联合公开。
+
+## 发布位置与证据
+
+- npm：`@wangmarsen/agentguard@0.0.6-pilot.4`，dist-tag 为 `next`；
+- GitHub Pre-release：<https://github.com/fengyufengzi/AgentGuard/releases/tag/v0.0.6-pilot.4>；
+- 公开源码提交：`db8acfdea38eb6edbf1347600fe1de7585eb4019`；
+- Apple 公证 Submission ID：`4bfb054b-ae30-455e-9ffe-001ce2e01705`，状态 `Accepted`；
+- DMG SHA-256：`0fb594f35d51b8d7002d85d246bb8ac76df07870e6ebe5a2c68bd482dcf4b30b`；
+- npm tarball SHA-256：`96a3fb23be02cc8e877748d5e87b1da96d09caa033b6bc0b894fcb6aa70714f9`。
 
 ## 本版目标
 
@@ -46,15 +54,15 @@ Applications 后打开。当前验证范围为 macOS 12+、Apple Silicon；Intel
 
 ## 联合发布门禁
 
-- [ ] 冻结提交通过 `npm run check`、`npm run package:verify-install` 和 `npm run evals:preflight`；
-- [ ] CLI tarball 与 DMG 使用同一版本和冻结源码；
-- [ ] DMG 内唯一真实 `AgentGuard.app`、`app.asar` 与 arm64/minimum macOS 验证；
-- [ ] Developer ID Application 签名与 hardened runtime 验证；
-- [ ] Apple notarization 状态 Accepted；
-- [ ] staple、`stapler validate` 与 Gatekeeper `spctl` 验收；
-- [ ] 最终 tarball、DMG 和解包后的 `app.asar` 通过独立 Gitleaks 扫描；
-- [ ] SHA-256 清单与隔离安装、首次启动、项目扫描、报告和卸载验证；
-- [ ] 公开候选当前树与全部可达历史通过内置扫描和 Gitleaks；
-- [ ] npm、Git tag、GitHub Pre-release、CLI 和 DMG 使用同一版本并完成公开位置回装。
+- [x] 冻结提交通过 `npm run check`、`npm run package:verify-install` 和 `npm run evals:preflight`；
+- [x] CLI tarball 与 DMG 使用同一版本和冻结源码；
+- [x] DMG 内唯一真实 `AgentGuard.app`、`app.asar` 与 arm64/minimum macOS 验证；
+- [x] Developer ID Application 签名与 hardened runtime 验证；
+- [x] Apple notarization 状态 Accepted；
+- [x] staple、`stapler validate` 与 Gatekeeper `spctl` 验收；
+- [x] 最终 tarball、DMG 和解包后的 `app.asar` 通过独立 Gitleaks 扫描；
+- [x] SHA-256 清单与隔离安装、首次启动、项目扫描、报告和卸载验证；
+- [x] 公开候选当前树与全部可达历史通过内置扫描和 Gitleaks；
+- [x] npm、Git tag、GitHub Pre-release、CLI 和 DMG 使用同一版本并完成公开位置回装。
 
-任一门禁失败都不得上传正式资产或把本文件状态改为 Published。
+以上门禁均已完成；未来版本必须重新执行，不得沿用本次结果。

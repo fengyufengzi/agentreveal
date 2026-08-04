@@ -5,9 +5,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.0.6-pilot.4] - 2026-08-04
+
 ### Added
 
-- `0.0.6-pilot.4` 联合公开候选：Claude Code、Codex 与 CC Switch 的有效配置说明、私密可信快照、稳定漂移事件、
+- `0.0.6-pilot.4` 联合公开：Claude Code、Codex 与 CC Switch 的有效配置说明、私密可信快照、稳定漂移事件、
   Desktop 可信状态管理和确定性认证冲突处置计划；CLI 与 macOS Desktop 使用同一 core、schema 和版本。
 - macOS 正式构建使用独立公证 hook，以非 S3 加速模式提交、等待 Accepted，并在生成 DMG 前完成 staple 验证，
   降低大体积 Electron App 的 multipart upload 超时风险。

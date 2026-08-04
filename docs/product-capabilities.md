@@ -2,10 +2,10 @@
 
 > 本文是“AgentGuard 现在实际能做什么”的规范化摘要；代码和测试是最终事实依据。
 >
-> 当前冻结候选：`0.0.6-pilot.4`；当前已公开 Public Preview：`0.0.5-pilot.3`；npm 包：
+> 当前已公开 Public Preview：`0.0.6-pilot.4`；npm 包：
 > `@wangmarsen/agentguard`。
 >
-> 更新日期：2026-07-23。
+> 更新日期：2026-08-04。
 
 ## 1. 产品定位
 
@@ -33,7 +33,7 @@ AgentGuard 是面向开发型 AI Agent 的本地安全检测与配置治理工�
 | CLI | 主入口 | 裸执行一次完成发现、有效配置、可信状态比较、实际链路、三类任务、变化与风险共用 Top 3；保留完整 scan、posture、drift、报告、baseline、备份恢复、风险接受、端点信任和项目规则忽略子命令 |
 | 自包含 HTML | 主报告 | 离线打开；显示有效配置、漂移、认证冲突计划、行动任务、本机命令、接受/忽略状态和完整脱敏证据 |
 | JSON | 自动化接口 | `schemaVersion: 1`；以 additive 字段返回 posture/drift，旧消费者可忽略，用于 CI 和其它工具消费 |
-| Electron macOS 桌面端 | `0.0.6-pilot.4` 冻结候选 | 在既有 Public Preview 工作台上增加有效配置、漂移、Top 3 变化、认证冲突计划和原生确认的可信状态创建/替换/删除/复扫；renderer 仍无文件或命令权限。新版本 DMG 必须重新完成 Developer ID、公证、staple 与 Gatekeeper 门禁后才能发布 |
+| Electron macOS 桌面端 | `0.0.6-pilot.4` Public Preview | 在既有 Public Preview 工作台上增加有效配置、漂移、Top 3 变化、认证冲突计划和原生确认的可信状态创建/替换/删除/复扫；renderer 仍无文件或命令权限。当前 DMG 已完成 Developer ID、公证、staple、Gatekeeper、独立敏感信息扫描与隔离回装 |
 | GitHub Actions 示例 | 可用 | 下载固定 Pre-release 包，执行扫描并存档报告 |
 
 首发平台口径：CLI 的 macOS 路径与真实环境验证最完整；Linux / Windows 为 Beta，已有命令模板测试但尚未
@@ -359,12 +359,12 @@ agentguard ignore remove OPENCODE_MCP_LOCAL --agent opencode --reason "项目已
 
 ## 7. 当前产品阶段与下一道门槛
 
-当前不是继续增加规则和 Agent 数量的阶段。E2–E5 与 H0–H7 功能开发已经完成，并冻结为 `0.0.6-pilot.4` 联合公开候选；
+当前不是继续增加规则和 Agent 数量的阶段。E2–E5 与 H0–H7 功能开发已经完成，并以 `0.0.6-pilot.4` 联合公开；
 `npm run package:verify-install` 会构建真实 tarball，检查发布清单，在临时 HOME/prefix 安装并使用本地
 tarball 完成 npx 版本验证。候选达到公开标准后，必须冻结同一提交，并通过全量测试、Desktop 打包、
 tarball/DMG/app.asar 独立敏感信息扫描、Developer ID 签名、公证、staple、Gatekeeper 和隔离回装，
 再合并候选并创建 Pre-release。
 
-实现完成不等于外部发布完成。详细状态见 `docs/release-0.0.6-pilot.4.md`；在清单完成前不得声称新的 DMG
-已经签名、公证或公开，当前中断或未完成门禁的本地产物也不得复用为未来正式资产。本阶段仍不进入自动凭证
-轮换、后台监控、Runtime Gateway、通用 Secret Vault 或团队 Dashboard。
+本版完整发布证据见 `docs/release-0.0.6-pilot.4.md`。未来候选仍须重新完成同一门禁，不得复用中断或未完成
+门禁的本地产物。本阶段仍不进入自动凭证轮换、后台监控、Runtime Gateway、通用 Secret Vault 或团队
+Dashboard。
