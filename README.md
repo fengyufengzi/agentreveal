@@ -35,7 +35,7 @@ AI Coding Agent 的安全配置。它扫描 **Claude Code / OpenCode / Codex / C
 
 ## 🚀 快速开始
 
-> 下一公开版本为 **Public Preview 候选（`0.0.6-pilot.4`）**，联合提供 npm CLI 和完成 Developer ID 签名、
+> 当前公开版本为 **Public Preview（`0.0.6-pilot.4`）**，联合提供 npm CLI 和完成 Developer ID 签名、
 > Apple 公证的 macOS 桌面版。npm 包使用个人 scope，避免与现有 `agent-guard` 包混淆。
 
 **环境要求**：Node.js ≥ 22（`scan`/`map` 读取 CC Switch 的 SQLite 配置依赖
@@ -219,7 +219,7 @@ npm run desktop:release:verify
 
 ## 🧭 命令一览
 
-下表以当前 `0.0.6-pilot.4` 候选源码为准。
+下表以当前已公开的 `0.0.6-pilot.4` 源码为准。
 
 主要扫描与变更命令支持 `--json`（`report` 用 `--format json`）；`risk` 当前输出人类可读审计信息。
 机器输出带有
