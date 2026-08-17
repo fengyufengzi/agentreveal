@@ -87,6 +87,9 @@ The Public Preview workflow and detailed operational documentation use the Chine
 [documentation index](docs/README.md). Do not submit complete configuration, credentials, or unredacted internal data as
 feedback.
 
+For a single rule-accuracy signal, use the privacy-minimized [rule feedback workflow](docs/rule-feedback.en.md). It does not
+request configuration, paths, endpoints, reports, diagnostics, credentials, task IDs, or free-form comments.
+
 ### macOS Desktop Public Preview
 
 The Electron desktop preview reuses AgentGuard core and stable task IDs rather than parsing terminal output. On first launch

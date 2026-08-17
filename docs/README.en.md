@@ -9,6 +9,7 @@ names remain unchanged because they are conventional entry points, numbered ADRs
 ## Start here
 
 - [Project overview, installation, and usage](../README.en.md)
+- [Minimal rule feedback](rule-feedback.en.md)
 - [Chinese documentation index (source of truth)](README.md)
 
 ## Development and reference documents
