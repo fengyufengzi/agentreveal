@@ -13,6 +13,7 @@
 - [安装、升级与卸载](install-upgrade-uninstall.md)
 - [试用快速开始](pilot-quickstart.md)
 - [试用反馈表](pilot-feedback-form.md)
+- [最小规则反馈](rule-feedback.md)
 
 ## 开发与贡献
 
@@ -26,6 +27,7 @@
 
 - [机器输出契约 v1](output-schema-v1.md)
 - [规则处置矩阵](rule-disposition-matrix.md)
+- [最小规则反馈说明](rule-feedback.md)
 - [macOS 签名与公证](macos-release.md)
 - [当前公开版本说明](release-0.0.6-pilot.4.md)
 - [上一公开版本说明](release-0.0.5-pilot.3.md)

@@ -71,6 +71,7 @@ agentguard --version
 
 - 发给试用者：[`docs/pilot-quickstart.md`](docs/pilot-quickstart.md)
 - 试用后填写并回收：[`docs/pilot-feedback-form.md`](docs/pilot-feedback-form.md)
+- 单条规则最小反馈：[`docs/rule-feedback.md`](docs/rule-feedback.md)
 - 当前产品能力摘要：[`docs/product-capabilities.md`](docs/product-capabilities.md)
 - 安装、手动升级与卸载：[`docs/install-upgrade-uninstall.md`](docs/install-upgrade-uninstall.md)
 - 结构化输出约定：[`docs/output-schema-v1.md`](docs/output-schema-v1.md)
