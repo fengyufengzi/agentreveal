@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const PILOT_VERSION = /^\d+\.\d+\.\d+-pilot\.\d+$/u;
-const NPM_PACKAGE_NAME = "@wangmarsen/agentguard";
+const NPM_PACKAGE_NAME = "agentreveal";
 
 export function verifyReleaseVersion(version, root = resolve(import.meta.dirname, "..")) {
   if (!PILOT_VERSION.test(version ?? "")) {

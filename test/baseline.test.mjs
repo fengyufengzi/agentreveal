@@ -13,7 +13,7 @@ import { restoreLatestBaselineBackup } from "../dist/core/apply/index.js";
 import { formatBaseline } from "../dist/core/report/baseline-format.js";
 
 async function withOpenCode(config, fn) {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-baseline-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-baseline-"));
   try {
     const home = join(root, "home");
     const cwd = join(root, "project");
@@ -98,7 +98,7 @@ test("baseline safe: 顶层 permission=allow 转为分项 ask", async () => {
 });
 
 test("baseline: 未发现 OpenCode 时返回 warning", async () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-baseline-empty-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-baseline-empty-"));
   try {
     const plan = await buildBaselinePlan("balanced", {
       home: root,
@@ -120,7 +120,7 @@ test("baseline: 未发现 OpenCode 时返回 warning", async () => {
  * 每个值传对象则 JSON.stringify；geminiEnv 传字符串。
  */
 async function withAgents(files, fn) {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-baseline-multi-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-baseline-multi-"));
   try {
     const home = join(root, "home");
     const cwd = join(root, "project");

@@ -1,4 +1,4 @@
-# AgentGuard AI contribution cold-start evals
+# AgentReveal AI contribution cold-start evals
 
 这组评测验证一个没有额外对话背景的 coding agent，能否只依靠仓库内容完成安全贡献。它不是产品扫描规则
 测试，也不进入发布包。

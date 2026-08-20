@@ -10,7 +10,7 @@ import { projectScopeId } from "../acceptance/index.js";
 import { atomicWriteFile } from "../fs-safety.js";
 const SNAPSHOT_SCHEMA_VERSION = 1;
 export function defaultTaskSnapshotPath(home = homedir()) {
-    return join(home, ".agentguard", "task-snapshots.json");
+    return join(home, ".agentreveal", "task-snapshots.json");
 }
 function emptyDocument() {
     return { schemaVersion: SNAPSHOT_SCHEMA_VERSION, scopes: {} };

@@ -28,7 +28,7 @@ function permissionLabel(permission: EffectivePermission): string {
 
 export function formatPosture(report: PostureReport): string {
   const lines = [
-    "AgentGuard 当前真正生效",
+    "AgentReveal 当前真正生效",
     `Agent ${report.summary.agentCount} · 已确认 ${report.summary.confirmedCount} · ` +
       `推断 ${report.summary.inferredCount} · 证据不完整 ${report.summary.incompleteCount} · ` +
       `认证冲突 ${report.summary.authConflictCount}`,

@@ -1,6 +1,6 @@
 # ADR-0001：本地优先与最小持久化隐私边界
 
-- Status: Accepted
+- Status: Superseded by ADR-0006 (2026-08-05)
 - Date: 2026-07-17
 
 ## 背景

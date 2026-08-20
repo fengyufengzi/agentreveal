@@ -30,7 +30,7 @@ function parsePackResult(stdout) {
   return parsed[0];
 }
 
-const root = mkdtempSync(join(tmpdir(), "agentguard-package-verify-"));
+const root = mkdtempSync(join(tmpdir(), "agentreveal-package-verify-"));
 try {
   const packDir = join(root, "pack");
   const prefix = join(root, "prefix");
@@ -52,7 +52,7 @@ try {
   assert.equal(packed.filename, expectedFilename, "scoped tarball filename must remain stable");
   const tarball = join(packDir, packed.filename);
   const paths = packed.files.map((file) => file.path);
-  assert.ok(paths.includes("bin/agentguard"), "tarball must include bin/agentguard");
+  assert.ok(paths.includes("bin/agentreveal"), "tarball must include bin/agentreveal");
   assert.ok(paths.includes("README.md"), "tarball must include the default Chinese README");
   assert.ok(paths.includes("README.en.md"), "tarball must include the English README");
   assert.ok(paths.some((path) => path.startsWith("dist/")), "tarball must include dist");
@@ -71,7 +71,7 @@ try {
     tarball,
   ], { cwd: project, env: { ...process.env, HOME: home, npm_config_cache: cache } });
 
-  const installedBin = join(prefix, "bin", "agentguard");
+  const installedBin = join(prefix, "bin", "agentreveal");
   const installedVersion = spawnSync(installedBin, ["--version"], {
     cwd: project,
     env: { ...process.env, HOME: home },
@@ -85,7 +85,7 @@ try {
     "--yes",
     `--package=${tarball}`,
     "--",
-    "agentguard",
+    "agentreveal",
     "--version",
   ], { cwd: project, env: { ...process.env, HOME: home, npm_config_cache: cache } });
   assert.equal(npxVersion.stdout.trim(), packageJson.version);

@@ -16,7 +16,7 @@ import { openclawAdapter } from "../dist/adapters/openclaw/index.js";
 import { parseOpenClaw } from "../dist/adapters/openclaw/parse.js";
 import { buildOpenClawFindings } from "../dist/adapters/openclaw/risk.js";
 
-const tmpRoot = mkdtempSync(join(tmpdir(), "agentguard-openclaw-"));
+const tmpRoot = mkdtempSync(join(tmpdir(), "agentreveal-openclaw-"));
 
 function makeConfig(dir, obj) {
   mkdirSync(dir, { recursive: true });

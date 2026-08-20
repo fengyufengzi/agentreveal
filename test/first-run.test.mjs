@@ -130,8 +130,8 @@ test("first run format: 链路在首屏、只展开三项并给出后续命令",
   assert.match(output, /必须处理 2 · 建议确认 2 · 信息提示 1/);
   assert.match(output, /建议先完成（最多 3 项）/);
   assert.match(output, /另有 1 个行动任务未在首屏展开/);
-  assert.match(output, /agentguard risk verify task-[a-f0-9]{12}/);
-  assert.match(output, /agentguard report --format html/);
+  assert.match(output, /agentreveal risk verify task-[a-f0-9]{12}/);
+  assert.match(output, /agentreveal report --format html/);
   assert.match(output, /security add-generic-password/);
   assert.doesNotMatch(output, /raw-secret|sk-live-[A-Za-z0-9]/);
 });

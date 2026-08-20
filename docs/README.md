@@ -1,11 +1,11 @@
-# AgentGuard 文档
+# AgentReveal 文档
 
 [简体中文（默认）](README.md) | [English](README.en.md)
 
-这里是 AgentGuard 的中文默认文档入口。仓库文档默认使用简体中文；面向用户的重要文档同时维护英文版。
+这里是 AgentReveal 的中文默认文档入口。仓库文档默认使用简体中文；面向用户的重要文档同时维护英文版。
 现有英文文件名中有一部分属于工具约定、ADR 编号或已有稳定链接，因此不会仅为翻译而批量改名。
 
-## 第一次了解 AgentGuard
+## 第一次了解 AgentReveal
 
 - [项目介绍、安装与使用](../README.md)
 - [当前产品方向](PRODUCT_DIRECTION.md)
@@ -27,10 +27,11 @@
 
 - [机器输出契约 v1](output-schema-v1.md)
 - [规则处置矩阵](rule-disposition-matrix.md)
-- [最小规则反馈说明](rule-feedback.md)
+- [高价值规则质量基线](rule-hit-rate.md)
+- [最小规则反馈契约](rule-feedback.md)
 - [macOS 签名与公证](macos-release.md)
-- [当前公开版本说明](release-0.0.6-pilot.4.md)
-- [上一公开版本说明](release-0.0.5-pilot.3.md)
+- [当前公开版本说明](release-0.0.7-pilot.2.md)
+- [上一公开版本说明](release-0.0.7-pilot.1.md)
 - [版本记录](../CHANGELOG.md)
 
 ## 语言约定

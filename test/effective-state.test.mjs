@@ -32,7 +32,7 @@ function makeProject(root, name = "project") {
 }
 
 test("Claude effective: environment/auth precedence、settings 层级和 MCP 同名覆盖", () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-claude-effective-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-claude-effective-"));
   try {
     const home = join(root, "home");
     const configDir = join(home, ".claude");
@@ -139,7 +139,7 @@ test("Claude effective: environment/auth precedence、settings 层级和 MCP 同
 });
 
 test("Claude effective: 损坏 project settings 降级为 incomplete 且不回显原文", () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-claude-incomplete-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-claude-incomplete-"));
   try {
     const home = join(root, "home");
     const configDir = join(home, ".claude");
@@ -171,7 +171,7 @@ test("Claude effective: 损坏 project settings 降级为 incomplete 且不回�
 });
 
 test("Codex effective: CLI > trusted project > profile > user > system，项目不能改 Provider", () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-codex-effective-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-codex-effective-"));
   try {
     const baseDir = join(root, "codex-home");
     const configPath = join(baseDir, "config.toml");
@@ -271,7 +271,7 @@ command = "user-mcp"
 });
 
 test("Codex effective: untrusted project 层不生效，损坏层安全降级", () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-codex-untrusted-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-codex-untrusted-"));
   try {
     const baseDir = join(root, "codex-home");
     const configPath = join(baseDir, "config.toml");
@@ -399,7 +399,7 @@ test("CC Switch effective: 输出消费 Agent 路由，未知 schema 降级", ()
 });
 
 test("core effective: Claude 的 PROXY_MANAGED 与 CC Switch 接管同时成立才确认真实上游", async () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-effective-core-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-effective-core-"));
   const dbFixture = buildCcSwitchDb({
     providers: [
       {
@@ -495,7 +495,7 @@ test("core effective: Claude 的 PROXY_MANAGED 与 CC Switch 接管同时成立�
     const snapshotText = JSON.stringify(snapshot);
     assert.doesNotMatch(
       snapshotText,
-      /127\.0\.0\.1|upstream\.example\.com|agentguard-effective-core/
+      /127\.0\.0\.1|upstream\.example\.com|agentreveal-effective-core/
     );
 
     writeJson(join(home, ".claude", "settings.json"), {

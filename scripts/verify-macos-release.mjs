@@ -48,7 +48,7 @@ if (dmgs.length !== 1) {
 
 verify("DMG 完整性", "hdiutil", ["verify", dmgs[0]]);
 
-const mountPoint = mkdtempSync(join(tmpdir(), "agentguard-dmg-mount-"));
+const mountPoint = mkdtempSync(join(tmpdir(), "agentreveal-dmg-mount-"));
 try {
   verify("DMG 只读挂载", "hdiutil", [
     "attach",

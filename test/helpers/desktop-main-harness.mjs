@@ -19,7 +19,7 @@ export function childFrameEvent() {
 }
 
 export function loadDesktopMainHarness({
-  openDialogResult = { canceled: false, filePaths: ["/tmp/agentguard-approved-project"] },
+  openDialogResult = { canceled: false, filePaths: ["/tmp/agentreveal-approved-project"] },
   saveDialogResult = { canceled: true },
   messageBoxResult = { response: 0 },
   appPaths = {},
@@ -48,13 +48,13 @@ export function loadDesktopMainHarness({
       }
     },
     exportTo() {
-      return { path: "/tmp/agentguard-diagnostics.json", eventCount: 0 };
+      return { path: "/tmp/agentreveal-diagnostics.json", eventCount: 0 };
     },
   };
   const electron = {
     app: {
       getAppPath: () => repoRoot,
-      getPath: (name) => appPaths[name] || `/tmp/agentguard-${name}`,
+      getPath: (name) => appPaths[name] || `/tmp/agentreveal-${name}`,
       getVersion: () => "0.0.0-test",
       whenReady: () => ({ then: () => undefined }),
       on: () => undefined,

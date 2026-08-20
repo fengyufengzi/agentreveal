@@ -1,5 +1,5 @@
 /**
- * AgentGuard 机器可读输出契约。
+ * AgentReveal 机器可读输出契约。
  *
  * v1 保持各命令现有顶层字段不变，只增加 schemaVersion / command，便于试点期间
  * 识别输出来源并在未来演进时做兼容判断。
@@ -27,7 +27,9 @@ export type OutputCommand =
   | "trust.remove"
   | "ignore.add"
   | "ignore.list"
-  | "ignore.remove";
+  | "ignore.remove"
+  | "integration.scan"
+  | "feedback";
 
 export function withOutputContract<T extends object, C extends OutputCommand>(
   command: C,

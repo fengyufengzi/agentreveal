@@ -1,7 +1,7 @@
 /**
  * 配置备份与恢复。
  *
- * 备份存放在当前项目 .agentguard/backups/<id>/ 下，manifest 记录原始路径。
+ * 备份存放在当前项目 .agentreveal/backups/<id>/ 下，manifest 记录原始路径。
  */
 import {
   chmodSync,
@@ -53,10 +53,10 @@ interface RestoreTransactionOptions {
 }
 
 function backupRoot(cwd: string): string {
-  return join(cwd, ".agentguard", "backups");
+  return join(cwd, ".agentreveal", "backups");
 }
 
-const BACKUP_IGNORE_MARKER = "# AgentGuard backup safety";
+const BACKUP_IGNORE_MARKER = "# AgentReveal backup safety";
 const BACKUP_IGNORE_RULES = `${BACKUP_IGNORE_MARKER}\n*\n!.gitignore\n`;
 
 /** 防止包含原始配置的备份被普通 `git add .` 意外纳入版本控制。 */

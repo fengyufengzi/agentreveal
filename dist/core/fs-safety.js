@@ -6,7 +6,7 @@ export function fileMode(path) {
     return statSync(path).mode & 0o777;
 }
 export function atomicWriteFile(path, content, mode = fileMode(path)) {
-    const tempPath = join(dirname(path), `.agentguard-${process.pid}-${randomUUID()}.tmp`);
+    const tempPath = join(dirname(path), `.agentreveal-${process.pid}-${randomUUID()}.tmp`);
     let fd;
     try {
         fd = openSync(tempPath, "wx", mode);
@@ -31,7 +31,7 @@ export function atomicWriteFile(path, content, mode = fileMode(path)) {
  * linkSync 会以 EEXIST 失败，调用方可安全读取赢家写入的内容。
  */
 export function atomicCreateFile(path, content, mode) {
-    const tempPath = join(dirname(path), `.agentguard-${process.pid}-${randomUUID()}.tmp`);
+    const tempPath = join(dirname(path), `.agentreveal-${process.pid}-${randomUUID()}.tmp`);
     let fd;
     try {
         fd = openSync(tempPath, "wx", mode);

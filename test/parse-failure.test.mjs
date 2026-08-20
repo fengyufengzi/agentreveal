@@ -14,7 +14,7 @@ import {
   buildParseFailureFinding,
   describeParseFailure,
 } from "../dist/core/parse-failure.js";
-import { loadAgentGuardConfig } from "../dist/core/config/index.js";
+import { loadAgentRevealConfig } from "../dist/core/config/index.js";
 import { buildActionPlan, buildActionTasks } from "../dist/core/action/index.js";
 import { formatScan } from "../dist/core/report/scan-format.js";
 import { renderHtmlReport } from "../dist/core/report/html-report.js";
@@ -79,7 +79,7 @@ test("解析失败任务身份只依赖配置文件，不随底层错误文本�
 });
 
 test("六类 Agent 的损坏配置统一降级，且原始内容不进入 finding", async () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-parse-failure-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-parse-failure-"));
   try {
     const ctx = { home: root, cwd: root, env: {} };
     const cases = [];
@@ -159,11 +159,11 @@ test("六类 Agent 的损坏配置统一降级，且原始内容不进入 findin
 });
 
 test("项目策略配置损坏时使用安全警告，不回显解析器原文", () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-policy-failure-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-policy-failure-"));
   try {
-    writeFileSync(join(root, ".agentguard.json"), `{ ${RAW_SECRET}`);
-    const config = loadAgentGuardConfig(root);
-    assert.equal(config.configPath, join(root, ".agentguard.json"));
+    writeFileSync(join(root, ".agentreveal.json"), `{ ${RAW_SECRET}`);
+    const config = loadAgentRevealConfig(root);
+    assert.equal(config.configPath, join(root, ".agentreveal.json"));
     assert.deepEqual(config.warnings, ["JSON 格式无效，已安全忽略此项目策略文件"]);
     assert.ok(!JSON.stringify(config).includes(RAW_SECRET));
   } finally {
@@ -172,7 +172,7 @@ test("项目策略配置损坏时使用安全警告，不回显解析器原文",
 });
 
 test("Codex 主配置损坏时仍检查独立 auth.json，但不回显密钥", async () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-codex-partial-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-codex-partial-"));
   try {
     const configPath = join(root, "config.toml");
     writeFileSync(configPath, "not = = valid [[[");

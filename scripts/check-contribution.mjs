@@ -73,11 +73,17 @@ const adrFiles = [
   "0003-transactional-configuration-writes.md",
   "0004-desktop-privilege-boundary.md",
   "0005-effective-configuration-and-private-drift-snapshots.md",
+  "0006-product-rename-to-agentreveal.md",
+  "0007-desktop-bundle-identity.md",
+  "0008-harness-plugin-and-model-safe-output-boundary.md",
 ];
 const adrIndex = read("docs/adr/README.md");
 for (const file of adrFiles) {
   const adr = read(`docs/adr/${file}`);
-  assert.match(adr, /- Status: Accepted/);
+  assert.match(
+    adr,
+    /- Status: (Accepted|Superseded by)/,
+  );
   assert.match(adr, /^## 背景$/m);
   assert.match(adr, /^## 决策$/m);
   assert.match(adr, /^## 不可破坏约束$/m);
@@ -110,10 +116,10 @@ const renderer = read("desktop/renderer.js");
 const diagnostics = read("desktop/diagnostics.cjs");
 
 const mainChannels = sortedUnique(
-  captures(main, /ipcMain\.handle\(\s*["'](agentguard:[^"']+)["']/g)
+  captures(main, /ipcMain\.handle\(\s*["'](agentreveal:[^"']+)["']/g)
 );
 const preloadChannels = sortedUnique(
-  captures(preload, /ipcRenderer\.invoke\(\s*["'](agentguard:[^"']+)["']/g)
+  captures(preload, /ipcRenderer\.invoke\(\s*["'](agentreveal:[^"']+)["']/g)
 );
 assert.deepEqual(
   preloadChannels,
@@ -122,12 +128,12 @@ assert.deepEqual(
 );
 
 const mainEventChannels = sortedUnique([
-  ...captures(main, /ipcMain\.on\(\s*["'](agentguard:[^"']+)["']/g),
-  ...captures(main, /webContents\.send\(\s*["'](agentguard:[^"']+)["']/g),
+  ...captures(main, /ipcMain\.on\(\s*["'](agentreveal:[^"']+)["']/g),
+  ...captures(main, /webContents\.send\(\s*["'](agentreveal:[^"']+)["']/g),
 ]);
 const preloadEventChannels = sortedUnique([
-  ...captures(preload, /ipcRenderer\.send\(\s*["'](agentguard:[^"']+)["']/g),
-  ...captures(preload, /ipcRenderer\.on\(\s*["'](agentguard:[^"']+)["']/g),
+  ...captures(preload, /ipcRenderer\.send\(\s*["'](agentreveal:[^"']+)["']/g),
+  ...captures(preload, /ipcRenderer\.on\(\s*["'](agentreveal:[^"']+)["']/g),
 ]);
 assert.deepEqual(
   preloadEventChannels,
@@ -139,7 +145,7 @@ const preloadMethods = new Set(
   captures(preload, /^\s{2}([A-Za-z][A-Za-z0-9]*):\s/gm)
 );
 const rendererMethods = sortedUnique(
-  captures(renderer, /window\.agentguard\.([A-Za-z][A-Za-z0-9]*)/g)
+  captures(renderer, /window\.agentreveal\.([A-Za-z][A-Za-z0-9]*)/g)
 );
 for (const method of rendererMethods) {
   assert.equal(preloadMethods.has(method), true, `renderer 使用了未暴露的 preload 方法：${method}`);

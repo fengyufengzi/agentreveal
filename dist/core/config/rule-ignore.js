@@ -30,7 +30,7 @@ const FORBIDDEN_FAMILIES = new Set([
     "coverage.truncated",
 ]);
 function configCandidates(cwd) {
-    return [join(cwd, ".agentguard.json"), join(cwd, "agentguard.config.json")];
+    return [join(cwd, ".agentreveal.json"), join(cwd, "agentreveal.config.json")];
 }
 function asObject(value, label) {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -48,7 +48,7 @@ function normalizeReason(reason) {
 }
 function parseRuleId(value, label = "ruleId") {
     if (typeof value !== "string" || !RULES.has(value)) {
-        throw new Error(`${label} 不是已知 AgentGuard 规则。`);
+        throw new Error(`${label} 不是已知 AgentReveal 规则。`);
     }
     return value;
 }
@@ -78,7 +78,7 @@ function readDocument(cwd) {
         return {
             path,
             mode: statSync(path).mode & 0o777,
-            document: asObject(JSON.parse(readFileSync(path, "utf8")), "AgentGuard 配置"),
+            document: asObject(JSON.parse(readFileSync(path, "utf8")), "AgentReveal 配置"),
         };
     }
     catch (error) {

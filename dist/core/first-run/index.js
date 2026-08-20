@@ -21,13 +21,13 @@ function buildNextCommands(topTasks) {
             id: "report",
             kind: "report",
             label: "生成完整 HTML 行动报告",
-            command: "agentguard report --format html",
+            command: "agentreveal report --format html",
         },
         {
             id: "map",
             kind: "map",
             label: "查看完整配置地图",
-            command: "agentguard map",
+            command: "agentreveal map",
         },
     ];
     for (const task of topTasks) {
@@ -35,7 +35,7 @@ function buildNextCommands(topTasks) {
             id: `verify:${task.taskId}`,
             kind: "verify",
             label: "处置后验证当前任务",
-            command: `agentguard risk verify ${task.taskId}`,
+            command: `agentreveal risk verify ${task.taskId}`,
             taskId: task.taskId,
         });
         if (taskMissingAcceptanceRules(task).length === 0) {
@@ -44,7 +44,7 @@ function buildNextCommands(topTasks) {
                 id: `accept:${task.taskId}`,
                 kind: "accept",
                 label: "确认暂不处理并保留审计",
-                command: `agentguard risk accept ${task.taskId} --reason "填写真实接受原因"` +
+                command: `agentreveal risk accept ${task.taskId} --reason "填写真实接受原因"` +
                     `${expires} --confirm`,
                 taskId: task.taskId,
             });
@@ -55,7 +55,7 @@ function buildNextCommands(topTasks) {
                 id: `trust:${task.taskId}`,
                 kind: "trust",
                 label: "确认自建或内部 Provider",
-                command: `agentguard trust add "${trust.endpoint}" --kind trusted ` +
+                command: `agentreveal trust add "${trust.endpoint}" --kind trusted ` +
                     '--reason "填写端点所有者、用途和核实依据"',
                 taskId: task.taskId,
             });
@@ -65,7 +65,7 @@ function buildNextCommands(topTasks) {
                 id: `ignore:${task.taskId}:${candidate.ruleId}`,
                 kind: "ignore",
                 label: `项目内忽略规则 ${candidate.ruleId}`,
-                command: `agentguard ignore add ${task.taskId} --rule ${candidate.ruleId} ` +
+                command: `agentreveal ignore add ${task.taskId} --rule ${candidate.ruleId} ` +
                     '--reason "填写审核依据；不要包含密钥或敏感信息"',
                 taskId: task.taskId,
             });

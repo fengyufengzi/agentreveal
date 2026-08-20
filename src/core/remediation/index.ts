@@ -99,7 +99,7 @@ export function claudeCredentialKeychainService(taskId: string): string {
   if (!/^task-[A-Za-z0-9_-]{6,128}$/.test(taskId)) {
     throw new Error("无效的任务 ID。");
   }
-  return `AgentGuard/CLAUDE_PLAINTEXT_TOKEN_${taskId}`;
+  return `AgentReveal/CLAUDE_PLAINTEXT_TOKEN_${taskId}`;
 }
 
 /** 写入 Claude 设置的固定 helper，不包含凭证、路径或 renderer 输入。 */
@@ -150,7 +150,7 @@ function verifyCommand(platform: ResolvedPlatform): RemediationCommand {
   return {
     id: "verify-scan",
     label: "重新扫描验证",
-    command: "agentguard scan",
+    command: "agentreveal scan",
     shell: shellFor(platform),
     kind: "verify",
     completesRemediation: false,
@@ -173,7 +173,7 @@ function claudeCredentialBackupCommand(
   return {
     id: "claude-credential-backup",
     label: "先备份 Claude Code 迁移涉及的设置文件",
-    command: `agentguard credential backup ${target.taskId}`,
+    command: `agentreveal credential backup ${target.taskId}`,
     shell: "sh",
     kind: "backup",
     completesRemediation: false,
@@ -189,7 +189,7 @@ function baselineCommands(
     {
       id: "baseline-preview",
       label: "预览全部 baseline 变更",
-      command: `agentguard baseline --profile ${profile} --dry-run`,
+      command: `agentreveal baseline --profile ${profile} --dry-run`,
       shell,
       kind: "preview",
       completesRemediation: false,
@@ -197,7 +197,7 @@ function baselineCommands(
     {
       id: "baseline-apply",
       label: "确认预览后，带备份应用",
-      command: `agentguard apply --profile ${profile} --backup`,
+      command: `agentreveal apply --profile ${profile} --backup`,
       shell,
       kind: "apply",
       completesRemediation: true,
@@ -211,7 +211,7 @@ function macSecretCommands(
   envName: string | undefined,
   ruleIds: string[]
 ): RemediationCommand[] {
-  const service = `AgentGuard/${token}`;
+  const service = `AgentReveal/${token}`;
   const commands: RemediationCommand[] = [
     {
       id: "macos-keychain",
@@ -226,7 +226,7 @@ function macSecretCommands(
     commands.push({
       id: "macos-claude-keychain-helper",
       label: "删除 Claude Code 配置中的明文，并改用 Keychain helper",
-      command: `AGENTGUARD_CLAUDE_DIR="\${CLAUDE_CONFIG_DIR:-$HOME/.claude}"; AGENTGUARD_HELPER='security find-generic-password -a "$USER" -s "${service}" -w'; for AGENTGUARD_FILE in "$AGENTGUARD_CLAUDE_DIR/settings.json" "$AGENTGUARD_CLAUDE_DIR/settings.local.json"; do [ -f "$AGENTGUARD_FILE" ] || continue; if /usr/bin/plutil -extract env.ANTHROPIC_AUTH_TOKEN raw -o - "$AGENTGUARD_FILE" >/dev/null 2>&1 || /usr/bin/plutil -extract env.ANTHROPIC_API_KEY raw -o - "$AGENTGUARD_FILE" >/dev/null 2>&1; then /usr/bin/plutil -replace apiKeyHelper -string "$AGENTGUARD_HELPER" "$AGENTGUARD_FILE" && { /usr/bin/plutil -remove env.ANTHROPIC_AUTH_TOKEN "$AGENTGUARD_FILE" 2>/dev/null || true; } && { /usr/bin/plutil -remove env.ANTHROPIC_API_KEY "$AGENTGUARD_FILE" 2>/dev/null || true; } && chmod 600 "$AGENTGUARD_FILE" && /usr/bin/plutil -lint "$AGENTGUARD_FILE"; fi; done; unset AGENTGUARD_CLAUDE_DIR AGENTGUARD_HELPER AGENTGUARD_FILE`,
+      command: `AGENTREVEAL_CLAUDE_DIR="\${CLAUDE_CONFIG_DIR:-$HOME/.claude}"; AGENTREVEAL_HELPER='security find-generic-password -a "$USER" -s "${service}" -w'; for AGENTREVEAL_FILE in "$AGENTREVEAL_CLAUDE_DIR/settings.json" "$AGENTREVEAL_CLAUDE_DIR/settings.local.json"; do [ -f "$AGENTREVEAL_FILE" ] || continue; if /usr/bin/plutil -extract env.ANTHROPIC_AUTH_TOKEN raw -o - "$AGENTREVEAL_FILE" >/dev/null 2>&1 || /usr/bin/plutil -extract env.ANTHROPIC_API_KEY raw -o - "$AGENTREVEAL_FILE" >/dev/null 2>&1; then /usr/bin/plutil -replace apiKeyHelper -string "$AGENTREVEAL_HELPER" "$AGENTREVEAL_FILE" && { /usr/bin/plutil -remove env.ANTHROPIC_AUTH_TOKEN "$AGENTREVEAL_FILE" 2>/dev/null || true; } && { /usr/bin/plutil -remove env.ANTHROPIC_API_KEY "$AGENTREVEAL_FILE" 2>/dev/null || true; } && chmod 600 "$AGENTREVEAL_FILE" && /usr/bin/plutil -lint "$AGENTREVEAL_FILE"; fi; done; unset AGENTREVEAL_CLAUDE_DIR AGENTREVEAL_HELPER AGENTREVEAL_FILE`,
       shell: "sh",
       kind: "configure",
       completesRemediation: false,
@@ -260,7 +260,7 @@ function linuxSecretCommands(
     {
       id: "linux-secret-service",
       label: "通过 Secret Service 安全存储凭证（命令随后从标准输入读取）",
-      command: `trap 'stty echo' EXIT INT TERM; printf 'Credential: ' >&2; stty -echo; IFS= read -r AGENTGUARD_INPUT; stty echo; trap - EXIT INT TERM; printf '\n' >&2; printf '%s' "$AGENTGUARD_INPUT" | secret-tool store --label='AgentGuard ${token}' service agentguard rule '${token}' account "$USER"; unset AGENTGUARD_INPUT`,
+      command: `trap 'stty echo' EXIT INT TERM; printf 'Credential: ' >&2; stty -echo; IFS= read -r AGENTREVEAL_INPUT; stty echo; trap - EXIT INT TERM; printf '\n' >&2; printf '%s' "$AGENTREVEAL_INPUT" | secret-tool store --label='AgentReveal ${token}' service agentreveal rule '${token}' account "$USER"; unset AGENTREVEAL_INPUT`,
       shell: "sh",
       kind: "store",
       completesRemediation: false,
@@ -270,7 +270,7 @@ function linuxSecretCommands(
     commands.push({
       id: "linux-session-inject",
       label: `从 Secret Service 仅向当前 shell 会话注入 ${envName}`,
-      command: `export ${envName}="$(secret-tool lookup service agentguard rule '${token}' account "$USER")"`,
+      command: `export ${envName}="$(secret-tool lookup service agentreveal rule '${token}' account "$USER")"`,
       shell: "sh",
       kind: "inject",
       completesRemediation: false,
@@ -287,7 +287,7 @@ function windowsSecretCommands(
     {
       id: "windows-dpapi-credential",
       label: "通过 Windows 用户 DPAPI 保存凭证",
-      command: `$dir = Join-Path $env:APPDATA 'AgentGuard'; New-Item -ItemType Directory -Force $dir | Out-Null; $path = Join-Path $dir '${token}.credential.xml'; Get-Credential -Message 'AgentGuard credential' | Export-Clixml $path`,
+      command: `$dir = Join-Path $env:APPDATA 'AgentReveal'; New-Item -ItemType Directory -Force $dir | Out-Null; $path = Join-Path $dir '${token}.credential.xml'; Get-Credential -Message 'AgentReveal credential' | Export-Clixml $path`,
       shell: "powershell",
       kind: "store",
       completesRemediation: false,
@@ -297,7 +297,7 @@ function windowsSecretCommands(
     commands.push({
       id: "windows-process-environment",
       label: `从 DPAPI 凭证文件仅向当前 PowerShell 进程注入 ${envName}`,
-      command: `$path = Join-Path (Join-Path $env:APPDATA 'AgentGuard') '${token}.credential.xml'; $credential = Import-Clixml $path; $env:${envName} = $credential.GetNetworkCredential().Password; Remove-Variable credential`,
+      command: `$path = Join-Path (Join-Path $env:APPDATA 'AgentReveal') '${token}.credential.xml'; $credential = Import-Clixml $path; $env:${envName} = $credential.GetNetworkCredential().Password; Remove-Variable credential`,
       shell: "powershell",
       kind: "inject",
       completesRemediation: false,
@@ -373,7 +373,7 @@ export function buildRemediationGuide(
       commands: baselineCommands(platform, options.profile ?? "balanced"),
       notes: [
         "先检查 dry-run；apply 会应用预览中的全部 baseline 变更，而非只修改当前 finding。",
-        "apply 会创建备份；如结果不符合预期，可使用 agentguard restore。",
+        "apply 会创建备份；如结果不符合预期，可使用 agentreveal restore。",
       ],
     };
   }
@@ -382,7 +382,7 @@ export function buildRemediationGuide(
   if (isCcSwitchSecret(ctx)) {
     commands.push(...ccSwitchPermissionCommands(platform));
     notes.push("CC Switch 普通 Provider 的 API Key/Token 输入框当前不解析环境变量名、${VAR} 或 {env:VAR}；不要把变量名当作 Token 填入，否则会鉴权失败。");
-    notes.push("请先创建独立、最小权限的新 Token，在 CC Switch 原应用中替换并测试，再撤销旧 Token。AgentGuard 只提供本机权限加固命令，不写数据库，也不把权限加固声称为已删除明文。");
+    notes.push("请先创建独立、最小权限的新 Token，在 CC Switch 原应用中替换并测试，再撤销旧 Token。AgentReveal 只提供本机权限加固命令，不写数据库，也不把权限加固声称为已删除明文。");
   } else if (isSecretFinding(ctx)) {
     const credentialBackup = claudeCredentialBackupCommand(
       target,

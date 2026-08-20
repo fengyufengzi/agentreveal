@@ -109,7 +109,7 @@ export function buildParseFailureFinding(
       status: "已安全跳过",
     },
     recommendation:
-      options.recommendation ?? "修复配置格式或读取权限后重新运行 agentguard scan。",
+      options.recommendation ?? "修复配置格式或读取权限后重新运行 agentreveal scan。",
     fixable: false,
   };
 }

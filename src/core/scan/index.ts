@@ -9,7 +9,7 @@ import type {
   RiskFinding,
 } from "../../adapters/types.js";
 import { adapters } from "../../adapters/index.js";
-import { loadAgentGuardConfig } from "../config/index.js";
+import { loadAgentRevealConfig } from "../config/index.js";
 import { buildContext } from "../discovery/index.js";
 import { correlate } from "../correlate/index.js";
 import { scanSensitiveFiles } from "../sensitive/index.js";
@@ -39,7 +39,7 @@ export interface ScanReport {
 export async function scanAll(
   ctx: DiscoveryContext = buildContext()
 ): Promise<ScanReport> {
-  const agentGuardConfig = loadAgentGuardConfig(ctx.cwd);
+  const agentGuardConfig = loadAgentRevealConfig(ctx.cwd);
   const scanCtx: DiscoveryContext = {
     ...ctx,
     providerPolicy: {
@@ -111,9 +111,9 @@ export async function scanAll(
       notes: [
         "只检查敏感文件名和相对路径，不读取文件内容",
         ...(agentGuardConfig.configPath
-          ? [`读取 AgentGuard 配置：${agentGuardConfig.configPath}`]
+          ? [`读取 AgentReveal 配置：${agentGuardConfig.configPath}`]
           : []),
-        ...agentGuardConfig.warnings.map((w) => `AgentGuard 配置解析失败：${w}`),
+        ...agentGuardConfig.warnings.map((w) => `AgentReveal 配置解析失败：${w}`),
       ],
     },
     findings: scanSensitiveFiles(ctx.cwd).map(enrichFinding),

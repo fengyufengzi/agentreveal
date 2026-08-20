@@ -1,4 +1,4 @@
 interface:
   display_name: "Change Desktop IPC"
   short_description: "Change Electron IPC without weakening desktop isolation"
-  default_prompt: "Use $change-desktop-ipc to implement an AgentGuard desktop operation safely."
+  default_prompt: "Use $change-desktop-ipc to implement an AgentReveal desktop operation safely."

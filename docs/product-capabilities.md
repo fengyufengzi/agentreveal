@@ -1,15 +1,15 @@
-# AgentGuard 当前产品能力
+# AgentReveal 当前产品能力
 
-> 本文是“AgentGuard 现在实际能做什么”的规范化摘要；代码和测试是最终事实依据。
+> 本文是“AgentReveal 现在实际能做什么”的规范化摘要；代码和测试是最终事实依据。
 >
-> 当前已公开 Public Preview：`0.0.6-pilot.4`；npm 包：
-> `@wangmarsen/agentguard`。
+> 当前已公开 Public Preview：`0.0.7-pilot.2`；npm 包：
+> `agentreveal`。
 >
-> 更新日期：2026-08-04。
+> 更新日期：2026-08-20。
 
 ## 1. 产品定位
 
-AgentGuard 是面向开发型 AI Agent 的本地安全检测与配置治理工具。
+AgentReveal 是面向开发型 AI Agent 的本地安全检测与配置治理工具。
 
 它不替代 Claude Code、Codex、OpenCode 等 Agent Runtime，也不做 EDR、MDM 或通用终端防护。当前核心
 价值是回答四个问题：
@@ -32,8 +32,8 @@ AgentGuard 是面向开发型 AI Agent 的本地安全检测与配置治理工�
 |---|---|---|
 | CLI | 主入口 | 裸执行一次完成发现、有效配置、可信状态比较、实际链路、三类任务、变化与风险共用 Top 3；保留完整 scan、posture、drift、报告、baseline、备份恢复、风险接受、端点信任和项目规则忽略子命令 |
 | 自包含 HTML | 主报告 | 离线打开；显示有效配置、漂移、认证冲突计划、行动任务、本机命令、接受/忽略状态和完整脱敏证据 |
-| JSON | 自动化接口 | `schemaVersion: 1`；以 additive 字段返回 posture/drift，旧消费者可忽略，用于 CI 和其它工具消费 |
-| Electron macOS 桌面端 | `0.0.6-pilot.4` Public Preview | 在既有 Public Preview 工作台上增加有效配置、漂移、Top 3 变化、认证冲突计划和原生确认的可信状态创建/替换/删除/复扫；renderer 仍无文件或命令权限。当前 DMG 已完成 Developer ID、公证、staple、Gatekeeper、独立敏感信息扫描与隔离回装 |
+| JSON | 自动化接口 | `schemaVersion: 1`；完整报告返回 summary、统一 tasks、Top 3、posture/drift；`integration.scan` 使用独立 allowlist，只返回模型安全 Top 3；feedback 只返回最小枚举字段且不上传 |
+| Electron macOS 桌面端 | `0.0.7-pilot.2` Public Preview | 在既有 Public Preview 工作台上增加有效配置、漂移、Top 3 变化、认证冲突计划和原生确认的可信状态创建/替换/删除/复扫；renderer 仍无文件或命令权限。当前 DMG 已完成 Developer ID、公证、staple、Gatekeeper、独立敏感信息扫描与隔离回装 |
 | GitHub Actions 示例 | 可用 | 下载固定 Pre-release 包，执行扫描并存档报告 |
 
 首发平台口径：CLI 的 macOS 路径与真实环境验证最完整；Linux / Windows 为 Beta，已有命令模板测试但尚未
@@ -43,8 +43,8 @@ AgentGuard 是面向开发型 AI Agent 的本地安全检测与配置治理工�
 
 ### 3.1 环境发现与风险扫描
 
-- 裸执行 `agentguard` 进入统一首次入口；`agentguard --json` 返回 CLI/Desktop 共用的 `first-run` v1
-  契约，`agentguard scan` 的既有终端、JSON 和退出码保持兼容。
+- 裸执行 `agentreveal` 进入统一首次入口；`agentreveal --json` 返回 CLI/Desktop 共用的 `first-run` v1
+  契约，`agentreveal scan` 的既有终端、JSON 和退出码保持兼容。
 - 首屏先展示实际 Provider/代理/上游，再按“必须处理 / 建议确认 / 信息提示”汇总任务，只展开前三项。
 - 每个首屏任务使用稳定 taskId，并给出当前系统整改模板以及 report、accept/trust/ignore、verify 后续命令。
 - 发现 Claude Code、Codex、CC Switch、OpenCode、Gemini CLI 和 OpenClaw 配置。
@@ -54,10 +54,17 @@ AgentGuard 是面向开发型 AI Agent 的本地安全检测与配置治理工�
 - 扫描和报告不输出完整 API Key、Token 或私钥；密钥复用只使用不可逆指纹。
 - 六类 Agent 与框架兜底的配置解析失败统一显示具体文件、固定安全原因和“已安全跳过”；原始异常、
   堆栈和配置片段不进入 finding、终端、HTML 或稳定任务身份。
-- 损坏的项目级 AgentGuard 端点信任或规则忽略策略会被安全忽略，并使用固定警告说明，不回显 JSON
+- 损坏的项目级 AgentReveal 端点信任或规则忽略策略会被安全忽略，并使用固定警告说明，不回显 JSON
   解析器原文；CLI 与 Desktop 只读扫描都不会因此覆盖损坏文件。
 - 同一合成项目的 CLI 与 Desktop 会执行真实扫描并比较 taskId、规则要求和项目忽略结果，防止两个入口
   在 core 之外产生语义分叉。
+- `agentreveal integration scan --format model-json` 复用同一 scan、行动任务和 triage，但只输出数量、固定
+  Agent/类别、规则 ID、priority/severity/disposition、固定文案和 Top 3。它不输出路径、端点、evidence、
+  taskId、动态文案、凭证指纹或命令，不创建任务快照，也不上传；高风险仍使用退出码 `2`。
+- 同一 npm 包已包含固定 `@deepseek-ai/dsh@0.1.0-rc.7` 的 server-side bundle 和 DSH Web 原生
+  `/agentreveal` 命令。Adapter 通过固定 Node/CLI/argv 调用上述 integration 契约，不经过 shell；它对返回值
+  再执行 exact-key allowlist 校验，只展示固定枚举、计数和规则 ID。隔离生命周期测试已覆盖旧版安装、升级、
+  原生命令、Web 启动和卸载。该能力已随 `0.0.7-pilot.2` 联合公开。
 
 ### 3.2 配置地图
 
@@ -86,7 +93,7 @@ AgentGuard 是面向开发型 AI Agent 的本地安全检测与配置治理工�
   Linux 使用 Secret Service，Windows 使用用户 DPAPI 凭证文件。
 - 仅为工具真实支持的变量生成当前进程/会话注入，不写 shell profile、普通 `.env` 或 Windows 用户环境。
 - HTML 提供“复制命令”按钮，但静态报告不会直接执行本地操作。
-- CC Switch SQLite 保持只读；AgentGuard 会明确普通 Provider 的 Token 输入框不解析环境变量名，避免用户把
+- CC Switch SQLite 保持只读；AgentReveal 会明确普通 Provider 的 Token 输入框不解析环境变量名，避免用户把
   `${VAR}` / `{env:VAR}` 当作 Token 填入，并提供可复制的数据库与备份权限加固命令。凭证仍需在原应用中
   以独立、最小权限的新 Token 替换和轮换；只要数据库继续保存真实 Token，复扫不会把该规则误判为已解决。
 - Linux/Windows 已覆盖 remediation 模板测试；Agent 配置路径和真实环境验证目前仍以 macOS 为主，
@@ -100,10 +107,10 @@ AgentGuard 是面向开发型 AI Agent 的本地安全检测与配置治理工�
 - 桌面端只允许应用与已确认预览指纹一致的计划，并在主进程显示原生确认框；renderer 不能绕过确认直接写入。
 - 桌面恢复仅开放给当前会话创建的备份；如果应用后配置又被修改，会拒绝覆盖。
 - Claude Code Desktop 明文凭证迁移会先一键备份实际含明文字段的设置文件；用户在 Terminal 写入并检查
-  Keychain 后，AgentGuard 再校验 taskId、预览指纹、manifest、备份摘要和当前配置，删除真实明文字段、
+  Keychain 后，AgentReveal 再校验 taskId、预览指纹、manifest、备份摘要和当前配置，删除真实明文字段、
   设置固定 helper 并立即复扫。多文件写入、写后校验或复扫失败会自动恢复原内容与权限。复扫通过后提供
   `claude auth status --text`、完全重启和最小请求清单；备份不会自动过期，只有用户确认真实鉴权正常后才可通过
-  原生确认清理。AgentGuard 不读取 Keychain，也不代替目标工具真实鉴权验证或旧凭证轮换。
+  原生确认清理。AgentReveal 不读取 Keychain，也不代替目标工具真实鉴权验证或旧凭证轮换。
 - CLI 提供同一 core 的 `credential backup <task-id>` 与 `credential restore <backup-id>`；恢复默认只读预览，
   只有带回预览指纹的 `--confirm` 才写入，并拒绝预览后的并发修改。Desktop 在相同事务边界外继续增加
   当前会话备份授权、原生确认和自动复扫。
@@ -119,7 +126,7 @@ AgentGuard 是面向开发型 AI Agent 的本地安全检测与配置治理工�
 - 有效接受的任务不进入默认行动结果，也不再参与 `scan/report` 高危退出码判断；到期或撤销后重新参与。
 - P0 任务必须设置到期时间，不能永久隐藏。
 - `risk list [--all]` 查看有效记录或完整历史；`risk revoke` 撤销。
-- 审计文件默认位于 `~/.agentguard/acceptances.json`，目录 0700、文件 0600、原子写入。
+- 审计文件默认位于 `~/.agentreveal/acceptances.json`，目录 0700、文件 0600、原子写入。
 - 过期和撤销记录不会删除；HTML 仍保留已接受任务和完整技术证据。
 - acceptance schema v2 按规范化 cwd 的 SHA-256 `scopeId` 隔离当前项目，不保存项目路径。
 - 旧 v1 无作用域记录只作为 legacy 审计保留，不再影响任何项目；用户需在当前项目重新确认。
@@ -141,7 +148,7 @@ AgentGuard 是面向开发型 AI Agent 的本地安全检测与配置治理工�
   Provider 端点分类一律不提供入口。
 - 策略按当前项目 + Agent + ruleId 生效，即使 evidence 或稳定 taskId 变化也继续隐藏同规则发现；到期后
   自动恢复，`ignore remove` 可主动撤销。
-- `.agentguard.json` / `agentguard.config.json` 只保存 Agent、ruleId、原因和时间审计，不保存 evidence、
+- `.agentreveal.json` / `agentreveal.config.json` 只保存 Agent、ruleId、原因和时间审计，不保存 evidence、
   taskId、路径或端点；原因可能进入版本控制，不能包含秘密。
 - CLI、HTML 和 Desktop 共用同一 triage；默认行动数和退出码排除已忽略发现，但 HTML 保留项目策略、
   撤销命令和完整技术证据。
@@ -154,7 +161,7 @@ AgentGuard 是面向开发型 AI Agent 的本地安全检测与配置治理工�
   缺少可比较基线时返回“无法确认”，不会误判为已解决。
 - HTML 明确说明它是静态快照，处置后必须 verify 并重新生成报告。
 - 生成报告时只保存项目作用域内的任务规则摘要，用于比较规则消失或任务身份变化；快照默认位于
-  `~/.agentguard/task-snapshots.json`，使用 0600 权限且不保存 evidence、路径、动态标题或端点。
+  `~/.agentreveal/task-snapshots.json`，使用 0600 权限且不保存 evidence、路径、动态标题或端点。
 
 ### 3.10 桌面本地诊断
 
@@ -186,18 +193,18 @@ AgentGuard 是面向开发型 AI Agent 的本地安全检测与配置治理工�
   Claude 明文凭证显示“开始安全迁移”，按备份、Terminal Keychain 写入/检查、应用配置、复扫和恢复展示状态；
   只有复扫确认规则消失才标为完成，但不会误称为已经验证目标工具鉴权或轮换旧凭证。
 - Desktop 的“安全修改与恢复（高级）”区域明确区分系统安全存储与配置事务：Keychain 写入/检查命令可复制，
-  凭证只输入 Terminal；AgentGuard 只在备份与指纹匹配时自动修改 Claude 设置并复扫，迁移备份仅在启动或
+  凭证只输入 Terminal；AgentReveal 只在备份与指纹匹配时自动修改 Claude 设置并复扫，迁移备份仅在启动或
   鉴权异常时回退；用户确认真实鉴权正常后可清理精确备份目录，删除后不再提供一键恢复，也不承诺 SSD
   安全擦除。
 - Codex OAuth/API Key/自定义 Provider 冲突提供固定只读 `codex login status` 检查、重启、最小请求与
-  复扫引导；AgentGuard 不改写 `auth.json`。CC Switch 明文或共享 Token 提供独立 Token 创建、原应用替换、
+  复扫引导；AgentReveal 不改写 `auth.json`。CC Switch 明文或共享 Token 提供独立 Token 创建、原应用替换、
   请求验证和旧 Token 撤销清单；共享规则应在拆分后消失，但 SQLite 仍保存真实新 Token 时明文规则会继续
   如实显示。
 - Claude Code、Codex 和 Gemini CLI live 配置中的 CC Switch `PROXY_MANAGED` 接管占位符不会被误判为
   真实明文凭证；Claude 因此也不会生成 Keychain 迁移任务。只有 CC Switch 全局代理服务与对应 Agent
-  路由接管都开启时，AgentGuard 才把该 Agent 标为“经 CC Switch”，并展示本地端口、真实上游和鉴权占位符；
+  路由接管都开启时，AgentReveal 才把该 Agent 标为“经 CC Switch”，并展示本地端口、真实上游和鉴权占位符；
   CC Switch 数据库中的真实 Provider 凭证仍单独报告。
-- Desktop 不再展示 `agentguard scan` 验证命令，而是明确引导点击任务卡片的“复扫验证”；接受任务、信任端点
+- Desktop 不再展示 `agentreveal scan` 验证命令，而是明确引导点击任务卡片的“复扫验证”；接受任务、信任端点
   和忽略规则使用次级视觉层级，但语义、确认和审计
   边界没有改变。
 - 单页工作台跟随 macOS 浅色或深色外观：内容画布保持清晰层级，顶部应用栏使用克制的半透明效果，风险状态采用
@@ -273,7 +280,7 @@ AgentGuard 是面向开发型 AI Agent 的本地安全检测与配置治理工�
   OAuth 放在同一解释中，并明确项目配置不能替代用户级 Provider/认证定义。
 - CC Switch 计划区分未接管的官方/自定义直连、已接管且能确认真实上游、代理已开但上游不明三种状态；所有
   切换都要求在 CC Switch 原应用中完成。
-- 这些计划是确定性 guided plan，不是自动凭证迁移。AgentGuard 不自动选择身份、修改 Codex `auth.json`
+- 这些计划是确定性 guided plan，不是自动凭证迁移。AgentReveal 不自动选择身份、修改 Codex `auth.json`
   或 CC Switch SQLite，也不轮换、撤销或打印上游凭证。
 
 ## 4. 支持矩阵
@@ -298,7 +305,7 @@ AgentGuard 是面向开发型 AI Agent 的本地安全检测与配置治理工�
 - 自动轮换或撤销上游 API Key。
 - 自动修改 CC Switch SQLite 或带注释的 Codex TOML。
 - 独立的结构化“误报”类型、批量策略管理、审批流程和团队共享 acceptance policy；当前只有单条、项目级、
-  可审计的低优先级规则忽略。
+  可审计的低优先级规则忽略。当前新增的 `feedback` 只生成不持久化、不上传的最小质量反馈，不是风险策略。
 - Prompt 内容安全、Skills 内容审计或运行时 Prompt Injection 拦截。
 - 后台持续漂移监控、文件监听、系统登录项或实时通知；当前只有用户主动扫描和比较。
 - 持久化 Workspace Inventory 和跨机器 Dashboard。
@@ -310,61 +317,76 @@ AgentGuard 是面向开发型 AI Agent 的本地安全检测与配置治理工�
 ## 6. 标准用户流程
 
 ```bash
-agentguard doctor
-agentguard scan
-agentguard posture
-agentguard drift
-agentguard map
-agentguard report --format html
+agentreveal doctor
+agentreveal scan
+agentreveal posture
+agentreveal drift
+agentreveal map
+agentreveal report --format html
+agentreveal integration scan --format model-json
 ```
 
 审核当前状态后，可显式管理当前项目的本机可信状态：
 
 ```bash
-agentguard drift baseline
-agentguard drift baseline --confirm
-agentguard drift baseline --replace --confirm
-agentguard drift baseline --remove --confirm
+agentreveal drift baseline
+agentreveal drift baseline --confirm
+agentreveal drift baseline --replace --confirm
+agentreveal drift baseline --remove --confirm
 ```
 
 报告为 baseline 和部分凭证场景给出本机命令模板，其余任务给出人工步骤。baseline 支持项先预览，再应用：
 
 ```bash
-agentguard baseline --profile balanced --dry-run
-agentguard apply --profile balanced --backup
-agentguard scan
+agentreveal baseline --profile balanced --dry-run
+agentreveal apply --profile balanced --backup
+agentreveal scan
 ```
 
 Claude Code 明文凭证迁移先按报告中的任务 ID 备份；只有迁移异常时才恢复：
 
 ```bash
-agentguard credential backup task-xxxxxxxxxxxx
-agentguard credential restore <backup-id>
-agentguard credential restore <backup-id> --confirm <fingerprint>
+agentreveal credential backup task-xxxxxxxxxxxx
+agentreveal credential restore <backup-id>
+agentreveal credential restore <backup-id> --confirm <fingerprint>
 ```
 
 经过确认的预期配置可以在当前项目作用域接受并保留原因：
 
 ```bash
-agentguard risk accept task-xxxxxxxxxxxx --reason "已核对归属、TLS 和访问控制"
-agentguard risk accept task-xxxxxxxxxxxx --reason "已核对归属、TLS 和访问控制" --confirm
-agentguard risk verify task-xxxxxxxxxxxx
-agentguard risk list
-agentguard risk revoke task-xxxxxxxxxxxx
+agentreveal risk accept task-xxxxxxxxxxxx --reason "已核对归属、TLS 和访问控制"
+agentreveal risk accept task-xxxxxxxxxxxx --reason "已核对归属、TLS 和访问控制" --confirm
+agentreveal risk verify task-xxxxxxxxxxxx
+agentreveal risk list
+agentreveal risk revoke task-xxxxxxxxxxxx
 
-agentguard ignore add task-xxxxxxxxxxxx --rule OPENCODE_MCP_LOCAL --reason "已审核固定版本的项目内 MCP"
-agentguard ignore list
-agentguard ignore remove OPENCODE_MCP_LOCAL --agent opencode --reason "项目已移除该 MCP"
+agentreveal ignore add task-xxxxxxxxxxxx --rule OPENCODE_MCP_LOCAL --reason "已审核固定版本的项目内 MCP"
+agentreveal ignore list
+agentreveal ignore remove OPENCODE_MCP_LOCAL --agent opencode --reason "项目已移除该 MCP"
 ```
 
 ## 7. 当前产品阶段与下一道门槛
 
-当前不是继续增加规则和 Agent 数量的阶段。E2–E5 与 H0–H7 功能开发已经完成，并以 `0.0.6-pilot.4` 联合公开；
-`npm run package:verify-install` 会构建真实 tarball，检查发布清单，在临时 HOME/prefix 安装并使用本地
-tarball 完成 npx 版本验证。候选达到公开标准后，必须冻结同一提交，并通过全量测试、Desktop 打包、
-tarball/DMG/app.asar 独立敏感信息扫描、Developer ID 签名、公证、staple、Gatekeeper 和隔离回装，
-再合并候选并创建 Pre-release。
+当前不是继续增加规则和 Agent 数量的阶段。E2–E5、H0–H7、产品改名和 DSH D0–D4 已经完成，并以 `0.0.7-pilot.2` 联合
+公开；当前通过合成正负场景收敛高价值规则准确性和根因任务去重。OpenCode 的 Bash 无限制与整体权限放行
+仍保留两条技术 finding 和完整 requirements，但在 CLI、JSON、HTML 与 Desktop 共用的 core 中只形成一个
+行动任务。旧单规则 taskId 的接受记录不会隐藏新的合并任务。
 
-本版完整发布证据见 `docs/release-0.0.6-pilot.4.md`。未来候选仍须重新完成同一门禁，不得复用中断或未完成
+第二批质量场景进一步覆盖 MCP、Gemini shell、OpenClaw 暴露、配置解析盲区、敏感文件扫描截断与跨 Agent
+集中风险。同一个 MCP server 的能力与凭证提示只形成一个行动任务（Claude 仍隔离 global/project scope），
+同一个 OpenClaw gateway 的 bind 与 Funnel 暴露也只形成一个任务；完整 ruleId、技术 evidence 和验证条件
+不会因聚合而丢失。
+
+CLI 与 Desktop 的 JSON 报告现在共用 `buildJsonReport`，保留原有扫描字段并新增 `summary`、`tasks` 和
+`topTasks`。终端首次入口、JSON、HTML 与 Desktop 对同一报告输出相同 Top 3、稳定 taskId 和完整
+requirements；真实 CLI/Desktop 导出回归会阻止两个入口再次分叉。
+
+`npm run package:verify-install` 会构建真实 tarball，检查发布清单，在临时 HOME/prefix 安装并使用本地
+tarball 完成 npx 版本验证。当前继续采用“私有仓库持续打磨、公开仓库定期发布”的节奏。选定下一个公开
+版本后，必须重新冻结同一提交，并通过全量测试、Desktop 打包、tarball/DMG/app.asar
+独立敏感信息扫描、Developer ID 签名、公证、staple、Gatekeeper 和隔离回装，再同步公开仓库并创建
+Pre-release。
+
+当前版本完整发布证据见 `docs/release-0.0.7-pilot.2.md`。未来候选仍须重新完成同一门禁，不得复用中断或未完成
 门禁的本地产物。本阶段仍不进入自动凭证轮换、后台监控、Runtime Gateway、通用 Secret Vault 或团队
 Dashboard。

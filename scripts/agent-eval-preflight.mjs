@@ -26,7 +26,7 @@ function commandOutput(runner, command, args, cwd, env) {
 }
 
 function defaultCodexCommand(env) {
-  if (env.AGENTGUARD_EVAL_CODEX_PATH) return env.AGENTGUARD_EVAL_CODEX_PATH;
+  if (env.AGENTREVEAL_EVAL_CODEX_PATH) return env.AGENTREVEAL_EVAL_CODEX_PATH;
   const desktopCodex = "/Applications/ChatGPT.app/Contents/Resources/codex";
   return existsSync(desktopCodex) ? desktopCodex : "codex";
 }

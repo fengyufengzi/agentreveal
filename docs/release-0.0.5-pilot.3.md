@@ -66,5 +66,5 @@ npm registry 的 `next` 与 `latest` 当前都指向 `0.0.5-pilot.3`。Pilot 安
 - [x] npm 包、Git tag、GitHub Release 和 DMG 使用同一版本；
 - [x] 从最终 GitHub Release 和 npm registry 重下载并完成 checksum、安装和版本回装验证。
 
-发布完成不等于 Pilot 完成。全新 Apple Silicon Mac 的非开发环境验收，以及 CLI/非 CLI 用户的真实 Pilot，
-继续通过公开 Issue 和 `pilot-feedback-form.md` 收集。
+发布完成不等于 Pilot 完成。全新 Apple Silicon Mac 的非开发环境验收，以及 5–10 名 CLI/非 CLI 用户的
+7–14 天真实 Pilot，继续在开发计划中跟踪。

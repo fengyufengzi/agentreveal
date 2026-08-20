@@ -1,6 +1,6 @@
 ---
 name: add-agent-adapter
-description: Add or extend an AgentGuard adapter for an AI coding agent, including discovery, privacy-preserving parsing, findings, registration, synthetic fixtures, tests, and support documentation. Use for new Agent support, new config locations or formats, or deeper scanning of an existing adapter.
+description: Add or extend an AgentReveal adapter for an AI coding agent, including discovery, privacy-preserving parsing, findings, registration, synthetic fixtures, tests, and support documentation. Use for new Agent support, new config locations or formats, or deeper scanning of an existing adapter.
 ---
 
 # Add an Agent adapter

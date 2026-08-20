@@ -1,6 +1,6 @@
 ---
 name: change-desktop-ipc
-description: Add or modify AgentGuard Electron desktop IPC, preload APIs, renderer actions, diagnostics, and typed desktop service operations while preserving sandboxing and path authorization. Use for any desktop feature that crosses the renderer/main boundary or invokes native dialogs, file writes, reports, risk operations, or baseline actions.
+description: Add or modify AgentReveal Electron desktop IPC, preload APIs, renderer actions, diagnostics, and typed desktop service operations while preserving sandboxing and path authorization. Use for any desktop feature that crosses the renderer/main boundary or invokes native dialogs, file writes, reports, risk operations, or baseline actions.
 ---
 
 # Change desktop IPC
@@ -16,7 +16,7 @@ Keep business semantics in the typed service and keep the renderer unprivileged.
 ## 2. Implement the boundary
 
 - Add a narrow service method with typed input and output when business data changes.
-- Expose one explicit `agentguard:<operation>` handler in the main process.
+- Expose one explicit `agentreveal:<operation>` handler in the main process.
 - Call `assertMainFrame(event)` before processing.
 - Validate every enum, ID, string length, fingerprint, path, and optional value in the main process.
 - Require `assertApprovedProject` for project-scoped operations.

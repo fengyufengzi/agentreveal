@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import { scanSensitiveFiles } from "../dist/core/sensitive/index.js";
 
 function withTempProject(fn) {
-  const dir = mkdtempSync(join(tmpdir(), "agentguard-sensitive-"));
+  const dir = mkdtempSync(join(tmpdir(), "agentreveal-sensitive-"));
   try {
     return fn(dir);
   } finally {

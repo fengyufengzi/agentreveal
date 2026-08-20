@@ -1,17 +1,27 @@
 {
-  "name": "@wangmarsen/agentguard",
-  "version": "0.0.6-pilot.4",
+  "name": "agentreveal",
+  "version": "0.0.7-pilot.2",
   "description": "面向多 Agent、多模型、多 Provider 的 AI Coding Agent 安全配置中心",
   "type": "module",
   "bin": {
-    "agentguard": "bin/agentguard"
+    "agentreveal": "bin/agentreveal"
+  },
+  "exports": {
+    "./dsh": "./dsh/plugin.js",
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
     "bin",
+    "dsh",
     "examples",
     "README.en.md"
   ],
+  "dsh": {
+    "bundle": {
+      "patch": "./dsh/cordis.patch.yml"
+    }
+  },
   "engines": {
     "node": ">=22"
   },
@@ -24,19 +34,24 @@
     "desktop:bundle:verify": "node scripts/verify-desktop-bundle.mjs",
     "desktop:preview:capture": "electron scripts/capture-desktop-preview.cjs",
     "desktop:demo:build": "node scripts/build-desktop-demo.mjs",
+    "dsh:demo:build": "node scripts/build-dsh-demo.mjs",
     "desktop:release:verify": "node scripts/verify-macos-release.mjs",
     "release:verify-version": "node scripts/verify-release-version.mjs",
     "release:scan-assets": "node scripts/scan-release-assets.mjs",
     "dev": "tsc --watch",
-    "doctor": "node bin/agentguard doctor",
+    "doctor": "node bin/agentreveal doctor",
     "sanitize": "node scripts/sanitize.mjs",
     "sanitize:history": "node scripts/sanitize.mjs --history",
     "sanitize:package": "node scripts/sanitize.mjs --package",
     "sanitize:staged": "node scripts/sanitize.mjs --staged",
     "package:verify-install": "node scripts/verify-cli-package.mjs",
+    "dsh:verify-install": "node scripts/verify-dsh-plugin.mjs",
+    "dsh:verify-candidate": "node scripts/verify-dsh-release-candidate.mjs",
+    "dsh:verify-public-history": "node scripts/verify-dsh-public-history.mjs",
     "evals:check": "node scripts/check-agent-evals.mjs",
     "evals:preflight": "node scripts/agent-eval-preflight.mjs",
     "evals:result:check": "node scripts/check-agent-eval-result.mjs",
+    "rules:quality": "npm run build && node scripts/rule-hit-rate.mjs",
     "check:repo": "node scripts/check-contribution.mjs && npm run evals:check",
     "check": "npm run sanitize && npm run sanitize:staged && npm test && npm run check:repo && git diff --exit-code -- dist && npm run sanitize:package",
     "test": "npm run build && node --test \"test/**/*.test.mjs\"",
@@ -51,7 +66,8 @@
     "claude-code",
     "codex",
     "cc-switch",
-    "mcp"
+    "mcp",
+    "reveal"
   ],
   "license": "MIT",
   "dependencies": {
@@ -66,12 +82,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/fengyufengzi/AgentGuard.git"
+    "url": "git+https://github.com/fengyufengzi/agentreveal.git"
   },
   "bugs": {
-    "url": "https://github.com/fengyufengzi/AgentGuard/issues"
+    "url": "https://github.com/fengyufengzi/agentreveal/issues"
   },
-  "homepage": "https://github.com/fengyufengzi/AgentGuard#readme",
+  "homepage": "https://github.com/fengyufengzi/agentreveal#readme",
   "author": {
     "name": "huige",
     "email": "wangmarsen@gmail.com",

@@ -52,7 +52,7 @@ export interface AcceptanceDocument {
     legacyAcceptances: Record<string, LegacyAcceptanceRecord[]>;
 }
 export interface AcceptanceStoreOptions {
-    /** 默认 ~/.agentguard/acceptances.json；测试和嵌入场景可注入。 */
+    /** 默认 ~/.agentreveal/acceptances.json；测试和嵌入场景可注入。 */
     path?: string;
     /** 默认 process.cwd()；仅用于计算不可逆的当前项目 scopeId。 */
     cwd?: string;

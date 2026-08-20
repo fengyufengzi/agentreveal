@@ -102,7 +102,7 @@ test("posture identity: HMAC 稳定、按上下文隔离且不同本机密钥不
 });
 
 test("posture identity: 密钥以 0600 创建、并发赢家复用且缺失时可拒绝重建", () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-posture-key-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-posture-key-"));
   try {
     const path = join(root, "state", "state-key");
     const key = loadOrCreatePostureIdentityKey({
@@ -130,7 +130,7 @@ test("posture identity: 密钥以 0600 创建、并发赢家复用且缺失时�
 });
 
 test("posture identity: 损坏或权限过宽的现有密钥被拒绝", () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-posture-bad-key-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-posture-bad-key-"));
   try {
     const path = join(root, "state-key");
     writeFileSync(path, "not-a-key\n", { mode: 0o600 });
@@ -138,7 +138,7 @@ test("posture identity: 损坏或权限过宽的现有密钥被拒绝", () => {
 
     writeFileSync(
       path,
-      `agentguard-state-key-v1:${Buffer.alloc(32, 5).toString("base64")}\n`
+      `agentreveal-state-key-v1:${Buffer.alloc(32, 5).toString("base64")}\n`
     );
     chmodSync(path, 0o644);
     assert.throws(() => loadOrCreatePostureIdentityKey({ path }), /权限过宽/);
@@ -148,7 +148,7 @@ test("posture identity: 损坏或权限过宽的现有密钥被拒绝", () => {
 });
 
 test("atomicCreateFile: 目标已存在时不覆盖且不遗留临时文件", () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-atomic-create-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-atomic-create-"));
   try {
     const path = join(root, "state-key");
     writeFileSync(path, "winner", { mode: 0o600 });
@@ -265,7 +265,7 @@ test("drift snapshot: 非法字段、重复 Agent 和无效时间被拒绝", () 
 });
 
 test("posture store: 按项目隔离、0700/0600 落盘且不持久化敏感身份", () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-posture-store-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-posture-store-"));
   try {
     const projectA = join(root, "project-a");
     const projectB = join(root, "project-b");
@@ -366,7 +366,7 @@ test("posture store: 损坏、未知字段、权限过宽或密钥丢失都不�
   ];
 
   for (const scenario of scenarios) {
-    const root = mkdtempSync(join(tmpdir(), "agentguard-posture-failure-"));
+    const root = mkdtempSync(join(tmpdir(), "agentreveal-posture-failure-"));
     try {
       const path = join(root, "state", "posture-snapshots.json");
       const keyPath = join(root, "state", "state-key");
@@ -395,7 +395,7 @@ test("posture store: 损坏、未知字段、权限过宽或密钥丢失都不�
 });
 
 test("posture store: 删除仅影响当前项目作用域", () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-posture-remove-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-posture-remove-"));
   try {
     const path = join(root, "state", "posture-snapshots.json");
     const keyPath = join(root, "state", "state-key");

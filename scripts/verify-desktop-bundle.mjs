@@ -22,7 +22,7 @@ function plistValue(infoPath, key) {
 }
 
 async function verifyLaunchWithoutNode(executable) {
-  const home = mkdtempSync(join(tmpdir(), 'agentguard-desktop-smoke-'));
+  const home = mkdtempSync(join(tmpdir(), 'agentreveal-desktop-smoke-'));
   const child = spawn(executable, [], {
     cwd: home,
     env: {
@@ -65,9 +65,9 @@ if (process.platform !== 'darwin') {
   throw new Error('macOS Desktop bundle 验证只能在 macOS 执行。');
 }
 
-const appPath = resolve(process.argv[2] ?? 'release/mac-arm64/AgentGuard.app');
+const appPath = resolve(process.argv[2] ?? 'release/mac-arm64/AgentReveal.app');
 const contents = join(appPath, 'Contents');
-const executable = join(contents, 'MacOS', 'AgentGuard');
+const executable = join(contents, 'MacOS', 'AgentReveal');
 const infoPath = join(contents, 'Info.plist');
 const asarPath = join(contents, 'Resources', 'app.asar');
 
@@ -84,7 +84,7 @@ assert.doesNotMatch(dependencies, /(?:^|\/)node(?:\.|\/|$)|libnode/imu, 'Desktop
 
 run('codesign', ['--verify', '--deep', '--strict', '--verbose=2', appPath]);
 
-assert.equal(plistValue(infoPath, 'CFBundleIdentifier'), 'com.agentguard.desktop');
+assert.equal(plistValue(infoPath, 'CFBundleIdentifier'), 'app.reveal.desktop');
 assert.equal(plistValue(infoPath, 'LSMinimumSystemVersion'), '12.0');
 for (const key of [
   'NSAppTransportSecurity',
@@ -100,7 +100,7 @@ for (const key of [
 const asarCli = resolve('node_modules/@electron/asar/bin/asar.js');
 assert.equal(existsSync(asarCli), true, '缺少本地 @electron/asar，无法验证打包内容');
 const asarList = run(process.execPath, [asarCli, 'list', asarPath]);
-for (const entry of ['/bin/agentguard', '/desktop/main.cjs', '/dist/cli.js', '/package.json']) {
+for (const entry of ['/bin/agentreveal', '/desktop/main.cjs', '/dist/cli.js', '/package.json']) {
   assert.equal(asarList.split('\n').includes(entry), true, `app.asar 缺少运行入口：${entry}`);
 }
 

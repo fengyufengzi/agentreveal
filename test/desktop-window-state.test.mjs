@@ -14,7 +14,7 @@ const {
 } = require("../desktop/window-state.cjs");
 
 function withDirectory(fn) {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-window-state-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-window-state-"));
   return Promise.resolve(fn(root)).finally(() => rmSync(root, { recursive: true, force: true }));
 }
 

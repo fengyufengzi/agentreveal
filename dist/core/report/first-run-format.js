@@ -31,7 +31,7 @@ function formatConnections(summary) {
 }
 export function formatFirstRun(summary) {
     const lines = [
-        "AgentGuard",
+        "AgentReveal",
         "本机运行 · 默认只读 · 不自动上传",
         "",
         ...(summary.posture

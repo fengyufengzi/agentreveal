@@ -126,7 +126,7 @@ export function buildOpenClawFindings(data) {
             category: "secret",
             severity: "info",
             title: "检测到 service-env 目录下的 gateway env 文件",
-            description: "AgentGuard 仅记录文件存在，不读取其中内容。该文件通常包含 API 密钥，请确认文件权限为 600 且目录归属当前用户。",
+            description: "AgentReveal 仅记录文件存在，不读取其中内容。该文件通常包含 API 密钥，请确认文件权限为 600 且目录归属当前用户。",
             evidence: { path: "service-env/*.env" },
             recommendation: "运行 chmod 600 ~/.openclaw/service-env/*.env。",
             fixable: false,

@@ -59,7 +59,7 @@ test("正常报告包含行动首页、技术证据与严重度徽标", () => {
     generatedAt: new Date("2026-07-10T00:00:00Z"),
   });
   assert.ok(html.includes("2026-07-10T00:00:00.000Z"));
-  assert.ok(html.includes("AgentGuard 下一步行动报告"));
+  assert.ok(html.includes("AgentReveal 下一步行动报告"));
   assert.ok(html.includes("共 2 项发现"));
   assert.ok(html.includes("按 Agent 查看技术证据"));
   assert.ok(html.includes("高危 1"));
@@ -113,18 +113,18 @@ test("行动卡展示原因、步骤、验证、Agent、接受条件与 baseline
   assert.ok(html.includes("为什么要处理"));
   assert.ok(html.includes("整体 allow 会让编辑、网络和命令工具全部免确认。"));
   assert.ok(html.includes("使用 baseline 改为显式分项权限"));
-  assert.ok(html.includes("完成处置后重新运行 agentguard scan"));
+  assert.ok(html.includes("完成处置后重新运行 agentreveal scan"));
   assert.ok(html.includes("Baseline 支持"));
   assert.ok(html.includes("balanced：风险缓解"));
   assert.ok(html.includes("safe：完整解决"));
-  assert.ok(html.includes("agentguard baseline --profile balanced --dry-run"));
-  assert.ok(html.includes("agentguard apply --profile balanced --backup"));
+  assert.ok(html.includes("agentreveal baseline --profile balanced --dry-run"));
+  assert.ok(html.includes("agentreveal apply --profile balanced --backup"));
   assert.ok(html.includes("本机自动整改"));
   assert.ok(html.includes("复制命令"));
   assert.ok(html.includes("仅一次性隔离环境可限时接受。"));
-  assert.match(html, /agentguard risk accept task-[a-f0-9]{12} --reason/);
+  assert.match(html, /agentreveal risk accept task-[a-f0-9]{12} --reason/);
   assert.ok(html.includes("--confirm"));
-  assert.ok(html.includes("agentguard risk verify task-"));
+  assert.ok(html.includes("agentreveal risk verify task-"));
   assert.ok(html.includes("这是生成时刻的静态快照"));
 });
 
@@ -142,7 +142,7 @@ test("未知 Provider 提供可复制的项目级信任命令，HTTP 规则不�
   const html = renderHtmlReport(makeReport([provider]));
   assert.ok(
     html.includes(
-      'agentguard trust add &quot;relay.report-example.net&quot; --kind trusted'
+      'agentreveal trust add &quot;relay.report-example.net&quot; --kind trusted'
     )
   );
   assert.ok(html.includes("HTTP、明文密钥和危险权限风险仍会显示"));
@@ -156,7 +156,7 @@ test("未知 Provider 提供可复制的项目级信任命令，HTTP 规则不�
       },
     ])
   );
-  assert.equal(httpOnly.includes("agentguard trust add"), false);
+  assert.equal(httpOnly.includes("agentreveal trust add"), false);
 });
 
 test("已接受任务退出默认待办但保留原因、撤销命令与技术证据", () => {
@@ -192,7 +192,7 @@ test("已接受任务退出默认待办但保留原因、撤销命令与技术�
   assert.ok(html.includes("0 个行动任务 · 0 个需要行动"));
   assert.ok(html.includes("已接受风险"));
   assert.ok(html.includes("个人自建且已核对 TLS 与访问控制"));
-  assert.ok(html.includes(`agentguard risk revoke ${taskId}`));
+  assert.ok(html.includes(`agentreveal risk revoke ${taskId}`));
   assert.ok(html.includes("自建示例中转"));
   assert.equal(countOf(html, '<article class="action-card'), 0);
   assert.equal(countOf(html, '<div class="finding sev-'), 1);
@@ -208,7 +208,7 @@ test("项目规则忽略退出行动任务但保留审计、撤销命令与技�
   }];
   const report = makeReport(findings);
   const initial = renderHtmlReport(report);
-  assert.match(initial, /agentguard ignore add task-[a-f0-9]{12} --rule CCSWITCH_PROXY_ENABLED/);
+  assert.match(initial, /agentreveal ignore add task-[a-f0-9]{12} --rule CCSWITCH_PROXY_ENABLED/);
 
   const html = renderHtmlReport(report, {
     ruleIgnores: [{
@@ -222,7 +222,7 @@ test("项目规则忽略退出行动任务但保留审计、撤销命令与技�
   assert.ok(html.includes("1 条项目规则已忽略"));
   assert.ok(html.includes("项目已忽略规则"));
   assert.ok(html.includes("已核对本机代理进程和受控上游"));
-  assert.ok(html.includes("agentguard ignore remove CCSWITCH_PROXY_ENABLED --agent cc-switch"));
+  assert.ok(html.includes("agentreveal ignore remove CCSWITCH_PROXY_ENABLED --agent cc-switch"));
   assert.equal(countOf(html, '<article class="action-card'), 0);
   assert.equal(countOf(html, '<div class="finding sev-'), 1);
 
@@ -236,7 +236,7 @@ test("项目规则忽略退出行动任务但保留审计、撤销命令与技�
     }],
   });
   assert.ok(policyWithoutFinding.includes("当前扫描未命中（策略仍有效）"));
-  assert.ok(policyWithoutFinding.includes("agentguard ignore remove CCSWITCH_PROXY_ENABLED"));
+  assert.ok(policyWithoutFinding.includes("agentreveal ignore remove CCSWITCH_PROXY_ENABLED"));
 });
 
 test("同一根因的多个 finding 聚合为一张任务卡，计数按任务而非 finding", () => {
@@ -308,11 +308,11 @@ test("聚合的 baseline 任务只显示一组执行命令", () => {
   const html = renderHtmlReport(makeReport([finding, { ...finding }]));
   assert.ok(html.includes("2 项发现 · 1 个行动任务 · 1 个需要行动"));
   assert.equal(
-    countOf(html, "agentguard baseline --profile balanced --dry-run"),
+    countOf(html, "agentreveal baseline --profile balanced --dry-run"),
     1
   );
   assert.equal(
-    countOf(html, "agentguard apply --profile balanced --backup"),
+    countOf(html, "agentreveal apply --profile balanced --backup"),
     1
   );
 });
@@ -444,4 +444,89 @@ test("remediation 渲染为有序步骤列表且每步转义", () => {
   // 步骤中的 payload 必须被转义
   assert.ok(!html.includes("<script>alert('step')"));
   assert.ok(html.includes("&lt;script&gt;alert("));
+});
+
+test("drift section: 包含分类徽标（drift-class-conflict/regression/expansion）", () => {
+  const html = renderHtmlReport(
+    { results: [
+        { agent: "claude-code", displayName: "Claude Code",
+          discovery: { agent: "claude-code", displayName: "Claude Code", configFound: true, configPath: "/tmp/x" },
+          findings: [] },
+        { agent: "codex", displayName: "Codex",
+          discovery: { agent: "codex", displayName: "Codex", configFound: true, configPath: "/tmp/x" },
+          findings: [] },
+        { agent: "opencode", displayName: "OpenCode",
+          discovery: { agent: "opencode", displayName: "OpenCode", configFound: true, configPath: "/tmp/x" },
+          findings: [] },
+      ],
+      allFindings: [], correlations: [] },
+    {
+      drift: {
+      status: "changed",
+      activeEventCount: 3,
+      resolvedEventCount: 1,
+      baselineCapturedAt: "2026-08-05T00:00:00Z",
+      events: [
+        {
+          eventId: "drift-html-1",
+          agentId: "claude-code",
+          kind: "auth-source-changed",
+          change: "changed",
+          priority: "P1",
+          severity: "high",
+          currentSummary: "认证来源与上次可信状态不同。",
+          previousCategory: "user[active]",
+          action: ["确认实际生效的认证来源"],
+          verification: ["复扫确认认证来源唯一"],
+        },
+        {
+          eventId: "drift-html-2",
+          agentId: "codex",
+          kind: "permission-changed",
+          change: "changed",
+          priority: "P0",
+          severity: "high",
+          currentSummary: "权限能力扩大。",
+          action: ["复核权限扩大"],
+          verification: ["复扫确认"],
+        },
+        {
+          eventId: "drift-html-3",
+          agentId: "opencode",
+          kind: "risk-reappeared",
+          change: "reappeared",
+          priority: "P1",
+          severity: "medium",
+          currentSummary: "之前已解决的风险再次出现。",
+          action: ["重新处置"],
+          verification: ["复扫确认"],
+        },
+      ],
+    },
+  });
+  assert.match(html, /data-drift-class="conflict"/);
+  assert.match(html, /data-drift-class="expansion"/);
+  assert.match(html, /data-drift-class="regression"/);
+  assert.match(html, /drift-class-conflict/);
+  assert.match(html, /drift-class-expansion/);
+  assert.match(html, /drift-class-regression/);
+  // 解读文案通过 drift-guidance class 渲染
+  assert.match(html, /class="drift-guidance"/);
+  assert.match(html, /多来源或权限相互竞争/);
+  // XSS：previousCategory 必须转义
+  assert.ok(!html.includes("<user[active]"), "previousCategory 不可被插入 raw HTML");
+  assert.match(html, /user\[active\]/, "previousCategory 应原样显示在转义后文本中");
+});
+
+test("drift section: 状态 no-baseline 时不渲染分类卡", () => {
+  const html = renderHtmlReport(makeReport([]), {
+    drift: {
+      status: "no-baseline",
+      activeEventCount: 0,
+      resolvedEventCount: 0,
+      events: [],
+    },
+  });
+  assert.match(html, /尚未保存可信状态/);
+  assert.doesNotMatch(html, /data-drift-class/);
 });

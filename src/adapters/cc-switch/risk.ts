@@ -30,7 +30,7 @@ export function buildCcSwitchFindings(
       severity: "info",
       title: `CC Switch schema 版本 ${data.schemaVersion} 未验证`,
       description: "该版本尚未经 adapter 验证，解析结果可能不完整。",
-      recommendation: "升级 AgentGuard 或核对 CC Switch 版本。",
+      recommendation: "升级 AgentReveal 或核对 CC Switch 版本。",
     });
   }
 
@@ -51,8 +51,8 @@ export function buildCcSwitchFindings(
         recommendation: "确认该 endpoint 是否可信；如为自建/内部服务请标记为可信。",
         remediation: [
           "打开 CC Switch 应用，在该 Provider 配置里核对 base_url。",
-          "若不可信：改回官方端点或删除该 Provider（CC Switch 配置存于只读 SQLite，AgentGuard 坚持不写库，请在应用内改）。",
-          "若为自建/内部端点：在项目根目录 .agentguard.json 的 providers.trusted 中加入该端点以消除误报。",
+          "若不可信：改回官方端点或删除该 Provider（CC Switch 配置存于只读 SQLite，AgentReveal 坚持不写库，请在应用内改）。",
+          "若为自建/内部端点：在项目根目录 .agentreveal.json 的 providers.trusted 中加入该端点以消除误报。",
         ],
         fixable: false,
       });
@@ -67,8 +67,8 @@ export function buildCcSwitchFindings(
         recommendation: "核实该端点归属；避免把源码上下文发往不可信中转。",
         remediation: [
           "打开 CC Switch 应用，在该 Provider 配置里核对 base_url 的真实归属。",
-          "若为不可信中转：切换回官方端点或删除该 Provider（AgentGuard 坚持只读 SQLite，请在应用内改）。",
-          "若为自建/内部端点：在项目根目录 .agentguard.json 的 providers.trusted 中标记为可信。",
+          "若为不可信中转：切换回官方端点或删除该 Provider（AgentReveal 坚持只读 SQLite，请在应用内改）。",
+          "若为自建/内部端点：在项目根目录 .agentreveal.json 的 providers.trusted 中标记为可信。",
         ],
         fixable: false,
       });
@@ -107,7 +107,7 @@ export function buildCcSwitchFindings(
         "不要在 API Key / Token 输入框填写环境变量名、${VAR} 或 {env:VAR}；当前普通 Provider 会把它们当作 Token 字面量。",
         "复制并执行下方 Terminal 命令，收紧 ~/.cc-switch、cc-switch.db 和数据库备份权限。",
         "若 Provider 支持官方账号/OAuth，优先改用无需在 CC Switch 数据库保存 Token 的登录方式。",
-        "配置存于只读 SQLite，AgentGuard 坚持不写库，请务必在 CC Switch 应用内修改。",
+        "配置存于只读 SQLite，AgentReveal 坚持不写库，请务必在 CC Switch 应用内修改。",
       ],
       fixable: false,
     });
@@ -199,7 +199,7 @@ export function buildCcSwitchFindings(
           remediation: [
             "打开 CC Switch 应用，进入该 Agent 的代理 / 故障转移设置。",
             "从故障转移队列中移除未知 / 中转端点，仅保留可信上游。",
-            "若某端点为自建/内部服务且确需保留：在 .agentguard.json 的 providers.trusted 中标记为可信。",
+            "若某端点为自建/内部服务且确需保留：在 .agentreveal.json 的 providers.trusted 中标记为可信。",
           ],
           fixable: false,
         });

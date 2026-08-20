@@ -1,6 +1,6 @@
-# AgentGuard 机器输出契约 v1
+# AgentReveal 机器输出契约 v1
 
-AgentGuard 的机器可读 JSON 输出从 Pilot Ready 阶段起带有两个保留字段：
+AgentReveal 的机器可读 JSON 输出从 Pilot Ready 阶段起带有两个保留字段：
 
 ```json
 {
@@ -13,7 +13,7 @@ AgentGuard 的机器可读 JSON 输出从 Pilot Ready 阶段起带有两个保�
 
 | 命令 | `command` 值 |
 |---|---|
-| `agentguard --json` | `first-run` |
+| `agentreveal --json` | `first-run` |
 | `doctor --json` | `doctor` |
 | `scan --json` | `scan` |
 | `posture --json` | `posture` |
@@ -34,6 +34,8 @@ AgentGuard 的机器可读 JSON 输出从 Pilot Ready 阶段起带有两个保�
 | `ignore add ... --json` | `ignore.add` |
 | `ignore list --json` | `ignore.list` |
 | `ignore remove ... --json` | `ignore.remove` |
+| `integration scan --format model-json` | `integration.scan` |
+| `feedback ...` | `feedback` |
 
 ## 兼容约定
 
@@ -44,6 +46,17 @@ AgentGuard 的机器可读 JSON 输出从 Pilot Ready 阶段起带有两个保�
 - `first-run` 是 CLI 与 Desktop 共用的首次运行摘要，包含 `summary`、`map`、统一 `tasks`、前三个
   `topTasks`、三类 `buckets`、当前平台 `remediationGuides` 和可复制的 `nextCommands`。Desktop 在
   `overview.firstRun` 原样返回该契约，同时保留现有顶层兼容字段。
+- `report.json` 保留既有 `results`、`allFindings` 和 `correlations` 顶层字段，并以 additive 字段增加
+  `summary`、统一 `tasks` 和前三个 `topTasks`。CLI 与 Desktop JSON 导出共用同一 builder；任务身份和
+  `requirements` 必须与首次入口、HTML 和 Desktop 概览一致。
+- `feedback` 固定只包含 `schemaVersion`、`command`、`productVersion`、`ruleId`、`judgment` 和
+  `actionOutcome`。它不接受额外字段，不读取扫描结果或 HOME，也不自动上传。枚举和安全使用方式见
+  [`rule-feedback.md`](rule-feedback.md)。
+- `integration.scan` 是专供受控 Harness Adapter 的独立 allowlist 契约。它只包含 `privacy`、计数和前三个
+  `topRisks`；每个风险只包含固定 source/agent/category、规则 ID、priority、severity、disposition、固定
+  message 与人工处置/验证标记。它不返回完整 finding、posture、drift、map、taskId 或整改步骤。Harness
+  Adapter 把子进程输出视为不可信输入，要求顶层、privacy、summary 和每个风险对象都与 exact-key allowlist
+  完全一致；未知枚举/规则、动态 message、额外字段、重复规则或计数矛盾都会安全失败。
 - `first-run`、`scan` 和 `report.json` 可以增加可选 `posture` 与 `drift`。`posture.agents[]` 包含运行时
   有效状态、不确定证据和确定性认证/路由处置计划；该运行时输出可以为本机用户展示规范化路径与端点，
   但不得直接作为可信快照持久化。
@@ -82,7 +95,7 @@ AgentGuard 的机器可读 JSON 输出从 Pilot Ready 阶段起带有两个保�
 - `ignore add` 必须从最新活动任务选择 core 判定可忽略的 ruleId；`ignore list --json` 返回项目配置路径、
   当前 Agent/ruleId 策略和追加式审计。策略不保存 evidence、路径、端点或 taskId，并按
   “当前项目 + Agent + ruleId”跨任务身份变化生效；P0/P1、fix 和高风险家族不能加入。
-- 未被有效接受的结果中有 `critical` 或 `high` 时，裸 `agentguard`、`scan`、`provider scan` 和
+- 未被有效接受的结果中有 `critical` 或 `high` 时，裸 `agentreveal`、`scan`、`provider scan` 和
   `report` 的退出码为 `2`。
 - 参数或运行错误使用退出码 `1`；无高危风险使用退出码 `0`。
 
@@ -94,3 +107,8 @@ AgentGuard 的机器可读 JSON 输出从 Pilot Ready 阶段起带有两个保�
 不得保存 JSON/HTML `posture` 中的原始路径、端点、模型或集成身份。机器输出中的确定性处置计划不得包含
 凭证值、任意 shell 命令或自动轮换承诺。策略快照只用本机 HMAC 区分接受/忽略记录，不保存原因、taskId、
 项目路径或原始策略身份。
+
+`integration.scan` 采用默认拒绝的独立 builder，不从完整 JSON 递归删除字段。其输出额外禁止绝对路径、端点、
+evidence、taskId、凭证指纹、配置片段、动态标题/描述、用户自由文本、备份身份、整改命令和任意 shell 字符串；
+未知风险类别只能回退到固定 `other` 文案，未知规则 ID 只能回退到固定 `UNMAPPED_RULE`。命令执行 scan 和
+现有 triage，但不创建任务快照或其它持久化状态。

@@ -1,7 +1,7 @@
 /**
  * 配置备份与恢复。
  *
- * 备份存放在当前项目 .agentguard/backups/<id>/ 下，manifest 记录原始路径。
+ * 备份存放在当前项目 .agentreveal/backups/<id>/ 下，manifest 记录原始路径。
  */
 import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync, } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
@@ -9,9 +9,9 @@ import { createHash, randomUUID } from "node:crypto";
 import { atomicWriteFile } from "../fs-safety.js";
 const BACKUP_MANIFEST_VERSION = 1;
 function backupRoot(cwd) {
-    return join(cwd, ".agentguard", "backups");
+    return join(cwd, ".agentreveal", "backups");
 }
-const BACKUP_IGNORE_MARKER = "# AgentGuard backup safety";
+const BACKUP_IGNORE_MARKER = "# AgentReveal backup safety";
 const BACKUP_IGNORE_RULES = `${BACKUP_IGNORE_MARKER}\n*\n!.gitignore\n`;
 /** 防止包含原始配置的备份被普通 `git add .` 意外纳入版本控制。 */
 function protectBackupRoot(cwd) {

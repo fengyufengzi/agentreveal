@@ -17,7 +17,7 @@ import { buildActionPlan, buildActionTasks } from "../dist/core/action/index.js"
 import { RULE_IDS } from "../dist/rules/ids.js";
 
 function withProject(fn) {
-  const cwd = mkdtempSync(join(tmpdir(), "agentguard-rule-ignore-"));
+  const cwd = mkdtempSync(join(tmpdir(), "agentreveal-rule-ignore-"));
   return Promise.resolve(fn(cwd)).finally(() => {
     rmSync(cwd, { recursive: true, force: true });
   });
@@ -57,7 +57,7 @@ test("rule ignore: 只允许低优先级非高风险家族", () => {
 
 test("rule ignore: add/list/remove 保留其它项目配置和追加式审计", async () => {
   await withProject((cwd) => {
-    const configPath = join(cwd, ".agentguard.json");
+    const configPath = join(cwd, ".agentreveal.json");
     writeFileSync(
       configPath,
       JSON.stringify({ providers: { trusted: ["relay.example.com"] }, custom: { keep: true } })
@@ -139,7 +139,7 @@ test("rule ignore: 拒绝高优先级、重复、过去到期和损坏配置", a
       /已存在有效/
     );
 
-    writeFileSync(join(cwd, ".agentguard.json"), "{ broken SECRET_PLACEHOLDER");
+    writeFileSync(join(cwd, ".agentreveal.json"), "{ broken SECRET_PLACEHOLDER");
     let errorMessage = "";
     try {
       listRuleIgnores(cwd);

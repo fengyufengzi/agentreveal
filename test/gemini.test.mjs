@@ -11,7 +11,7 @@ import { geminiAdapter } from "../dist/adapters/gemini/index.js";
 import { parseGemini } from "../dist/adapters/gemini/parse.js";
 
 async function withHome(fn) {
-  const home = mkdtempSync(join(tmpdir(), "agentguard-gemini-"));
+  const home = mkdtempSync(join(tmpdir(), "agentreveal-gemini-"));
   try {
     return await fn(home);
   } finally {

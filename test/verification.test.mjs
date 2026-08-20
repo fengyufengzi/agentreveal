@@ -162,7 +162,7 @@ test("verify: 识别身份变化以及接受、过期、撤销状态", () => {
 });
 
 test("任务快照: 按项目隔离、0600 写入且不保存路径、标题、evidence 或端点", () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-snapshot-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-snapshot-"));
   try {
     const projectA = join(root, "project-a");
     const projectB = join(root, "project-b");

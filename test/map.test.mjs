@@ -102,7 +102,7 @@ test("formatMap: 含表头、风险标签、代理链路段", () => {
     allFindings: [],
   };
   const out = formatMap(buildMap(report));
-  assert.ok(out.includes("AgentGuard 配置地图"));
+  assert.ok(out.includes("AgentReveal 配置地图"));
   assert.ok(out.includes("Agent"));
   assert.ok(out.includes("高危"));
   assert.ok(out.includes("代理链路"));

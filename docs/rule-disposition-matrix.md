@@ -1,4 +1,4 @@
-# AgentGuard 规则处置矩阵
+# AgentReveal 规则处置矩阵
 
 > 本文是当前源码行动报告的规则索引。完整的行动理由、下一步、验证方法、接受条件和
 > baseline 效果以 [`src/rules/action-matrix.ts`](../src/rules/action-matrix.ts) 为唯一真源。
@@ -9,13 +9,13 @@
 - 运行时系统事件：`DEEPSCAN_FAILED`，单独按扫描完整性问题处理，不计入 63 条规则。
 - `severity` 继续表示潜在影响；本表的 `priority` 表示用户行动顺序。
 - `observe` 是配置观察，不进入默认待修复数量。
-- `baseline` 表示 AgentGuard 已有带 dry-run、备份与回滚的整改能力，不等于所有 profile 都能完整解决。
+- `baseline` 表示 AgentReveal 已有带 dry-run、备份与回滚的整改能力，不等于所有 profile 都能完整解决。
 - 项目规则忽略不是普通 acceptance：只有 P2/P3、非 `fix` 且不属于凭证、执行权限、扫描盲区或
   Provider 端点分类等高风险家族的规则可用；策略按当前项目 + Agent + ruleId 跨 taskId 变化生效。
 - `CLAUDE_PLAINTEXT_TOKEN` 的 macOS guided 路径会先要求备份：Desktop 使用“一键备份”，CLI 使用
-  `agentguard credential backup <task-id>`；随后给出 Keychain 与 Claude Code `apiKeyHelper` 命令，先存储
+  `agentreveal credential backup <task-id>`；随后给出 Keychain 与 Claude Code `apiKeyHelper` 命令，先存储
   新凭证，再删除 `settings.json` / `settings.local.json` 中两个已知明文字段。CLI 恢复先只输出预览指纹，
-  需使用 `agentguard credential restore <backup-id> --confirm <fingerprint>` 二次确认；Desktop 验证统一使用
+  需使用 `agentreveal credential restore <backup-id> --confirm <fingerprint>` 二次确认；Desktop 验证统一使用
   任务卡片的“复扫验证”。CC Switch 代理接管写入 Claude Code、Codex 或 Gemini CLI
   live 配置的 `PROXY_MANAGED` 是非秘密鉴权占位符，不触发对应明文凭证 P0；`CCSWITCH_PROXY_ENABLED`
   仅在全局代理服务与该 Agent 路由接管同时开启时生成，并展示 CC Switch、本地端口和真实上游。CC Switch
@@ -90,6 +90,19 @@
 
 所有 `coverage.parse` 任务都以配置文件 `path` 作为稳定实例身份。finding 只保留文件路径、固定安全原因和
 “已安全跳过”状态；底层解析器异常、堆栈和配置片段不得进入 evidence、终端、HTML 或任务 ID。
+
+OpenCode 的 `OPENCODE_BASH_UNRESTRICTED` 与 `OPENCODE_PERMISSION_WILDCARD` 是同一份有效
+`permission` 配置的两个技术结论：前者描述任意宿主机命令执行，后者保留编辑、网络等整体权限面。两条
+finding 和各自验证条件都保留，但统一聚合为一个 `permission.execution` 行动任务。该聚合从新身份开始，
+旧单规则 taskId 的接受记录不会自动隐藏合并后的完整任务。
+
+同一个 MCP server 的 remote/stdio、trust 与 secret-env finding 按 Agent + server 聚合；Claude Code 额外按
+global/project `scope` 隔离。URL、command 和疑似凭证键名继续保留在技术 evidence 和 requirements 中，但不再
+把同一 server 拆成多张行动卡。不同 server、不同 Agent 或 Claude 不同 scope 绝不合并。
+
+OpenClaw 只有一个有效 gateway 配置，因此 `OPENCLAW_GATEWAY_EXPOSED_BIND` 与
+`OPENCLAW_TAILSCALE_EXPOSURE` 统一为一个 `openclaw.gateway-exposure` 任务，并保留两个验证条件。上述
+MCP 与 gateway grouping 都从新 taskId 开始，旧接受记录保留审计但默认失效，避免隐藏新增的完整要求。
 
 ## 项目级规则忽略矩阵
 

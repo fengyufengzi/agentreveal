@@ -1,29 +1,34 @@
-# Minimal Rule Feedback
+# AgentReveal Minimal Rule Feedback
 
 [简体中文](rule-feedback.md)
 
-This workflow checks whether one rule that already appeared matches user expectations. It does not replace broader Pilot
-feedback and is not the channel for application failures, feature requests, or security vulnerabilities. The public Pilot
-collects only the minimal fields through a dedicated GitHub Issue form; users do not upload scan reports.
+This feedback is only for checking whether a high-value rule matches user expectations. It does not replace the broader
+Pilot experience form. AgentReveal never uploads it automatically; the command only prints one minimal JSON object in the
+current terminal.
 
-## Submit feedback
+## Generate feedback
 
-1. Find the stable rule ID in the CLI, HTML report, or macOS Desktop technical details. Do not use a `task-...` ID.
-2. Open **New issue → Rule quality feedback** in this repository.
-3. Submit one rule per Issue and keep the title prefix unchanged.
-4. Select a judgment and action outcome, confirm the privacy statement, and submit.
+Copy a stable rule ID from the scan result, then select a judgment and action outcome:
 
-The form requests only the product version, `ruleId`, `judgment`, and `actionOutcome`. `judgment` is `expected`,
-`false-positive`, or `unclear`. `actionOutcome` is `not-attempted`, `resolved`, `mitigated`, `still-present`, `accepted`,
-`ignored`, or `abandoned`. Select `resolved` only after a rescan confirms that the rule is gone.
+```bash
+agentreveal feedback \
+  --rule GEMINI_MCP_TRUST_BYPASS \
+  --judgment expected \
+  --outcome resolved
+```
 
-Do not put configuration, JSON/HTML reports, diagnostics, screenshots, local paths, usernames, internal endpoints, model
-names, task IDs, credentials, environment variable values, reasons, environment descriptions, or other free-form text in
-the title, fields, comments, or attachments.
+The output contains only `schemaVersion`, `command`, `productVersion`, `ruleId`, `judgment`, and `actionOutcome`. The command
+does not read HOME, configuration, reports, or diagnostics; it does not write a file or make a network request. Users may
+explicitly redirect the output after reviewing it.
 
-If the product exposed sensitive information that should not have appeared, do not open a public Issue. Report it privately
-through the repository Security Advisory instead.
+`judgment` is one of `expected`, `false-positive`, or `unclear`. `actionOutcome` is one of `not-attempted`, `resolved`,
+`mitigated`, `still-present`, `accepted`, `ignored`, or `abandoned`.
 
-Maintainers treat one response only as a directional signal. A detector, severity, priority, or grouping change requires
-reproducible synthetic positive and negative cases plus multiple independent minimal real-world responses supporting the same
-conclusion. Missing or low-volume feedback is never sufficient grounds for removing a rule.
+The strict contract rejects every additional field, including task IDs, timestamps, paths, endpoints, configuration,
+reports, diagnostics, screenshots, credential values, and free-form comments. Submit the same fields through the dedicated
+GitHub “Rule quality feedback” form; never attach a complete JSON/HTML report or configuration file.
+
+Maintainers must not change or delete a rule from a single response or low frequency. A rule change requires a reproducible
+synthetic positive/negative scenario and matching minimal real-world feedback, followed by the repository's complete
+`add-security-rule` and compatibility review workflow. Sensitive-output reports must be handled privately as security
+issues, not ordinary quality feedback.

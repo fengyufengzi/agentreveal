@@ -35,8 +35,8 @@ export function buildCodexFindings(
         remediation: [
           `打开 ~/.codex/config.toml，定位 [model_providers.${p.name}] 段的 base_url。`,
           "若该端点不可信：把 base_url 改回官方端点，或删除整个 [model_providers.<name>] 段并切换回官方 Provider。",
-          "若为自建/企业内部端点：在项目根目录 .agentguard.json 的 providers.trusted 中加入该端点以消除误报。",
-          "config.toml 为 TOML 且可能含注释，AgentGuard 不自动改写以免破坏格式，请手动编辑。",
+          "若为自建/企业内部端点：在项目根目录 .agentreveal.json 的 providers.trusted 中加入该端点以消除误报。",
+          "config.toml 为 TOML 且可能含注释，AgentReveal 不自动改写以免破坏格式，请手动编辑。",
         ],
         fixable: false,
       });
@@ -67,7 +67,7 @@ export function buildCodexFindings(
       evidence: { authMode: data.authMode ?? "unknown" },
       recommendation: "尽量改用 ChatGPT 登录（OAuth）；限制 auth.json 权限为 600。",
       remediation: [
-        "删除 ~/.codex/auth.json 中的 OPENAI_API_KEY 字段（AgentGuard 只读不改，需手动删除）。",
+        "删除 ~/.codex/auth.json 中的 OPENAI_API_KEY 字段（AgentReveal 只读不改，需手动删除）。",
         "改用 `codex login` 走 ChatGPT OAuth 登录，或通过系统环境变量 OPENAI_API_KEY 注入密钥。",
         "运行 chmod 600 ~/.codex/auth.json 收紧文件权限。",
         "轮换此前已落盘的旧密钥，避免泄露副本仍然有效。",

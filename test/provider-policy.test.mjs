@@ -11,7 +11,7 @@ import { classifyBaseUrl } from "../dist/rules/provider.js";
 import { scanAll } from "../dist/core/scan/index.js";
 
 async function withTemp(fn) {
-  const dir = mkdtempSync(join(tmpdir(), "agentguard-policy-"));
+  const dir = mkdtempSync(join(tmpdir(), "agentreveal-policy-"));
   try {
     return await fn(dir);
   } finally {
@@ -40,7 +40,7 @@ test("provider policy: http flag 不因 trusted endpoint 消失", () => {
   assert.ok(cls.flags.includes("使用非 TLS 明文 http"));
 });
 
-test("scanAll: .agentguard.json 能信任项目内配置的未知 Provider", async () => {
+test("scanAll: .agentreveal.json 能信任项目内配置的未知 Provider", async () => {
   await withTemp(async (root) => {
     const home = join(root, "home");
     const cwd = join(root, "project");
@@ -50,7 +50,7 @@ test("scanAll: .agentguard.json 能信任项目内配置的未知 Provider", asy
     mkdirSync(cwd, { recursive: true });
 
     writeFileSync(
-      join(cwd, ".agentguard.json"),
+      join(cwd, ".agentreveal.json"),
       JSON.stringify({
         providers: {
           trusted: ["https://relay.unknown.xyz"],
@@ -83,7 +83,7 @@ test("scanAll: .agentguard.json 能信任项目内配置的未知 Provider", asy
     assert.equal(bashFinding.fixable, true);
     const workspace = report.results.find((r) => r.agent === "workspace");
     assert.ok(
-      workspace.discovery.notes.some((n) => n.includes(".agentguard.json"))
+      workspace.discovery.notes.some((n) => n.includes(".agentreveal.json"))
     );
   });
 });

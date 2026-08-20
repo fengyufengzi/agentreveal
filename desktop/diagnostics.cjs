@@ -112,8 +112,8 @@ function createDiagnostics(options) {
     ? options.maxBytes
     : DEFAULT_MAX_BYTES;
   const logDir = join(resolve(options.userDataPath), "logs");
-  const logPath = join(logDir, "agentguard-events.jsonl");
-  const rotatedPath = join(logDir, "agentguard-events.1.jsonl");
+  const logPath = join(logDir, "agentreveal-events.jsonl");
+  const rotatedPath = join(logDir, "agentreveal-events.1.jsonl");
 
   function ensureLogDir() {
     mkdirSync(logDir, { recursive: true });
@@ -231,7 +231,7 @@ function createDiagnostics(options) {
     };
     const tempPath = join(
       dirname(normalized),
-      `.agentguard-diagnostics-${process.pid}-${randomUUID()}.tmp`
+      `.agentreveal-diagnostics-${process.pid}-${randomUUID()}.tmp`
     );
     let fd;
     try {

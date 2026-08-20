@@ -1,5 +1,5 @@
 /**
- * AgentGuard 核心类型与 Adapter 接口
+ * AgentReveal 核心类型与 Adapter 接口
  *
  * 设计原则（对应 PRD / 一页版）：
  * - adapter 架构：新增 Agent 支持只需新增一个 adapter，不改核心引擎。
@@ -21,7 +21,7 @@ export type ActionPriority = "P0" | "P1" | "P2" | "P3";
 /** 规则基于当前证据作出处置判断的可信度。 */
 export type FindingConfidence = "high" | "medium" | "low";
 
-/** AgentGuard 对该 finding 能提供的修复能力。 */
+/** AgentReveal 对该 finding 能提供的修复能力。 */
 export type FindingFixMode = "baseline" | "guided" | "manual" | "none";
 
 /** baseline 对风险是完整解决还是仅降低影响。 */
@@ -143,6 +143,6 @@ export interface DiscoveryContext {
   cwd: string;
   /** 环境变量快照（含 CLAUDE_CONFIG_DIR / CODEX_HOME / XDG_CONFIG_HOME 等）。 */
   env: Record<string, string | undefined>;
-  /** AgentGuard 项目配置里的 Provider 信任策略。 */
+  /** AgentReveal 项目配置里的 Provider 信任策略。 */
   providerPolicy?: ProviderTrustPolicy;
 }

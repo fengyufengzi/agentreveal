@@ -196,7 +196,7 @@ export function buildClaudeCodeFindings(
         severity: "medium",
         title: `MCP "${s.name}" 的 env 中包含疑似密钥字段`,
         description: "当前仅根据字段名识别，需确认其值是明文字面量还是安全的环境变量引用。",
-        evidence: { server: s.name, envKeys: secretKeys },
+        evidence: { server: s.name, scope: s.scope, envKeys: secretKeys },
         recommendation: "若值为明文，请改用系统环境变量注入；若已是引用，可作为预期配置。",
         fixable: false,
       });

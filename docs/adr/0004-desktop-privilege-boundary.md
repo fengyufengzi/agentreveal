@@ -1,6 +1,6 @@
 # ADR-0004：Electron renderer 保持无权限，业务复用 typed core
 
-- Status: Accepted
+- Status: Superseded by ADR-0007 (2026-08-05)
 - Date: 2026-07-17
 
 ## 背景

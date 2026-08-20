@@ -1,11 +1,60 @@
 # Changelog
 
-All notable changes to AgentGuard are documented here.
+All notable changes to AgentReveal (formerly AgentGuard) are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+当前没有尚未发布的已提交能力。
+
+## [0.0.7-pilot.2] - 2026-08-20
+
+> CLI、macOS Desktop 与 DeepSeek Harness 只读插件以同一版本联合公开；最终 npm tarball、签名公证 DMG、
+> `app.asar` 和干净公开历史均通过发布门禁。
+
+### Changed
+
+- 新增高价值规则质量门禁：17 个合成正负场景运行真实 parser、detector 与 core 聚合，分别统计漏报、意外
+  告警、重复任务和隐私失败；不再用跨场景出现频率把稀有高影响规则列为删除候选。
+- OpenCode 的 Bash 无限制与整体权限放行保留两条技术 finding 和完整验证条件，但聚合为一个新的执行权限
+  行动任务；旧单规则 taskId 的接受记录安全失效，避免未经确认隐藏合并后的要求。
+- 高价值规则质量基线扩展到 40 个正负场景和 43 条 ruleId，覆盖 MCP、Gemini shell、OpenClaw 暴露、
+  parse/schema/truncation 扫描盲区及跨 Agent 共享代理/端点。
+- 同一个 MCP server 的多条技术 finding 聚合为一个任务，同时保留不同 server 与 Claude global/project
+  作用域隔离；同一个 OpenClaw gateway 的 bind 与 Funnel 暴露也聚合为一个新身份任务。
+- CLI 与 Desktop 的 JSON 报告共用统一 builder，在保持原扫描字段兼容的同时新增行动 `summary`、完整
+  `tasks` 和 `topTasks`，并与终端首次入口、HTML、Desktop 概览保持 taskId/requirements 一致。
+- 新增 `agentreveal feedback` 最小规则反馈：只输出产品版本、ruleId、枚举判断与处置结果，严格拒绝路径、
+  端点、taskId、报告、配置、凭证和自由文本等额外字段，不写文件且不自动上传。
+- 新增 `agentreveal integration scan --format model-json`：复用真实 scan、行动聚合与 triage，但通过独立
+  allowlist 只输出模型安全 Top 3；排除路径、端点、evidence、taskId、动态文本、指纹和整改命令，且不创建
+  任务快照。
+- 同一 npm 包新增固定 `@deepseek-ai/dsh@0.1.0-rc.7` 的 `dsh.bundle` 与 DSH Web 原生 `/agentreveal` 命令；
+  Adapter 使用固定 Node/CLI/argv、无 shell、输出上限和 exact-key allowlist 复验，只展示固定枚举、计数、
+  规则 ID 与 Top 3。隔离 HOME/DSH_HOME 生命周期已覆盖旧版安装、当前版升级、Web 启动、原生命令和卸载无
+  残留。该能力已随 `0.0.7-pilot.2` 联合公开。
+
+## [0.0.7-pilot.1] - 2026-08-05
+
+### Changed
+
+- 产品从 `AgentGuard` 改名为 `AgentReveal`。
+  - npm 包从 `@wangmarsen/agentguard` 切到顶层包 `agentreveal`；CLI 二进制从 `agentguard` 改为 `agentreveal`。
+  - GitHub 仓库从 `fengyufengzi/AgentGuard` 切到 `fengyufengzi/agentreveal`。
+  - macOS Desktop `appId` 从 `com.agentguard.desktop` 切到 `app.reveal.desktop`；DMG 名同步为 `AgentReveal-0.0.7-arm64.dmg`。
+  - 本地状态根从 `~/.agentguard/` 切到 `~/.agentreveal/`；项目配置 `.agentguard.json` → `.agentreveal.json`；
+    备份目录、HMAC 域串、环境变量 `AGENTGUARD_*` → `AGENTREVEAL_*` 同步切换。
+  - Electron IPC channel 命名空间从 `agentguard:<op>` 切到 `agentreveal:<op>`（26 个 channel + `window.agentguard` → `window.agentreveal`）。
+- 历史 `CHANGELOG.md` 段（`0.0.6-pilot.4` 及更早版本）按"不静默改写历史结论"原则保留原 AgentGuard 名称。
+
+### Migration
+
+- 老用户：升级前手动卸载老应用，避免 macOS Gatekeeper 覆盖冲突（`sudo rm -rf "/Applications/AgentGuard.app"`）。
+- 老 npm 包：`@wangmarsen/agentguard@0.0.6` 已 deprecate；按 npm 72 小时窗口执行 unpublish。
+- ADR：`docs/adr/0001`、`0004`、`0005` 已标 Superseded；新约束见 `docs/adr/0006-product-rename-to-agentreveal.md` 与 `docs/adr/0007-desktop-bundle-identity.md`。
+
 ## [0.0.6-pilot.4] - 2026-08-04
+
 
 ### Added
 

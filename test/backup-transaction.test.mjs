@@ -18,7 +18,7 @@ import {
 import { atomicWriteFile } from "../dist/core/fs-safety.js";
 
 test("backup transaction: 多文件恢复中途失败会回滚已恢复文件", () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-backup-transaction-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-backup-transaction-"));
   try {
     const cwd = join(root, "project");
     const configDir = join(root, "configs");

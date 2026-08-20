@@ -1,6 +1,6 @@
-# AgentGuard PR 门禁 —— 示例 workflow（复制到你自己仓库的 .github/workflows/ 下使用）
+# AgentReveal PR 门禁 —— 示例 workflow（复制到你自己仓库的 .github/workflows/ 下使用）
 #
-# 作用：在每个 PR / push 上运行 `agentguard scan`，扫本机（CI runner）上被检出的
+# 作用：在每个 PR / push 上运行 `agentreveal scan`，扫本机（CI runner）上被检出的
 #       AI Coding Agent 配置。存在「高危及以上」风险时 scan 以退出码 2 结束，
 #       让这一步失败，从而挡住 PR。
 #
@@ -8,8 +8,8 @@
 #   0  = 未发现高危及以上风险（含无风险 / 仅中低危 / 仅提示）
 #   2  = 存在 high / critical 风险（含跨 Agent 关联项）
 #
-# 说明：AgentGuard 默认只读、证据全程脱敏，不会打印明文密钥；HTML/JSON 报告同样脱敏。
-name: AgentGuard Gate
+# 说明：AgentReveal 默认只读、证据全程脱敏，不会打印明文密钥；HTML/JSON 报告同样脱敏。
+name: AgentReveal Gate
 
 on:
   pull_request:
@@ -17,8 +17,8 @@ on:
     branches: [main]
 
 jobs:
-  agentguard:
-    name: AgentGuard security scan
+  agentreveal:
+    name: AgentReveal security scan
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -29,22 +29,22 @@ jobs:
         with:
           node-version: 22 # scan/map 读取 CC Switch 的 SQLite 依赖 node:sqlite，需 ≥22
 
-      # Public Preview 使用 next；安装后的可执行命令仍为 agentguard。
-      - name: Install AgentGuard
-        run: npm install -g @wangmarsen/agentguard@next
+      # Public Preview 使用 pilot dist-tag；安装后的可执行命令为 agentreveal。
+      - name: Install AgentReveal
+        run: npm install -g agentreveal@pilot
 
       # 核心门禁：高危及以上 → 退出码 2 → 本步骤失败 → 挡 PR。
       - name: Scan
-        run: agentguard scan
+        run: agentreveal scan
 
       # 可选：无论通过与否都生成一份脱敏 HTML 报告并作为 artifact 存档，便于复盘。
       - name: Generate HTML report
         if: always()
-        run: agentguard report --format html --output agentguard-report.html
+        run: agentreveal report --format html --output agentreveal-report.html
 
       - name: Upload report artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: agentguard-report
-          path: agentguard-report.html
+          name: agentreveal-report
+          path: agentreveal-report.html

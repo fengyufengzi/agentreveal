@@ -2,7 +2,7 @@ import { adapters } from "../../adapters/index.js";
 import type { DiscoveryContext } from "../../adapters/types.js";
 import type { Adapter, AgentDiscovery } from "../../adapters/types.js";
 import { buildContext } from "../discovery/index.js";
-import { loadAgentGuardConfig } from "../config/index.js";
+import { loadAgentRevealConfig } from "../config/index.js";
 import type {
   EffectiveAgentState,
   EffectivePostureInspection,
@@ -82,7 +82,7 @@ function incompleteInspection(
 export async function inspectEffectiveStates(
   ctx: DiscoveryContext = buildContext()
 ): Promise<EffectiveAgentState[]> {
-  const config = loadAgentGuardConfig(ctx.cwd);
+  const config = loadAgentRevealConfig(ctx.cwd);
   const inspectionContext: DiscoveryContext = {
     ...ctx,
     providerPolicy: {

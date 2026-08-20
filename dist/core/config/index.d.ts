@@ -1,7 +1,7 @@
 import type { ProviderTrustPolicy } from "../../rules/provider.js";
-export interface AgentGuardConfig {
+export interface AgentRevealConfig {
     configPath?: string;
     providerPolicy: ProviderTrustPolicy;
     warnings: string[];
 }
-export declare function loadAgentGuardConfig(cwd: string): AgentGuardConfig;
+export declare function loadAgentRevealConfig(cwd: string): AgentRevealConfig;

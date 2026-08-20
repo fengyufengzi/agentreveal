@@ -24,7 +24,7 @@ export function atomicWriteFile(
 ): void {
   const tempPath = join(
     dirname(path),
-    `.agentguard-${process.pid}-${randomUUID()}.tmp`
+    `.agentreveal-${process.pid}-${randomUUID()}.tmp`
   );
   let fd: number | undefined;
   try {
@@ -55,7 +55,7 @@ export function atomicCreateFile(
 ): void {
   const tempPath = join(
     dirname(path),
-    `.agentguard-${process.pid}-${randomUUID()}.tmp`
+    `.agentreveal-${process.pid}-${randomUUID()}.tmp`
   );
   let fd: number | undefined;
   try {

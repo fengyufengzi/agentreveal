@@ -24,7 +24,7 @@ const { extractAll } = require("@electron/asar");
 function usage() {
   console.log(
     "Usage: node scripts/scan-release-assets.mjs "
-      + "[--tarball path/to/package.tgz] [--dmg path/to/AgentGuard.dmg]"
+      + "[--tarball path/to/package.tgz] [--dmg path/to/AgentReveal.dmg]"
   );
 }
 
@@ -241,7 +241,7 @@ export function main(argv = process.argv.slice(2)) {
   }
 
   const assets = parsed.assets.map(resolveAsset);
-  const workRoot = mkdtempSync(join(tmpdir(), "agentguard-release-scan-"));
+  const workRoot = mkdtempSync(join(tmpdir(), "agentreveal-release-scan-"));
   try {
     const version = run("gitleaks", ["version"]);
     if (version.error?.code === "ENOENT" || version.status !== 0) {

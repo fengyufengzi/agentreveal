@@ -12,6 +12,6 @@ mac:
   entitlements: desktop/entitlements.mac.plist
   entitlementsInherit: desktop/entitlements.mac.inherit.plist
 dmg:
-  artifactName: AgentGuard-${version}-${arch}.${ext}
+  artifactName: AgentReveal-${version}-${arch}.${ext}
   sign: false
 afterSign: scripts/notarize-macos.cjs

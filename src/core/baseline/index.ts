@@ -95,7 +95,7 @@ function renderChangeDiff(path: string, changes: BaselineChange[]): string {
   return [
     `--- ${path}`,
     `+++ ${path} (dry-run)`,
-    "@@ AgentGuard baseline changes",
+    "@@ AgentReveal baseline changes",
     ...changes.flatMap((c) => [
       `- ${c.path}: ${renderValue(c.from)}`,
       `+ ${c.path}: ${renderValue(c.to)}`,

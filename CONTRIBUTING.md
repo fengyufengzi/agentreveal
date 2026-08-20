@@ -1,6 +1,6 @@
-# Contributing to AgentGuard
+# Contributing to AgentReveal
 
-感谢参与 AgentGuard。它会读取本地 AI Agent 配置，因此隐私、写入安全和可解释处置优先于功能数量。
+感谢参与 AgentReveal。它会读取本地 AI Agent 配置，因此隐私、写入安全和可解释处置优先于功能数量。
 
 仓库文档默认使用简体中文。面向用户的重要文档应保留中英文版本：中文是默认入口和内容源，英文文件使用
 `.en.md` 后缀，并与中文页面互相链接。新增普通文档优先使用中文文件名；约定入口名、ADR 编号、工具路径和

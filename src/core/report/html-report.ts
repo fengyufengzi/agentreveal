@@ -29,6 +29,13 @@ import {
 import { applyRuleIgnores, type IgnoredFinding } from "../triage/index.js";
 import type { PostureReport } from "../posture/report.js";
 import type { DriftComparison } from "../posture/types.js";
+import {
+  buildDriftCard,
+  cardGuidance,
+  cardLabel,
+  previousVsCurrent,
+  sortByCardPriority,
+} from "../posture/drift-explain.js";
 
 export interface HtmlAcceptedTask {
   taskId: string;
@@ -236,26 +243,17 @@ function driftSection(drift: DriftComparison | undefined): string {
         : drift.status === "unavailable"
           ? "可信状态暂时不可用"
           : "检测到变化";
-  const events = drift.events
-    .map(
-      (entry) =>
-        `<li><div><span class="priority pri-${escapeHtml(
-          entry.priority.toLowerCase()
-        )}">${escapeHtml(entry.priority)}</span> <strong>${escapeHtml(
-          entry.currentSummary
-        )}</strong></div><p>${escapeHtml(entry.agentId)} · ${escapeHtml(
-          entry.kind
-        )} · ${escapeHtml(entry.change)}</p>${actionList(
-          "建议处理",
-          entry.action
-        )}${actionList("如何验证", entry.verification, "verify")}</li>`
-    )
+  const items = sortByCardPriority(drift.events)
+    .map(({ event, card }) => {
+      const prev = previousVsCurrent(event);
+      return `<li data-drift-class="${escapeHtml(card.cls)}" data-drift-kind="${escapeHtml(event.kind)}" data-drift-change="${escapeHtml(event.change)}"><div class="drift-head"><span class="drift-class drift-class-${escapeHtml(card.cls)}">${escapeHtml(cardLabel(card.cls))}</span><span class="priority pri-${escapeHtml(event.priority.toLowerCase())}">${escapeHtml(event.priority)}</span><span class="drift-agent">${escapeHtml(event.agentId)}</span><span class="drift-severity">${escapeHtml(event.severity)}</span></div><p class="drift-summary">${escapeHtml(event.currentSummary)}</p><p class="drift-guidance">${escapeHtml(cardGuidance(card.cls))}</p>${prev ? `<p class="drift-prev">${escapeHtml(prev)}</p>` : ""}${actionList("建议处理", event.action)}${actionList("如何验证", event.verification, "verify")}</li>`;
+    })
     .join("");
   return `<section class="drift-section" id="drift">
 <h2>自可信状态以来</h2>
 <p><strong>${escapeHtml(status)}</strong> · 当前变化 ${drift.activeEventCount} · 已恢复 ${drift.resolvedEventCount}</p>
 ${drift.status === "no-baseline" ? "<p>首次扫描不会自动信任当前状态。请审核后显式保存可信状态。</p>" : ""}
-${events ? `<ol class="drift-list">${events}</ol>` : ""}
+${items ? `<ol class="drift-list">${items}</ol>` : ""}
 </section>`;
 }
 
@@ -400,7 +398,7 @@ function remediationCommands(task: ActionTask): string {
 function providerTrustCommand(task: ActionTask): string {
   const candidate = providerTrustCandidateForTask(task);
   if (!candidate) return "";
-  const command = `agentguard trust add "${candidate.endpoint}" --kind trusted --reason "填写端点所有者、用途和核实依据"`;
+  const command = `agentreveal trust add "${candidate.endpoint}" --kind trusted --reason "填写端点所有者、用途和核实依据"`;
   return `<div class="accept-box trust-box"><strong>这是你确认控制的自建/内部端点？</strong>` +
     `<div class="command-row"><code>${escapeHtml(command)}</code><button type="button" class="copy-command">复制命令</button></div>` +
     `<small>该操作只消除“未知端点”提示，并保留项目级审计；HTTP、明文密钥和危险权限风险仍会显示。原因可能进入版本控制，请勿填写秘密。</small></div>`;
@@ -412,7 +410,7 @@ function projectIgnoreCommands(task: ActionTask): string {
   return `<div class="accept-box ignore-box"><strong>项目内不再提示这些已审核规则</strong>${candidates
     .map((candidate) => {
       const command =
-        `agentguard ignore add ${task.taskId} --rule ${candidate.ruleId} ` +
+        `agentreveal ignore add ${task.taskId} --rule ${candidate.ruleId} ` +
         '--reason "填写审核依据；不要包含密钥或敏感信息"';
       return `<div class="command-row"><small>${escapeHtml(candidate.ruleId)}</small><code>${escapeHtml(
         command
@@ -466,10 +464,10 @@ function actionCard(task: ActionTask, p0ExpiresOn: string): string {
   if (missingAcceptanceRules.length === 0) {
     parts.push(
       `<div class="accept-box"><strong>确认暂不修复整组任务</strong>` +
-        `<code>agentguard risk accept ${escapeHtml(
+        `<code>agentreveal risk accept ${escapeHtml(
           task.taskId
         )} --reason "填写真实接受原因"${priority === "P0" ? ` --expires ${escapeHtml(p0ExpiresOn)}` : ""} --confirm</code>` +
-        `<small>命令执行前会再次列出全部规则、严重度和接受条件。接受后整组规则不再进入默认待办和退出码判断；可用 agentguard risk revoke ${escapeHtml(
+        `<small>命令执行前会再次列出全部规则、严重度和接受条件。接受后整组规则不再进入默认待办和退出码判断；可用 agentreveal risk revoke ${escapeHtml(
           task.taskId
         )} 随时撤销。${priority === "P0" ? "P0 任务必须设置到期时间。" : ""}</small></div>`
     );
@@ -481,7 +479,7 @@ function actionCard(task: ActionTask, p0ExpiresOn: string): string {
     );
   }
   parts.push(
-    `<div class="verify-box"><strong>处置后验证当前任务</strong><code>agentguard risk verify ${escapeHtml(
+    `<div class="verify-box"><strong>处置后验证当前任务</strong><code>agentreveal risk verify ${escapeHtml(
       task.taskId
     )}</code><small>本报告是静态快照；执行处置命令不会自动刷新。请运行 verify，必要时重新生成 HTML。</small></div>`
   );
@@ -510,7 +508,7 @@ function acceptedSection(
         task.taskId
       )}</span></div><p><strong>接受原因</strong> ${escapeHtml(
         record?.reason ?? "未记录"
-      )}${expires}</p><code>agentguard risk revoke ${escapeHtml(
+      )}${expires}</p><code>agentreveal risk revoke ${escapeHtml(
         task.taskId
       )}</code></article>`;
     })
@@ -532,7 +530,7 @@ function ignoredSection(
         ? ` · 到期 ${escapeHtml(policy.expiresAt)}`
         : " · 长期有效";
       const titles = [...new Set(items.map((item) => item.finding.title))];
-      const command = `agentguard ignore remove ${policy.ruleId} --agent ${policy.agent} --reason "填写撤销原因"`;
+      const command = `agentreveal ignore remove ${policy.ruleId} --agent ${policy.agent} --reason "填写撤销原因"`;
       return `<article class="accepted-card ignored-card"><div class="action-head"><span class="accepted-badge">已忽略</span><span class="action-title">${escapeHtml(
         policy.ruleId
       )}</span></div><div class="action-meta"><span>${escapeHtml(
@@ -803,6 +801,22 @@ h1{font-size:22px;margin:0 0 4px}
 .posture-uncertainty{margin-top:10px;padding:10px;border-left:3px solid #f59e0b;background:#20190d;color:#fde68a}
 .posture-uncertainty ul{margin-bottom:0}
 .drift-list>li{padding:10px;border-bottom:1px solid #263044}.drift-list>li:last-child{border-bottom:0}
+.drift-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.drift-class{font-size:11px;padding:2px 8px;border-radius:6px;border:1px solid #3a4253;background:#1a2230;color:#cbd5e1;letter-spacing:0.5px}
+.drift-class-conflict{background:#3b1d1d;color:#fecaca;border-color:#7f1d1d}
+.drift-class-expansion{background:#3b2a16;color:#fde68a;border-color:#92400e}
+.drift-class-contraction{background:#152a3b;color:#bfdbfe;border-color:#1e40af}
+.drift-class-regression{background:#3b1d1d;color:#fecaca;border-color:#7f1d1d}
+.drift-class-new-coverage{background:#15203b;color:#bfdbfe;border-color:#1d4ed8}
+.drift-class-lost-coverage{background:#1f1f1f;color:#9ca3af;border-color:#404040}
+.drift-class-changed-coverage{background:#1a2230;color:#cbd5e1;border-color:#3a4253}
+.drift-class-policy-expired{background:#3b2a16;color:#fde68a;border-color:#92400e}
+.drift-class-agent-lifecycle,.drift-class-agent-version{background:#1a2230;color:#cbd5e1;border-color:#3a4253}
+.drift-agent{font-weight:600;color:#e6e6e6}
+.drift-severity{font-size:11px;color:#94a3b8}
+.drift-summary{margin:6px 0;font-weight:500}
+.drift-guidance{margin:4px 0;color:#bfdbfe;font-size:12px}
+.drift-prev{margin:4px 0;color:#fbbf24;font-size:12px}
 .action-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0 24px}
 .action-count{display:flex;align-items:baseline;gap:8px;padding:13px 14px;border:1px solid #303746;border-radius:10px;background:#161a22;color:#e6e6e6;text-decoration:none}
 .action-count:hover{border-color:#64748b}
@@ -999,14 +1013,14 @@ export function renderHtmlReport(
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>AgentGuard 报告</title>
+<title>AgentReveal 报告</title>
 <style>${STYLE}</style>
 </head>
 <body>
 <div class="wrap">
-<h1>AgentGuard 下一步行动报告</h1>
+<h1>AgentReveal 下一步行动报告</h1>
 <div class="meta">生成时间 ${escapeHtml(when)} · 共 ${total} 项发现 · ${activeTasks.length} 个行动任务 · ${actionable} 个需要行动${acceptedTasks.length > 0 ? ` · ${acceptedTasks.length} 个已接受` : ""}${ignored.ignoredFindings.length > 0 ? ` · ${ignored.ignoredFindings.length} 条项目规则已忽略` : ""}</div>
-<p class="snapshot-notice">这是生成时刻的静态快照，不会因配置修改自动刷新。完成处置后请运行卡片中的 <code>agentguard risk verify task-...</code>，并重新生成报告。</p>
+<p class="snapshot-notice">这是生成时刻的静态快照，不会因配置修改自动刷新。完成处置后请运行卡片中的 <code>agentreveal risk verify task-...</code>，并重新生成报告。</p>
 ${postureSection(opts.posture)}
 ${driftSection(opts.drift)}
 ${actionSummary(activeTasks)}
@@ -1022,7 +1036,7 @@ ${overview}
 ${body}
 ${correlations}
 </div>
-<footer>由 AgentGuard 生成 · 证据均已脱敏，不含明文密钥</footer>
+<footer>由 AgentReveal 生成 · 证据均已脱敏，不含明文密钥</footer>
 </div>
 <script>${FILTER_SCRIPT}</script>
 </body>

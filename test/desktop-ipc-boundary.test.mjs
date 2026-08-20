@@ -32,27 +32,27 @@ test("desktop IPC: handlers reject child frames and unapproved project paths", a
   const { handlers, eventHandlers } = loadDesktopMainHarness();
   assert.equal(handlers.size, 24);
   assert.equal(eventHandlers.size, 1);
-  assert.doesNotThrow(() => eventHandlers.get("agentguard:menuState")(
+  assert.doesNotThrow(() => eventHandlers.get("agentreveal:menuState")(
     childFrameEvent(),
     { hasOverview: true, hasReport: true, working: false }
   ));
   await assert.rejects(
-    handlers.get("agentguard:scanMachine")(childFrameEvent()),
+    handlers.get("agentreveal:scanMachine")(childFrameEvent()),
     /非主页面/
   );
   await assert.rejects(
-    handlers.get("agentguard:selectProject")(childFrameEvent()),
+    handlers.get("agentreveal:selectProject")(childFrameEvent()),
     /非主页面/
   );
   await assert.rejects(
-    handlers.get("agentguard:scanProject")(
+    handlers.get("agentreveal:scanProject")(
       mainFrameEvent(),
       "/tmp/renderer-supplied-project"
     ),
     /目录选择器确认/
   );
   await assert.rejects(
-    handlers.get("agentguard:backupClaudeRemediation")(
+    handlers.get("agentreveal:backupClaudeRemediation")(
       childFrameEvent(),
       "/tmp/renderer-supplied-project",
       "task-abcdef123456"
@@ -62,15 +62,15 @@ test("desktop IPC: handlers reject child frames and unapproved project paths", a
 });
 
 test("desktop IPC: native selection authorizes only the selected project", async () => {
-  const approved = "/tmp/agentguard-approved-project";
+  const approved = "/tmp/agentreveal-approved-project";
   const { handlers } = loadDesktopMainHarness({
     openDialogResult: { canceled: false, filePaths: [approved] },
   });
-  const selected = await handlers.get("agentguard:selectProject")(mainFrameEvent());
+  const selected = await handlers.get("agentreveal:selectProject")(mainFrameEvent());
   assert.equal(selected.canceled, false);
   assert.equal(selected.projectPath, approved);
   await assert.rejects(
-    handlers.get("agentguard:previewBaseline")(
+    handlers.get("agentreveal:previewBaseline")(
       mainFrameEvent(),
       approved,
       "aggressive"
@@ -78,7 +78,7 @@ test("desktop IPC: native selection authorizes only the selected project", async
     /未知 baseline profile/
   );
   await assert.rejects(
-    handlers.get("agentguard:previewBaseline")(
+    handlers.get("agentreveal:previewBaseline")(
       mainFrameEvent(),
       "/tmp/not-approved",
       "safe"
@@ -88,14 +88,14 @@ test("desktop IPC: native selection authorizes only the selected project", async
 });
 
 test("desktop IPC: privileged inputs fail before service or shell access", async () => {
-  const approved = "/tmp/agentguard-approved-project";
+  const approved = "/tmp/agentreveal-approved-project";
   const { handlers, shellCalls } = loadDesktopMainHarness({
     openDialogResult: { canceled: false, filePaths: [approved] },
   });
-  await handlers.get("agentguard:selectProject")(mainFrameEvent());
+  await handlers.get("agentreveal:selectProject")(mainFrameEvent());
 
   await assert.rejects(
-    handlers.get("agentguard:applyBaseline")(
+    handlers.get("agentreveal:applyBaseline")(
       mainFrameEvent(),
       approved,
       "safe",
@@ -104,7 +104,7 @@ test("desktop IPC: privileged inputs fail before service or shell access", async
     /预览指纹无效/
   );
   await assert.rejects(
-    handlers.get("agentguard:savePostureBaseline")(
+    handlers.get("agentreveal:savePostureBaseline")(
       mainFrameEvent(),
       approved,
       "renderer-controlled-fingerprint",
@@ -114,7 +114,7 @@ test("desktop IPC: privileged inputs fail before service or shell access", async
     /可信状态预览指纹无效/
   );
   await assert.rejects(
-    handlers.get("agentguard:removePostureBaseline")(
+    handlers.get("agentreveal:removePostureBaseline")(
       mainFrameEvent(),
       approved,
       "renderer-controlled-revision"
@@ -122,14 +122,14 @@ test("desktop IPC: privileged inputs fail before service or shell access", async
     /可信状态存储版本无效/
   );
   await assert.rejects(
-    handlers.get("agentguard:verifyPosture")(
+    handlers.get("agentreveal:verifyPosture")(
       mainFrameEvent(),
       "/tmp/not-approved"
     ),
     /目录选择器确认/
   );
   await assert.rejects(
-    handlers.get("agentguard:exportReport")(
+    handlers.get("agentreveal:exportReport")(
       mainFrameEvent(),
       approved,
       "pdf"
@@ -137,7 +137,7 @@ test("desktop IPC: privileged inputs fail before service or shell access", async
     /仅支持导出 HTML 或 JSON/
   );
   await assert.rejects(
-    handlers.get("agentguard:removeProviderTrust")(
+    handlers.get("agentreveal:removeProviderTrust")(
       mainFrameEvent(),
       approved,
       "a".repeat(254),
@@ -147,7 +147,7 @@ test("desktop IPC: privileged inputs fail before service or shell access", async
     /可信端点格式无效/
   );
   await assert.rejects(
-    handlers.get("agentguard:ignoreRule")(
+    handlers.get("agentreveal:ignoreRule")(
       mainFrameEvent(),
       approved,
       "task-abcdef123456",
@@ -157,7 +157,7 @@ test("desktop IPC: privileged inputs fail before service or shell access", async
     /无效的规则 ID/
   );
   await assert.rejects(
-    handlers.get("agentguard:removeRuleIgnore")(
+    handlers.get("agentreveal:removeRuleIgnore")(
       mainFrameEvent(),
       approved,
       "OPENCODE_MCP_LOCAL",
@@ -167,14 +167,14 @@ test("desktop IPC: privileged inputs fail before service or shell access", async
     /无效的 Agent ID/
   );
   await assert.rejects(
-    handlers.get("agentguard:openReport")(
+    handlers.get("agentreveal:openReport")(
       mainFrameEvent(),
       "/tmp/renderer-controlled-report.html"
     ),
-    /本次会话中由 AgentGuard 导出的报告/
+    /本次会话中由 AgentReveal 导出的报告/
   );
   await assert.rejects(
-    handlers.get("agentguard:restoreClaudeRemediation")(
+    handlers.get("agentreveal:restoreClaudeRemediation")(
       mainFrameEvent(),
       approved,
       "renderer/controlled"
@@ -182,7 +182,7 @@ test("desktop IPC: privileged inputs fail before service or shell access", async
     /无效的备份 ID/
   );
   await assert.rejects(
-    handlers.get("agentguard:applyClaudeMigration")(
+    handlers.get("agentreveal:applyClaudeMigration")(
       mainFrameEvent(),
       approved,
       "task-abcdef123456",
@@ -192,7 +192,7 @@ test("desktop IPC: privileged inputs fail before service or shell access", async
     /迁移预览指纹无效/
   );
   await assert.rejects(
-    handlers.get("agentguard:cleanupClaudeCredentialBackup")(
+    handlers.get("agentreveal:cleanupClaudeCredentialBackup")(
       mainFrameEvent(),
       approved,
       "task-abcdef123456",
@@ -204,13 +204,13 @@ test("desktop IPC: privileged inputs fail before service or shell access", async
 });
 
 test("desktop IPC: Claude 备份必须原生确认，取消时不进入 service", async () => {
-  const approved = "/tmp/agentguard-approved-project";
+  const approved = "/tmp/agentreveal-approved-project";
   const { handlers, diagnosticsEvents } = loadDesktopMainHarness({
     openDialogResult: { canceled: false, filePaths: [approved] },
     messageBoxResult: { response: 0 },
   });
-  await handlers.get("agentguard:selectProject")(mainFrameEvent());
-  const result = await handlers.get("agentguard:backupClaudeRemediation")(
+  await handlers.get("agentreveal:selectProject")(mainFrameEvent());
+  const result = await handlers.get("agentreveal:backupClaudeRemediation")(
     mainFrameEvent(),
     approved,
     "task-abcdef123456"
@@ -221,7 +221,7 @@ test("desktop IPC: Claude 备份必须原生确认，取消时不进入 service"
     { operation: "credential.backup", outcome: "canceled" },
   ]);
   await assert.rejects(
-    handlers.get("agentguard:restoreClaudeRemediation")(
+    handlers.get("agentreveal:restoreClaudeRemediation")(
       mainFrameEvent(),
       approved,
       "backup-not-issued"
@@ -231,7 +231,7 @@ test("desktop IPC: Claude 备份必须原生确认，取消时不进入 service"
 });
 
 test("desktop IPC: Claude 迁移只接受本会话签发的任务、备份和指纹，并完成复扫", async () => {
-  const home = mkdtempSync(join(tmpdir(), "agentguard-ipc-migration-"));
+  const home = mkdtempSync(join(tmpdir(), "agentreveal-ipc-migration-"));
   try {
     const configDir = join(home, ".claude");
     const settingsPath = join(configDir, "settings.json");
@@ -249,7 +249,7 @@ test("desktop IPC: Claude 迁移只接受本会话签发的任务、备份和指
       appPaths: { home },
       messageBoxResult: { response: 1 },
     });
-    const overview = await handlers.get("agentguard:scanMachine")(
+    const overview = await handlers.get("agentreveal:scanMachine")(
       mainFrameEvent()
     );
     const task = overview.tasks.find((candidate) =>
@@ -258,12 +258,12 @@ test("desktop IPC: Claude 迁移只接受本会话签发的任务、备份和指
       )
     );
     assert.ok(task);
-    const backup = await handlers.get("agentguard:backupClaudeRemediation")(
+    const backup = await handlers.get("agentreveal:backupClaudeRemediation")(
       mainFrameEvent(),
       overview.scope.path,
       task.taskId
     );
-    const migrated = await handlers.get("agentguard:applyClaudeMigration")(
+    const migrated = await handlers.get("agentreveal:applyClaudeMigration")(
       mainFrameEvent(),
       overview.scope.path,
       task.taskId,
@@ -282,13 +282,13 @@ test("desktop IPC: Claude 迁移只接受本会话签发的任务、备份和指
     ]);
     const backupPath = join(
       home,
-      ".agentguard",
+      ".agentreveal",
       "backups",
       backup.backup.backupId
     );
     assert.equal(existsSync(backupPath), true);
     const cleaned = await handlers.get(
-      "agentguard:cleanupClaudeCredentialBackup"
+      "agentreveal:cleanupClaudeCredentialBackup"
     )(
       mainFrameEvent(),
       overview.scope.path,
@@ -312,12 +312,12 @@ test("desktop IPC: canceled selection does not authorize a renderer path", async
   const { handlers } = loadDesktopMainHarness({
     openDialogResult: { canceled: true, filePaths: [] },
   });
-  const selected = await handlers.get("agentguard:selectProject")(mainFrameEvent());
+  const selected = await handlers.get("agentreveal:selectProject")(mainFrameEvent());
   assert.equal(selected.canceled, true);
   await assert.rejects(
-    handlers.get("agentguard:scanProject")(
+    handlers.get("agentreveal:scanProject")(
       mainFrameEvent(),
-      "/tmp/agentguard-approved-project"
+      "/tmp/agentreveal-approved-project"
     ),
     /目录选择器确认/
   );

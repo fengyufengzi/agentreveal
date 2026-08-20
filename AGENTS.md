@@ -1,11 +1,11 @@
-# AgentGuard repository instructions
+# AgentReveal repository instructions
 
 本文件是仓库内人类贡献者和 AI coding agent 的统一工作入口。工具专属说明只能引用本文件，不得复制出
 另一套安全规则。开始修改前，先阅读本文件和与任务匹配的仓库技能。
 
 ## 1. 项目目标与当前边界
 
-AgentGuard 是本地运行的 AI Coding Agent 安全配置中心，当前主线是 CLI 与 macOS Desktop 联合
+AgentReveal 是本地运行的 AI Coding Agent 安全配置中心，当前主线是 CLI 与 macOS Desktop 联合
 Public Preview。优先提升安装成功率、首次价值、风险准确性、解释性、可恢复整改和真实用户验证。
 
 当前不主动扩大到运行时 Prompt 拦截、企业 Dashboard、团队策略分发、后台常驻监控或更多 Agent/规则

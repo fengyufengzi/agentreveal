@@ -12,7 +12,7 @@ import {
 } from "../dist/core/config/trust.js";
 
 function withProject(fn) {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-trust-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-trust-"));
   const cwd = join(root, "project");
   mkdirSync(cwd);
   try {
@@ -33,7 +33,7 @@ test("provider trust: URL、端口和通配符规范化为可审计 host", () =>
 
 test("provider trust: add/list/remove 保留未知配置和追加式审计", () => {
   withProject((cwd) => {
-    const configPath = join(cwd, ".agentguard.json");
+    const configPath = join(cwd, ".agentreveal.json");
     writeFileSync(
       configPath,
       JSON.stringify({ featureFlag: true, providers: { other: "keep" } })
@@ -78,7 +78,7 @@ test("provider trust: add/list/remove 保留未知配置和追加式审计", () 
 
 test("provider trust: 损坏配置绝不覆盖", () => {
   withProject((cwd) => {
-    const path = join(cwd, ".agentguard.json");
+    const path = join(cwd, ".agentreveal.json");
     writeFileSync(path, "{broken");
     assert.throws(
       () =>
@@ -96,7 +96,7 @@ test("provider trust: 损坏配置绝不覆盖", () => {
 
 test("provider trust: 损坏审计和冲突策略绝不被静默改写", () => {
   withProject((cwd) => {
-    const path = join(cwd, ".agentguard.json");
+    const path = join(cwd, ".agentreveal.json");
     const invalidAudit = JSON.stringify({
       providerTrustAudit: [{ action: "add", endpoint: "relay.example.com" }],
     });

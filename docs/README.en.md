@@ -1,4 +1,4 @@
-# AgentGuard Documentation
+# AgentReveal Documentation
 
 [简体中文（默认）](README.md) | [English](README.en.md)
 
@@ -22,8 +22,8 @@ names remain unchanged because they are conventional entry points, numbered ADRs
 - [Output schema v1 (Chinese)](output-schema-v1.md)
 - [Rule disposition matrix (Chinese)](rule-disposition-matrix.md)
 - [macOS signing and notarization (Chinese)](macos-release.md)
-- [Current public release notes (Chinese)](release-0.0.6-pilot.4.md)
-- [Previous public release notes (Chinese)](release-0.0.5-pilot.3.md)
+- [Current public release notes (Chinese)](release-0.0.7-pilot.2.md)
+- [Previous public release notes (Chinese)](release-0.0.7-pilot.1.md)
 
 These documents are maintained primarily in Chinese. An English translation must not be treated as current unless it is
 linked from both language versions.

@@ -1,4 +1,4 @@
-# AgentGuard
+# AgentReveal
 
 [简体中文（默认）](README.md) | [English](README.en.md)
 
@@ -10,9 +10,9 @@
 
 ---
 
-## ⚡ 30 秒看懂 AgentGuard
+## ⚡ 30 秒看懂 AgentReveal
 
-AgentGuard 是一个**本地运行、默认不修改 Agent 配置**的安全工具，提供 CLI 与 macOS Desktop，帮你看清并治理机器上多个
+AgentReveal 是一个**本地运行、默认不修改 Agent 配置**的安全工具，提供 CLI 与 macOS Desktop，帮你看清并治理机器上多个
 AI Coding Agent 的安全配置。它扫描 **Claude Code / OpenCode / Codex / CC Switch / Gemini CLI / OpenClaw**
 的配置文件，识别未知中转 API、明文密钥、危险权限、可疑 MCP、以及被隐藏的代理链路，
 并把风险汇成中文报告——**证据全程脱敏，绝不打印完整密钥**。
@@ -23,11 +23,11 @@ AI Coding Agent 的安全配置。它扫描 **Claude Code / OpenCode / Codex / C
 - 🔗 **关联** — 跨 Agent 集中点分析：多个 Agent 汇聚同一代理 / 未知端点即单点失陷面
 - 📊 **行动报告** — 按“立即处理 / 需要确认 / 建议清理 / 配置观察”给出下一步和验证方法（`report`）
 
-| 第一次使用前最重要的问题 | AgentGuard 的回答 |
+| 第一次使用前最重要的问题 | AgentReveal 的回答 |
 |---|---|
-| **连接谁？** | AgentGuard 自身不连接模型 Provider；它在本机还原各 Agent 已配置的 Provider、代理真实上游和 MCP 链路。 |
+| **连接谁？** | AgentReveal 自身不连接模型 Provider；它在本机还原各 Agent 已配置的 Provider、代理真实上游和 MCP 链路。 |
 | **读取什么？** | 读取六类 Agent 的安全相关配置；项目目录只检查敏感文件名，不读取项目文件内容。凭证只在本机内存识别，输出不含完整值。 |
-| **执行什么？** | `agentguard`、`doctor/scan/map/report` 默认只读；整改命令先作为文本展示。只有用户显式执行 Advanced 的 `apply/restore` 才修改受支持配置。 |
+| **执行什么？** | `agentreveal`、`doctor/scan/map/report` 默认只读；整改命令先作为文本展示。只有用户显式执行 Advanced 的 `apply/restore` 才修改受支持配置。 |
 
 查看一份由真实 CLI 扫描合成配置生成的[脱敏输出示例](examples/scan-output.txt)。
 
@@ -35,8 +35,10 @@ AI Coding Agent 的安全配置。它扫描 **Claude Code / OpenCode / Codex / C
 
 ## 🚀 快速开始
 
-> 当前公开版本为 **Public Preview（`0.0.6-pilot.4`）**，联合提供 npm CLI 和完成 Developer ID 签名、
-> Apple 公证的 macOS 桌面版。npm 包使用个人 scope，避免与现有 `agent-guard` 包混淆。
+> 当前公开版本为 **Public Preview（`0.0.7-pilot.2`）**，联合提供 npm CLI、DeepSeek Harness（DSH）只读插件和完成 Developer ID 签名、
+> Apple 公证的 macOS 桌面版。npm 包使用顶层包名 `agentreveal`，与历史 `@wangmarsen/agentguard` 不同。
+> 老用户请参考 [`docs/install-upgrade-uninstall.md`](docs/install-upgrade-uninstall.md) 的"从 0.0.6-pilot.4
+> 升级到 0.0.7-pilot.2"。
 
 **环境要求**：Node.js ≥ 22（`scan`/`map` 读取 CC Switch 的 SQLite 配置依赖
 `node:sqlite`；开发环境使用 Node 24+）。
@@ -44,10 +46,40 @@ AI Coding Agent 的安全配置。它扫描 **Claude Code / OpenCode / Codex / C
 ### 从 npm 安装 CLI
 
 ```bash
-npm install -g @wangmarsen/agentguard@next
-agentguard --version
-agentguard
+npm install -g agentreveal@pilot
+agentreveal --version
+agentreveal
 ```
+
+### DeepSeek Harness（DSH）只读插件
+
+`0.0.7-pilot.2` 已把 `/agentreveal` 作为 DSH Web 的原生命令加入同一个 `agentreveal` npm 包。固定兼容版本为
+`@deepseek-ai/dsh@0.1.0-rc.7`、`pnpm@11.7.0`，Node.js 需满足 `^22.19.0 || >=24.0.0`。
+
+安装路径为：
+
+```bash
+npm install -g @deepseek-ai/dsh@0.1.0-rc.7 pnpm@11.7.0
+dsh plugin --profile web add agentreveal@pilot
+dsh web
+# 在 DSH Web 输入：/agentreveal
+```
+
+从当前源码验证时，先运行 `npm pack`，再把生成的 `.tgz` 路径传给
+`dsh plugin --profile web add`。卸载使用：
+
+```bash
+dsh plugin --profile web remove agentreveal
+```
+
+`/agentreveal` 只能由用户显式触发，只执行本机只读检查；它不注册模型工具或 MCP，不把命令交给模型，也不上传
+配置、路径、端点、证据或凭据。DSH 只显示固定枚举、计数、规则 ID 和 Top 3；完整技术证据与处置仍在
+AgentReveal CLI/Desktop 中查看。开发者可运行 `npm run dsh:verify-install`，在隔离 HOME/DSH_HOME 中验证安装、
+升级、原生命令、Web 启动和卸载闭环。
+
+[观看 39 秒 DSH 合成演示](docs/assets/agentreveal-dsh-demo.mp4)
+
+![AgentReveal DSH Demo 封面](docs/assets/agentreveal-dsh-demo-poster.png)
 
 **首发支持边界**：CLI 以 macOS 为主要端到端验证平台；Linux / Windows 当前标为 Beta，已有修复模板测试，
 但六类 Agent 的真实配置路径尚未完成三平台全覆盖。macOS Desktop 首发目标为 **macOS 12+、Apple Silicon**；
@@ -57,12 +89,12 @@ Intel 构建尚未验证。本地 `.app` 是依赖当前源码与受信任 Elect
 ### 从源码验证
 
 ```bash
-git clone https://github.com/fengyufengzi/AgentGuard.git
-cd AgentGuard
+git clone https://github.com/fengyufengzi/agentreveal.git
+cd AgentReveal
 npm ci
 npm test
 npm link
-agentguard --version
+agentreveal --version
 ```
 
 ### Pilot 试用
@@ -88,21 +120,21 @@ Public Preview 使用 npm `next` 分发 CLI，并在同版本 GitHub Release 提
 
 ### Demo 流程
 
-[观看 40 秒 macOS Desktop 合成演示](docs/assets/agentguard-desktop-demo.mp4)
+[观看 40 秒 macOS Desktop 合成演示](docs/assets/agentreveal-desktop-demo.mp4)
 
-![AgentGuard macOS Desktop Demo 封面](docs/assets/agentguard-desktop-demo-poster.png)
+![AgentReveal macOS Desktop Demo 封面](docs/assets/agentreveal-desktop-demo-poster.png)
 
 演示使用完全合成的 Agent、项目、端点和任务，不读取真实配置。源码贡献者可运行
 `npm run desktop:demo:build` 重新生成视频和封面。
 
 ```bash
 # 首次使用：一次完成发现、扫描、实际链路和前三项行动
-agentguard
+agentreveal
 
 # 需要展开原始扫描结果时继续使用兼容子命令
-agentguard scan
-agentguard map
-agentguard report --format html
+agentreveal scan
+agentreveal map
+agentreveal report --format html
 ```
 
 <details>
@@ -111,25 +143,25 @@ agentguard report --format html
 ```bash
 
 # 先看受支持的 OpenCode / Claude Code / Gemini CLI / OpenClaw baseline 会改什么
-agentguard baseline --profile balanced --dry-run
+agentreveal baseline --profile balanced --dry-run
 
 # 确认 diff 后再应用；apply 强制要求 --backup
-agentguard apply --profile balanced --backup
+agentreveal apply --profile balanced --backup
 
 # 如需回滚，恢复最近一次备份
-agentguard restore
+agentreveal restore
 ```
 
 </details>
 
 ### Mac 桌面版（Public Preview）
 
-当前 Electron 桌面预览直接复用 AgentGuard core 和稳定 taskId，不解析终端输出。首次启动会说明
+当前 Electron 桌面预览直接复用 AgentReveal core 和稳定 taskId，不解析终端输出。首次启动会说明
 本地运行、默认只读和不上传，首次打开以“选择项目并开始扫描”为主行动，整机检查是提示权限影响的次级入口。完成后进入按 Agent
 切换的单页安全工作台，配置摘要、实际 Provider / 代理 / 上游链路、重点问题和修复步骤保持在同一处理路径；
 完整技术证据按需展开，并可将 HTML 或 JSON 报告保存到用户选择的目录。同版本 GitHub Pre-release 提供
 完成 Developer ID 签名、Apple 公证和 staple 的
-[Apple Silicon DMG](https://github.com/fengyufengzi/AgentGuard/releases/tag/v0.0.6-pilot.4)。
+[Apple Silicon DMG](https://github.com/fengyufengzi/agentreveal/releases/tag/v0.0.6-pilot.4)。
 
 这里的“项目”是你正在开发的单个代码项目根目录，通常包含 `.git`、`package.json`、`pyproject.toml`
 等标识。项目扫描会解析项目内的 Agent 配置；普通源代码只检查文件名，不读取内容，同时仍会读取常见
@@ -173,8 +205,8 @@ CC Switch 代理接管写入 Claude Code、Codex 或 Gemini CLI live 配置的 `
 自动上传。只有用户主动导出时，才会把最近最多 200 条事件写到用户选择的 JSON 文件。
 
 ```bash
-git clone https://github.com/fengyufengzi/AgentGuard.git
-cd AgentGuard
+git clone https://github.com/fengyufengzi/agentreveal.git
+cd AgentReveal
 npm ci
 npm run desktop
 
@@ -185,7 +217,7 @@ npm run desktop:preview:capture
 npm run desktop:demo:build
 ```
 
-桌面版不要求用户预装全局 `agentguard`，扫描、任务聚合和报告均由应用内的编译产物完成。
+桌面版不要求用户预装全局 `agentreveal`，扫描、任务聚合和报告均由应用内的编译产物完成。
 如果 Electron 二进制下载较慢，开发安装时可临时使用
 `ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ npm run desktop`。
 
@@ -228,35 +260,36 @@ npm run desktop:release:verify
 
 | 命令 | 作用 |
 |---|---|
-| `agentguard` | 统一首次入口：发现、扫描、实际链路、三类行动、Top 3 和下一条命令；`--json` 返回共享 first-run v1 契约 |
-| `agentguard doctor` | 体检本机环境，列出已发现的 Agent 与配置路径（只探测存在性，不读密钥） |
-| `agentguard scan` | 深度扫描全部 Agent 的风险；含**跨 Agent 关联**段；有高危及以上以退出码 `2` 退出 |
-| `agentguard provider scan` | 仅输出 Provider / base_url / 代理链路相关风险 |
-| `agentguard map` | 生成多 Agent 配置地图，展开代理两跳链路 |
-| `agentguard report` | 扫描并生成可存档报告（`--format html\|json`，`--output <path>`，`-` 为标准输出） |
-| `agentguard baseline --profile balanced --dry-run` | 生成 OpenCode / Claude Code / Gemini CLI / OpenClaw 安全基线建议和 diff，不写文件 |
-| `agentguard backup` | 备份当前 OpenCode 配置到项目 `.agentguard/backups` |
-| `agentguard credential backup <task-id>` | 按最新扫描任务备份 Claude Code 明文凭证迁移涉及的设置文件 |
-| `agentguard credential restore <backup-id>` | 只读预览 Claude 迁移备份恢复；使用返回的 `--confirm <fingerprint>` 才写入 |
-| `agentguard apply --profile balanced --backup` | 应用支持范围内的多 Agent baseline 变更，应用前强制备份 |
-| `agentguard restore` | 恢复最近一次备份，或用 `--id <backup-id>` 指定 |
-| `agentguard trust add <endpoint> --kind trusted\|internal --reason <原因>` | 登记当前项目的自建/内部 Provider 端点，保留追加式审计 |
-| `agentguard trust list` | 查看当前项目的可信端点和审计事件数量（`--json` 返回完整审计） |
-| `agentguard trust remove <endpoint> --kind trusted\|internal --reason <原因>` | 撤销端点信任，相关未知端点重新进入待办 |
-| `agentguard ignore add <task-id> --rule <rule-id> --reason <原因>` | 从当前任务选择一条允许忽略的低优先级规则；可用 `--expires` 设置复审日期 |
-| `agentguard ignore list [--all]` | 查看当前项目有效/已过期规则忽略和追加式审计 |
-| `agentguard ignore remove <rule-id> --agent <agent> --reason <原因>` | 撤销项目规则忽略，使相关发现重新进入待办 |
-| `agentguard risk accept <task-id> --reason <原因> [--confirm]` | 先展示整组规则条件；只有显式确认才从默认待办和高危退出码移除并保留审计 |
-| `agentguard risk list [--all]` | 查看有效接受记录，或包含已过期/已撤销的完整历史 |
-| `agentguard risk verify <task-id>` | 重新扫描并判断任务已解决、缓解、仍存在、接受或身份变化 |
-| `agentguard risk revoke <task-id>` | 撤销风险接受，使任务重新进入默认待办 |
+| `agentreveal` | 统一首次入口：发现、扫描、实际链路、三类行动、Top 3 和下一条命令；`--json` 返回共享 first-run v1 契约 |
+| `agentreveal doctor` | 体检本机环境，列出已发现的 Agent 与配置路径（只探测存在性，不读密钥） |
+| `agentreveal scan` | 深度扫描全部 Agent 的风险；含**跨 Agent 关联**段；有高危及以上以退出码 `2` 退出 |
+| `agentreveal provider scan` | 仅输出 Provider / base_url / 代理链路相关风险 |
+| `agentreveal map` | 生成多 Agent 配置地图，展开代理两跳链路 |
+| `agentreveal report` | 扫描并生成可存档报告（`--format html\|json`，`--output <path>`，`-` 为标准输出）；JSON 保留扫描字段并包含统一 tasks 与 Top 3 |
+| `agentreveal feedback` | 在本机生成只含版本、ruleId、判断和处置结果的最小 JSON；不读配置、不写文件、不自动上传 |
+| `agentreveal baseline --profile balanced --dry-run` | 生成 OpenCode / Claude Code / Gemini CLI / OpenClaw 安全基线建议和 diff，不写文件 |
+| `agentreveal backup` | 备份当前 OpenCode 配置到项目 `.agentreveal/backups` |
+| `agentreveal credential backup <task-id>` | 按最新扫描任务备份 Claude Code 明文凭证迁移涉及的设置文件 |
+| `agentreveal credential restore <backup-id>` | 只读预览 Claude 迁移备份恢复；使用返回的 `--confirm <fingerprint>` 才写入 |
+| `agentreveal apply --profile balanced --backup` | 应用支持范围内的多 Agent baseline 变更，应用前强制备份 |
+| `agentreveal restore` | 恢复最近一次备份，或用 `--id <backup-id>` 指定 |
+| `agentreveal trust add <endpoint> --kind trusted\|internal --reason <原因>` | 登记当前项目的自建/内部 Provider 端点，保留追加式审计 |
+| `agentreveal trust list` | 查看当前项目的可信端点和审计事件数量（`--json` 返回完整审计） |
+| `agentreveal trust remove <endpoint> --kind trusted\|internal --reason <原因>` | 撤销端点信任，相关未知端点重新进入待办 |
+| `agentreveal ignore add <task-id> --rule <rule-id> --reason <原因>` | 从当前任务选择一条允许忽略的低优先级规则；可用 `--expires` 设置复审日期 |
+| `agentreveal ignore list [--all]` | 查看当前项目有效/已过期规则忽略和追加式审计 |
+| `agentreveal ignore remove <rule-id> --agent <agent> --reason <原因>` | 撤销项目规则忽略，使相关发现重新进入待办 |
+| `agentreveal risk accept <task-id> --reason <原因> [--confirm]` | 先展示整组规则条件；只有显式确认才从默认待办和高危退出码移除并保留审计 |
+| `agentreveal risk list [--all]` | 查看有效接受记录，或包含已过期/已撤销的完整历史 |
+| `agentreveal risk verify <task-id>` | 重新扫描并判断任务已解决、缓解、仍存在、接受或身份变化 |
+| `agentreveal risk revoke <task-id>` | 撤销风险接受，使任务重新进入默认待办 |
 
 ### `doctor` — 环境体检
 
 ```text
-$ agentguard doctor
+$ agentreveal doctor
 
-AgentGuard Doctor
+AgentReveal Doctor
 
 Detected agents:
   [OK] Claude Code  found  ~/.claude
@@ -273,7 +306,7 @@ Summary: 6/6 agents configured.
 高危项，会在风险条目下附**分步手动整改步骤**。示例（端点已改为示意值）：
 
 ```text
-$ agentguard scan
+$ agentreveal scan
 
 ▍Claude Code  1 项
   [提示] Claude Code 使用本地代理接管配置  (CLAUDE_LOCAL_BASE_URL)
@@ -293,15 +326,15 @@ Summary: 共 N 项风险  严重 0 · 高 x · 中 y · 低 0 · 提示 z  （�
 用于 CI：
 
 ```bash
-agentguard scan --json > scan.json   # 有高危及以上时退出码为 2
+agentreveal scan --json > scan.json   # 有高危及以上时退出码为 2
 ```
 
 ### `map` — 多 Agent 配置地图
 
 ```text
-$ agentguard map
+$ agentreveal map
 
-AgentGuard 配置地图
+AgentReveal 配置地图
 
   Agent        配置  端点              MCP  密钥  敏感  权限  风险
   ───────────  ────  ────────────────  ───  ────  ────  ────  ────
@@ -319,9 +352,9 @@ AgentGuard 配置地图
 ### `report` — 可存档报告
 
 ```bash
-agentguard report                        # → ./agentguard-report.html
-agentguard report --format json          # → ./agentguard-report.json
-agentguard report -f html -o -           # 输出到标准输出
+agentreveal report                        # → ./agentreveal-report.html
+agentreveal report --format json          # → ./agentreveal-report.json
+agentreveal report -f html -o -           # 输出到标准输出
 ```
 
 HTML 为自包含单文件（内联 CSS + 内联 JS，无外部依赖，可离线打开），所有动态内容
@@ -340,27 +373,27 @@ HTML 转义。报告首页先按行动优先级展示 **立即处理 / 需要确
 可以从报告卡片复制稳定 `task-id` 并执行：
 
 ```bash
-agentguard risk accept task-xxxxxxxxxxxx --reason "个人自建示例中转，已核对 TLS 与访问控制" --confirm
-agentguard report --format html
+agentreveal risk accept task-xxxxxxxxxxxx --reason "个人自建示例中转，已核对 TLS 与访问控制" --confirm
+agentreveal report --format html
 ```
 
 接受后，该任务不会再进入默认行动队列，也不会触发 `scan/report` 的高危退出码；HTML 仍会在
 “已接受风险”和技术证据区保留记录。可选 `--expires 2026-12-31` 设置到期时间，到期后任务会自动恢复：
 
 ```bash
-agentguard risk list
-agentguard risk list --all
-agentguard risk verify task-xxxxxxxxxxxx
-agentguard risk revoke task-xxxxxxxxxxxx
+agentreveal risk list
+agentreveal risk list --all
+agentreveal risk verify task-xxxxxxxxxxxx
+agentreveal risk revoke task-xxxxxxxxxxxx
 ```
 
 不带 `--confirm` 的 `risk accept` 只做接受前检查：列出整组任务的全部规则、严重度和接受条件，不写入记录。
 `risk verify` 会重新扫描，并区分已解决、仍存在、部分缓解、已接受、接受已过期/撤销和任务身份变化；
 缺少报告快照或接受历史时会明确返回“无法确认”，不会猜测为已解决。
-报告生成时会在 `~/.agentguard/task-snapshots.json` 保存不含 evidence、路径、动态标题或端点的规则摘要，
+报告生成时会在 `~/.agentreveal/task-snapshots.json` 保存不含 evidence、路径、动态标题或端点的规则摘要，
 用于比较处置前后的任务状态。
 
-审计历史默认保存在 `~/.agentguard/acceptances.json`，目录权限为 `0700`、文件权限为 `0600`。
+审计历史默认保存在 `~/.agentreveal/acceptances.json`，目录权限为 `0700`、文件权限为 `0600`。
 记录按规范化当前项目的不可逆 `scopeId` 隔离，不保存项目路径；旧版无作用域记录仅保留为不生效的
 legacy 审计。撤销和过期只改变状态，不会删除历史。P0 任务不允许永久接受，必须显式提供 `--expires`。
 
@@ -376,13 +409,13 @@ legacy 审计。撤销和过期只改变状态，不会删除历史。P0 任务�
 最小 GitHub Actions 片段：
 
 ```yaml
-- run: npm install -g @wangmarsen/agentguard@next
-- run: agentguard scan            # 高危 → 退出码 2 → 挡 PR
-- run: agentguard report -f html -o agentguard-report.html
+- run: npm install -g agentreveal@pilot
+- run: agentreveal scan            # 高危 → 退出码 2 → 挡 PR
+- run: agentreveal report -f html -o agentreveal-report.html
   if: always()                    # 存档一份脱敏报告
 ```
 
-完整可复用示例见 [`examples/ci/agentguard-gate.yml`](examples/ci/agentguard-gate.yml)
+完整可复用示例见 [`examples/ci/agentreveal-gate.yml`](examples/ci/agentreveal-gate.yml)
 （含 artifact 存档）。报告与退出流程同样脱敏，不打印明文密钥。
 
 ### `baseline` — 安全基线 dry-run
@@ -391,8 +424,8 @@ legacy 审计。撤销和过期只改变状态，不会删除历史。P0 任务�
 `--dry-run`；命令只生成建议和 diff，不会写入任何配置文件。
 
 ```bash
-agentguard baseline --profile balanced --dry-run
-agentguard baseline --profile safe --dry-run --json
+agentreveal baseline --profile balanced --dry-run
+agentreveal baseline --profile safe --dry-run --json
 ```
 
 - **OpenCode**：`balanced` 将高风险 Bash 放行改为 `ask`、`share=auto` 改为 `manual`、关闭显式
@@ -415,15 +448,15 @@ scan/report 中提示，不纳入自动收敛**；但其不可自动收敛的高
 ### `backup` / `apply` / `restore`
 
 `apply` 覆盖上述四个 Agent 的 baseline 变更，必须显式传入 `--backup`，执行前会把原配置复制到
-当前项目 `.agentguard/backups/<backup-id>/`。备份目录仅当前用户可读，manifest 记录哈希与原文件
+当前项目 `.agentreveal/backups/<backup-id>/`。备份目录仅当前用户可读，manifest 记录哈希与原文件
 权限，并自动创建 Git 忽略保护，降低完整原配置被 `git add .` 误提交的风险；写入使用同目录临时文件
 原子替换，失败时自动恢复备份。
 
 ```bash
-agentguard backup
-agentguard apply --profile balanced --backup
-agentguard restore
-agentguard restore --id <backup-id>
+agentreveal backup
+agentreveal apply --profile balanced --backup
+agentreveal restore
+agentreveal restore --id <backup-id>
 ```
 
 备份 manifest 记录原始路径和备份文件路径；`restore` 会把备份文件复制回原始路径。
@@ -432,9 +465,9 @@ Claude Code 明文凭证迁移使用更窄的专用命令。备份前会重新�
 `CLAUDE_PLAINTEXT_TOKEN`，只复制实际含明文字段的 `settings.json` / `settings.local.json`：
 
 ```bash
-agentguard credential backup <task-id>
-agentguard credential restore <backup-id>
-agentguard credential restore <backup-id> --confirm <fingerprint>
+agentreveal credential backup <task-id>
+agentreveal credential restore <backup-id>
+agentreveal credential restore <backup-id> --confirm <fingerprint>
 ```
 
 第一条 `restore` 只预览，不写文件，并返回当前配置指纹；第二条只有在备份完整、目标仍属于当前 Claude
@@ -481,13 +514,13 @@ agentguard credential restore <backup-id> --confirm <fingerprint>
 
 ### Provider 白名单
 
-推荐使用命令把自建/企业端点登记到项目根目录的 `.agentguard.json` 或已有
-`agentguard.config.json`，无需手写 JSON：
+推荐使用命令把自建/企业端点登记到项目根目录的 `.agentreveal.json` 或已有
+`agentreveal.config.json`，无需手写 JSON：
 
 ```bash
-agentguard trust add https://ai.example.com/v1 --kind trusted --reason "个人维护，已核对 TLS 与访问控制"
-agentguard trust list
-agentguard trust remove ai.example.com --kind trusted --reason "服务已停止使用"
+agentreveal trust add https://ai.example.com/v1 --kind trusted --reason "个人维护，已核对 TLS 与访问控制"
+agentreveal trust list
+agentreveal trust remove ai.example.com --kind trusted --reason "服务已停止使用"
 ```
 
 配置只影响“未知/中转端点”判定，不会隐藏明文 `http`、密钥或权限风险。变更原因会进入项目配置的
@@ -509,10 +542,10 @@ agentguard trust remove ai.example.com --kind trusted --reason "服务已停止�
 当一条 P2/P3 规则已在当前项目审核、但不希望 evidence 或 task ID 变化后反复提示时，使用报告生成的命令：
 
 ```bash
-agentguard ignore add task-xxxxxxxxxxxx --rule OPENCODE_MCP_LOCAL --reason "已审核固定版本的项目内文档 MCP"
-agentguard ignore list
-agentguard scan
-agentguard ignore remove OPENCODE_MCP_LOCAL --agent opencode --reason "项目已移除该 MCP"
+agentreveal ignore add task-xxxxxxxxxxxx --rule OPENCODE_MCP_LOCAL --reason "已审核固定版本的项目内文档 MCP"
+agentreveal ignore list
+agentreveal scan
+agentreveal ignore remove OPENCODE_MCP_LOCAL --agent opencode --reason "项目已移除该 MCP"
 ```
 
 `ignore add` 不接受任意规则：它会重新扫描并验证 taskId、Agent、ruleId 和处置矩阵。策略写入项目配置，
@@ -574,7 +607,7 @@ npm run sanitize  # 检查当前受 Git 跟踪文件中的敏感信息
 npm run sanitize:staged   # 提交前只检查暂存文件
 npm run sanitize:package  # 按 npm pack 实际文件清单检查发布内容
 npm run package:verify-install # 真实 tarball → 临时 prefix 安装 → 本地 npx 版本验证
-npm run release:scan-assets -- --tarball /path/to/package.tgz --dmg /path/to/AgentGuard.dmg
+npm run release:scan-assets -- --tarball /path/to/package.tgz --dmg /path/to/AgentReveal.dmg
 npm run sanitize:history  # 开源前检查所有可达 Git 历史
 npm test          # 构建后跑 node:test 全套（test/**/*.test.mjs）
 npm run clean     # 删除 dist/

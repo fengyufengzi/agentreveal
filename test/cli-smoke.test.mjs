@@ -1,5 +1,5 @@
 /**
- * CLI smoke tests：直接运行 bin/agentguard，验证端到端命令路径。
+ * CLI smoke tests：直接运行 bin/agentreveal，验证端到端命令路径。
  * 从 dist/ 启动。运行前需 npm run build。
  */
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -12,11 +12,11 @@ import assert from "node:assert/strict";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "..");
-const binPath = join(repoRoot, "bin", "agentguard");
+const binPath = join(repoRoot, "bin", "agentreveal");
 const packageJson = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
 
 function withCliProject(config, fn) {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-cli-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-cli-"));
   try {
     const home = join(root, "home");
     const cwd = join(root, "project");
@@ -32,19 +32,20 @@ function withCliProject(config, fn) {
       ...process.env,
       HOME: home,
       XDG_CONFIG_HOME: xdg,
-      AGENTGUARD_TEST_ROOT: root,
-      AGENTGUARD_ACCEPTANCE_PATH: join(root, "acceptances.json"),
-      AGENTGUARD_TASK_SNAPSHOT_PATH: join(root, "task-snapshots.json"),
-      AGENTGUARD_POSTURE_SNAPSHOT_PATH: join(root, "posture-snapshots.json"),
-      AGENTGUARD_POSTURE_KEY_PATH: join(root, "posture-state-key"),
+      AGENTREVEAL_TEST_ROOT: root,
+      AGENTREVEAL_ACCEPTANCE_PATH: join(root, "acceptances.json"),
+      AGENTREVEAL_TASK_SNAPSHOT_PATH: join(root, "task-snapshots.json"),
+      AGENTREVEAL_POSTURE_SNAPSHOT_PATH: join(root, "posture-snapshots.json"),
+      AGENTREVEAL_POSTURE_KEY_PATH: join(root, "posture-state-key"),
     };
 
     return fn({
       home,
       cwd,
       configPath,
-      acceptancePath: env.AGENTGUARD_ACCEPTANCE_PATH,
-      posturePath: env.AGENTGUARD_POSTURE_SNAPSHOT_PATH,
+      acceptancePath: env.AGENTREVEAL_ACCEPTANCE_PATH,
+      taskSnapshotPath: env.AGENTREVEAL_TASK_SNAPSHOT_PATH,
+      posturePath: env.AGENTREVEAL_POSTURE_SNAPSHOT_PATH,
       runAt: (runCwd, args) =>
         spawnSync(process.execPath, [binPath, ...args], {
           cwd: runCwd,
@@ -88,7 +89,7 @@ test("cli: 裸执行进入统一首次入口，JSON 与终端共享 Top 3 行动
       assert.ok(terminal.stdout.indexOf("实际连接链路") < terminal.stdout.indexOf("行动摘要"));
       assert.match(terminal.stdout, /建议先完成（最多 3 项）/);
       assert.match(terminal.stdout, /task-[a-f0-9]{12}/);
-      assert.match(terminal.stdout, /agentguard report --format html/);
+      assert.match(terminal.stdout, /agentreveal report --format html/);
 
       const machine = run(["--json"]);
       assert.equal(machine.status, 2, machine.stderr);
@@ -116,6 +117,37 @@ test("cli: 未知命令不会被裸入口静默接受", () => {
   assert.equal(res.status, 1);
   assert.match(res.stderr, /未知命令/);
   assert.equal(res.stdout, "");
+});
+
+test("cli: integration scan 输出模型安全摘要且不创建任务快照", () => {
+  withCliProject(
+    {
+      permission: { bash: "allow", edit: "allow" },
+      provider: {
+        relay: {
+          options: { baseURL: "https://relay.integration-example.net/v1" },
+        },
+      },
+    },
+    ({ run, configPath, taskSnapshotPath }) => {
+      const result = run(["integration", "scan", "--format", "model-json"]);
+      assert.equal(result.status, 2, result.stderr);
+      const parsed = JSON.parse(result.stdout);
+
+      assert.equal(parsed.schemaVersion, 1);
+      assert.equal(parsed.command, "integration.scan");
+      assert.equal(parsed.privacy.readOnlyScan, true);
+      assert.equal(parsed.privacy.uploadsData, false);
+      assert.ok(parsed.topRisks.length > 0 && parsed.topRisks.length <= 3);
+      assert.doesNotMatch(result.stdout, new RegExp(configPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+      assert.doesNotMatch(result.stdout, /relay\.integration-example\.net|task-[a-f0-9]+/);
+      assert.equal(
+        Object.hasOwn(parsed.topRisks[0], "evidence"),
+        false
+      );
+      assert.equal(existsSync(taskSnapshotPath), false);
+    }
+  );
 });
 
 test("cli: posture 的终端与 JSON 共用有效状态契约", () => {
@@ -308,7 +340,7 @@ test("cli: trust add/list/remove 只消除未知端点并保留审计", () => {
         "--json",
       ]);
       assert.equal(removed.status, 0, removed.stderr);
-      const raw = JSON.parse(readFileSync(join(cwd, ".agentguard.json"), "utf8"));
+      const raw = JSON.parse(readFileSync(join(cwd, ".agentreveal.json"), "utf8"));
       assert.equal(raw.providerTrustAudit.length, 2);
 
       const untrustedScan = JSON.parse(run(["scan", "--json"]).stdout);
@@ -354,7 +386,7 @@ test("cli: ignore 只能从当前任务添加，并可审计、隐藏和撤销�
       const listed = JSON.parse(run(["ignore", "list", "--json"]).stdout);
       assert.equal(listed.command, "ignore.list");
       assert.equal(listed.entries[0].reason, "已审核固定版本的项目内文档 MCP");
-      const raw = readFileSync(join(cwd, ".agentguard.json"), "utf8");
+      const raw = readFileSync(join(cwd, ".agentreveal.json"), "utf8");
       assert.equal(raw.includes("server.js"), false);
       assert.equal(raw.includes("evidence"), false);
 
@@ -465,7 +497,7 @@ test("cli: Claude 凭证迁移可先备份，并通过指纹确认安全恢复",
       task.taskId
     ].commands.some(
       (command) =>
-        command.command === `agentguard credential backup ${task.taskId}`
+        command.command === `agentreveal credential backup ${task.taskId}`
     );
     assert.equal(hasMacBackupGuide, process.platform === "darwin");
 
@@ -482,7 +514,7 @@ test("cli: Claude 凭证迁移可先备份，并通过指纹确认安全恢复",
     assert.equal(backup.taskId, task.taskId);
     assert.equal(backup.files, 1);
 
-    const backupRoot = join(cwd, ".agentguard", "backups", backup.backupId);
+    const backupRoot = join(cwd, ".agentreveal", "backups", backup.backupId);
     const manifest = JSON.parse(
       readFileSync(join(backupRoot, "manifest.json"), "utf8")
     );
@@ -492,7 +524,7 @@ test("cli: Claude 凭证迁移可先备份，并通过指纹确认安全恢复",
     const migrated = {
       env: { SAFE_FLAG: "1" },
       theme: "dark",
-      apiKeyHelper: "security find-generic-password -s AgentGuard/example -w",
+      apiKeyHelper: "security find-generic-password -s AgentReveal/example -w",
     };
     writeFileSync(settingsPath, JSON.stringify(migrated, null, 2) + "\n");
 
@@ -707,7 +739,7 @@ test("cli: risk verify 区分聚合任务的缓解与最终解决", () => {
       const taskId = endpointCard[1];
 
       writeFileSync(
-        join(cwd, ".agentguard.json"),
+        join(cwd, ".agentreveal.json"),
         JSON.stringify({ providers: { trusted: [relayUrl] } })
       );
       const mitigated = run(["risk", "verify", taskId]);

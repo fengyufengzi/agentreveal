@@ -146,8 +146,8 @@ function focusTask(taskId) {
 }
 
 function updateNativeMenuState() {
-  if (!window.agentguard || typeof window.agentguard.updateMenuState !== "function") return;
-  window.agentguard.updateMenuState({
+  if (!window.agentreveal || typeof window.agentreveal.updateMenuState !== "function") return;
+  window.agentreveal.updateMenuState({
     hasOverview: Boolean(state.overview),
     hasReport: Boolean(state.lastReportPath),
     working: state.working,
@@ -181,7 +181,7 @@ function list(items) {
 
 function desktopVerification(items) {
   return (items || []).map((item) =>
-    item.includes("agentguard scan")
+    item.includes("agentreveal scan")
       ? "完成处置后点击卡片下方“复扫验证”，确认该任务已消失或符合接受条件。"
       : item
   );
@@ -248,7 +248,7 @@ function postMigrationVerification(backup) {
   if (backup.phase !== "verified" || !backup.verification) return "";
   return `<div class="credential-auth-check">
     <strong>最后确认真实鉴权</strong>
-    <p>AgentGuard 已验证配置与复扫，但无法代替一次真实请求。请在新 Terminal 检查认证状态，再重启 Claude Code 完成一次最小请求。</p>
+    <p>AgentReveal 已验证配置与复扫，但无法代替一次真实请求。请在新 Terminal 检查认证状态，再重启 Claude Code 完成一次最小请求。</p>
     <div class="command-list"><div class="command-item">
       <div class="command-heading"><span>${escapeHtml(backup.verification.label)}</span><button type="button" class="command-copy" data-copy-command="${escapeHtml(backup.verification.command)}" aria-label="复制 Claude 认证状态检查命令">复制命令</button></div>
       <code>${escapeHtml(backup.verification.command)}</code>
@@ -272,7 +272,7 @@ function credentialSafetyControls(task, guide) {
         <ol class="credential-steps">
           <li data-step-state="complete">已备份 ${escapeHtml(backup.files)} 个 Claude 设置文件</li>
           <li data-step-state="${backup.phase === "verified" ? "complete" : "current"}">在 Terminal 写入并检查 Keychain；凭证只输入 Terminal</li>
-          <li data-step-state="${backup.phase === "verified" ? "complete" : "pending"}">AgentGuard 删除明文字段、设置 apiKeyHelper 并复扫</li>
+          <li data-step-state="${backup.phase === "verified" ? "complete" : "pending"}">AgentReveal 删除明文字段、设置 apiKeyHelper 并复扫</li>
         </ol>
         <p>${escapeHtml(backup.transaction?.message || "应用前会重新核对任务、配置指纹和备份。失败会自动回滚。")}</p>
         ${postMigrationVerification(backup)}
@@ -608,7 +608,7 @@ function posturePlansPanel(overview, agentId) {
   ).join("");
   if (!plans) return "";
   return `<section class="posture-guidance" aria-label="有效配置处置计划">
-    <div class="agent-problems-heading"><div><h4>有效配置处置计划</h4><p>先核对当前认证与请求链路，再按步骤操作；AgentGuard 不自动改写外部登录态或凭证库。</p></div></div>
+    <div class="agent-problems-heading"><div><h4>有效配置处置计划</h4><p>先核对当前认证与请求链路，再按步骤操作；AgentReveal 不自动改写外部登录态或凭证库。</p></div></div>
     ${plans}
   </section>`;
 }
@@ -1230,7 +1230,7 @@ function renderBaselineEmpty() {
 
 function renderCurrentView() {
   document.body.classList.toggle("has-overview", Boolean(state.overview));
-  document.title = "安全工作台 · AgentGuard";
+  document.title = "安全工作台 · AgentReveal";
   baselineProfile.hidden = true;
   $("selectProjectBtn").hidden = !state.overview;
   $("machineScopeBtn").hidden = !state.overview || state.scopeKind !== "project";
@@ -1311,7 +1311,7 @@ async function scanMachine() {
     "仅在需要跨项目排查时使用；期间不会修改任何配置。"
   );
   try {
-    state.overview = await window.agentguard.scanMachine();
+    state.overview = await window.agentreveal.scanMachine();
     state.baseline = undefined;
     state.posturePreview = undefined;
     state.lastBaselineApply = undefined;
@@ -1353,7 +1353,7 @@ async function scanProject() {
     "项目检查仍默认只读；项目级决策只有在你明确确认后才会写入。"
   );
   try {
-    state.overview = await window.agentguard.scanProject(state.projectPath);
+    state.overview = await window.agentreveal.scanProject(state.projectPath);
     state.baseline = undefined;
     state.posturePreview = undefined;
     state.initialScanState = "idle";
@@ -1382,7 +1382,7 @@ async function previewBaseline() {
   setWorking(true);
   setStatus("正在生成只读 baseline 预览；不会修改配置…", "working");
   try {
-    state.baseline = await window.agentguard.previewBaseline(
+    state.baseline = await window.agentreveal.previewBaseline(
       state.projectPath,
       baselineProfile.value
     );
@@ -1400,12 +1400,12 @@ async function savePostureBaseline() {
   setWorking(true);
   setStatus("正在重新核对当前有效配置并生成可信状态预览…", "working");
   try {
-    const preview = await window.agentguard.previewPostureBaseline(
+    const preview = await window.agentreveal.previewPostureBaseline(
       state.projectPath
     );
     state.posturePreview = preview;
     setStatus("可信状态预览已生成，等待你在原生确认框确认…", "working");
-    const result = await window.agentguard.savePostureBaseline(
+    const result = await window.agentreveal.savePostureBaseline(
       state.projectPath,
       preview.currentFingerprint,
       preview.storageRevision,
@@ -1438,7 +1438,7 @@ async function removePostureBaseline() {
   setWorking(true);
   setStatus("正在校验当前可信状态…", "working");
   try {
-    const preview = await window.agentguard.previewPostureBaseline(
+    const preview = await window.agentreveal.previewPostureBaseline(
       state.projectPath
     );
     state.posturePreview = preview;
@@ -1446,7 +1446,7 @@ async function removePostureBaseline() {
       throw new Error("当前没有可删除的可信状态。");
     }
     setStatus("等待你在原生确认框确认删除…", "working");
-    const result = await window.agentguard.removePostureBaseline(
+    const result = await window.agentreveal.removePostureBaseline(
       state.projectPath,
       preview.storageRevision
     );
@@ -1472,7 +1472,7 @@ async function verifyPosture() {
   setWorking(true);
   setStatus("正在复扫并比较可信状态…", "working");
   try {
-    state.overview = await window.agentguard.verifyPosture(state.projectPath);
+    state.overview = await window.agentreveal.verifyPosture(state.projectPath);
     updateScope(state.overview);
     const drift = state.overview.drift;
     setStatus(
@@ -1500,7 +1500,7 @@ async function chooseProject() {
   setWorking(true);
   setStatus("等待选择项目文件夹…", "working", "取消选择不会改变当前检查结果。");
   try {
-    const result = await window.agentguard.selectProject();
+    const result = await window.agentreveal.selectProject();
     if (result.canceled) {
       setStatus("已取消选择项目，当前检查范围保持不变。");
       return;
@@ -1525,7 +1525,7 @@ async function applyBaselinePreview() {
   setWorking(true);
   setStatus("正在校验预览，等待你在原生确认框确认…", "working");
   try {
-    const result = await window.agentguard.applyBaseline(
+    const result = await window.agentreveal.applyBaseline(
       state.projectPath,
       plan.profile,
       plan.fingerprint
@@ -1559,7 +1559,7 @@ async function restoreLastBaseline() {
   setWorking(true);
   setStatus("正在校验备份，等待你确认恢复…", "working");
   try {
-    const result = await window.agentguard.restoreBaseline(
+    const result = await window.agentreveal.restoreBaseline(
       state.projectPath,
       last.backupId
     );
@@ -1585,7 +1585,7 @@ async function exportReport(format) {
   setWorking(true);
   setStatus(`正在重新扫描并导出 ${format.toUpperCase()} 报告…`, "working");
   try {
-    const result = await window.agentguard.exportReport(state.projectPath, format);
+    const result = await window.agentreveal.exportReport(state.projectPath, format);
     if (result.canceled) {
       setStatus("已取消导出。");
       return;
@@ -1605,7 +1605,7 @@ async function exportDiagnostics() {
   setWorking(true);
   setStatus("正在生成脱敏诊断文件…", "working");
   try {
-    const result = await window.agentguard.exportDiagnostics();
+    const result = await window.agentreveal.exportDiagnostics();
     if (result.canceled) {
       setStatus("已取消诊断导出。");
       return;
@@ -1735,7 +1735,7 @@ async function verifyTask(taskId) {
   setWorking(true);
   setStatus("正在重新扫描并验证这项任务…", "working");
   try {
-    const result = await window.agentguard.verifyRisk(state.projectPath, taskId);
+    const result = await window.agentreveal.verifyRisk(state.projectPath, taskId);
     state.overview = result.overview;
     updateScope(state.overview);
     setStatus(
@@ -1762,7 +1762,7 @@ async function backupClaudeRemediation(taskId) {
   setWorking(true);
   setStatus("正在创建受保护的 Claude 配置备份…", "working");
   try {
-    const result = await window.agentguard.backupClaudeRemediation(
+    const result = await window.agentreveal.backupClaudeRemediation(
       state.projectPath,
       taskId
     );
@@ -1805,7 +1805,7 @@ async function applyClaudeMigration(taskId, backupId) {
   setWorking(true);
   setStatus("正在重新校验、应用 Claude 配置并复扫…", "working");
   try {
-    const result = await window.agentguard.applyClaudeMigration(
+    const result = await window.agentreveal.applyClaudeMigration(
       backup.scopePath,
       backup.taskId,
       backup.backupId,
@@ -1844,7 +1844,7 @@ async function cleanupClaudeCredentialBackup(taskId, backupId) {
   setWorking(true);
   setStatus("正在重新校验迁移状态与精确备份边界…", "working");
   try {
-    const result = await window.agentguard.cleanupClaudeCredentialBackup(
+    const result = await window.agentreveal.cleanupClaudeCredentialBackup(
       backup.scopePath,
       backup.taskId,
       backup.backupId
@@ -1875,7 +1875,7 @@ async function restoreClaudeRemediation(backupId) {
   setWorking(true);
   setStatus("正在校验备份与当前 Claude 配置…", "working");
   try {
-    const result = await window.agentguard.restoreClaudeRemediation(
+    const result = await window.agentreveal.restoreClaudeRemediation(
       backup.scopePath,
       backup.backupId
     );
@@ -1905,7 +1905,7 @@ async function revokeTask(taskId) {
   setWorking(true);
   setStatus("正在撤销风险接受记录…", "working");
   try {
-    const result = await window.agentguard.revokeRisk(state.projectPath, taskId);
+    const result = await window.agentreveal.revokeRisk(state.projectPath, taskId);
     state.overview = result.overview;
     setStatus("已撤销接受记录，任务已重新进入待办。", "ok");
     renderCurrentView();
@@ -1939,7 +1939,7 @@ $("openReportBtn").addEventListener("click", async () => {
   setWorking(true);
   setStatus("正在打开最近导出的报告…", "working");
   try {
-    const result = await window.agentguard.openReport(state.lastReportPath);
+    const result = await window.agentreveal.openReport(state.lastReportPath);
     if (!result.ok) {
       setStatus(result.error || "无法打开报告。", "error");
       return;
@@ -2161,7 +2161,7 @@ $("acceptForm").addEventListener("submit", async (event) => {
   setWorking(true);
   setStatus("正在写入本地风险接受记录…", "working");
   try {
-    const result = await window.agentguard.acceptRisk(
+    const result = await window.agentreveal.acceptRisk(
       state.projectPath,
       task.taskId,
       reason,
@@ -2194,7 +2194,7 @@ $("trustForm").addEventListener("submit", async (event) => {
   try {
     if (pending.mode === "add") {
       setStatus("正在写入项目级可信端点并重新扫描…", "working");
-      const result = await window.agentguard.trustProvider(
+      const result = await window.agentreveal.trustProvider(
         state.projectPath,
         pending.taskId,
         $("trustKind").value,
@@ -2204,7 +2204,7 @@ $("trustForm").addEventListener("submit", async (event) => {
       setStatus(`已信任 ${result.entry.endpoint}；其他风险仍会独立显示。`, "ok");
     } else {
       setStatus("正在撤销端点信任并重新扫描…", "working");
-      const result = await window.agentguard.removeProviderTrust(
+      const result = await window.agentreveal.removeProviderTrust(
         state.projectPath,
         pending.endpoint,
         pending.kind,
@@ -2238,7 +2238,7 @@ $("ignoreForm").addEventListener("submit", async (event) => {
   try {
     if (pending.mode === "add") {
       setStatus("正在写入项目规则忽略并重新扫描…", "working");
-      const result = await window.agentguard.ignoreRule(
+      const result = await window.agentreveal.ignoreRule(
         state.projectPath,
         pending.taskId,
         pending.ruleId,
@@ -2249,7 +2249,7 @@ $("ignoreForm").addEventListener("submit", async (event) => {
       setStatus(`已忽略 ${result.entry.agent}/${result.entry.ruleId}。`, "ok");
     } else {
       setStatus("正在撤销项目规则忽略并重新扫描…", "working");
-      const result = await window.agentguard.removeRuleIgnore(
+      const result = await window.agentreveal.removeRuleIgnore(
         state.projectPath,
         pending.ruleId,
         pending.agent,
@@ -2284,7 +2284,7 @@ $("ignoreDismissBtn").addEventListener("click", closeIgnoreDialog);
   });
 });
 
-if (window.agentguard && typeof window.agentguard.onMenuCommand === "function") {
-  window.agentguard.onMenuCommand(handleNativeMenuCommand);
+if (window.agentreveal && typeof window.agentreveal.onMenuCommand === "function") {
+  window.agentreveal.onMenuCommand(handleNativeMenuCommand);
 }
 renderCurrentView();

@@ -17,8 +17,8 @@ import { addProviderTrust, listProviderTrust, providerTrustCandidateForTask, rem
 import { activeRuleIgnoresSafely, addRuleIgnore, listRuleIgnores, removeRuleIgnore, ruleIgnoreCandidatesForTask, } from "../core/config/rule-ignore.js";
 import { buildContext } from "../core/discovery/index.js";
 import { buildFirstRunSummary, } from "../core/first-run/index.js";
-import { withOutputContract } from "../core/output-contract.js";
 import { renderHtmlReport } from "../core/report/html-report.js";
+import { buildJsonReport } from "../core/report/json-report.js";
 import { scanAll } from "../core/scan/index.js";
 import { PostureSnapshotStore, defaultPostureSnapshotPath, inspectEffectiveStates, inspectPosture, inspectPostureWithDrift, loadDriftPolicyStates, } from "../core/posture/index.js";
 import { applyAcceptances } from "../core/triage/index.js";
@@ -68,11 +68,11 @@ export function inspectDesktopEffectiveStates(ctx) {
 }
 /** 纯转换函数，便于用固定扫描夹具验证桌面与 core 的任务语义一致。 */
 export function buildDesktopOverview(cwd, triaged, generatedAt = new Date().toISOString(), trustState = {
-    configPath: resolve(cwd, ".agentguard.json"),
+    configPath: resolve(cwd, ".agentreveal.json"),
     entries: [],
     audit: [],
 }, ruleIgnoreState = {
-    configPath: resolve(cwd, ".agentguard.json"),
+    configPath: resolve(cwd, ".agentreveal.json"),
     entries: [],
     audit: [],
 }, scopeKind = "project", posture, drift) {
@@ -156,10 +156,10 @@ export function buildDesktopOverview(cwd, triaged, generatedAt = new Date().toIS
     };
 }
 function desktopPostureStore(cwd, home) {
-    const path = process.env.AGENTGUARD_POSTURE_SNAPSHOT_PATH ??
+    const path = process.env.AGENTREVEAL_POSTURE_SNAPSHOT_PATH ??
         defaultPostureSnapshotPath(home);
-    const keyPath = process.env.AGENTGUARD_POSTURE_KEY_PATH ?? join(dirname(path), "state-key");
-    const acceptancePath = process.env.AGENTGUARD_ACCEPTANCE_PATH;
+    const keyPath = process.env.AGENTREVEAL_POSTURE_KEY_PATH ?? join(dirname(path), "state-key");
+    const acceptancePath = process.env.AGENTREVEAL_ACCEPTANCE_PATH;
     return new PostureSnapshotStore({
         cwd,
         path,
@@ -177,7 +177,7 @@ async function desktopOverview(cwd, triaged, scopeKind = "project", recordObserv
         tolerateStoreErrors: !recordObservation,
     });
     if (scopeKind === "machine") {
-        return buildDesktopOverview(cwd, triaged, new Date().toISOString(), { configPath: resolve(cwd, ".agentguard.json"), entries: [], audit: [] }, { configPath: resolve(cwd, ".agentguard.json"), entries: [], audit: [] }, scopeKind, postureState.posture, postureState.drift);
+        return buildDesktopOverview(cwd, triaged, new Date().toISOString(), { configPath: resolve(cwd, ".agentreveal.json"), entries: [], audit: [] }, { configPath: resolve(cwd, ".agentreveal.json"), entries: [], audit: [] }, scopeKind, postureState.posture, postureState.drift);
     }
     let trustState;
     try {
@@ -185,7 +185,7 @@ async function desktopOverview(cwd, triaged, scopeKind = "project", recordObserv
     }
     catch {
         trustState = {
-            configPath: resolve(cwd, ".agentguard.json"),
+            configPath: resolve(cwd, ".agentreveal.json"),
             entries: [],
             audit: [],
         };
@@ -196,7 +196,7 @@ async function desktopOverview(cwd, triaged, scopeKind = "project", recordObserv
     }
     catch {
         ruleIgnoreState = {
-            configPath: resolve(cwd, ".agentguard.json"),
+            configPath: resolve(cwd, ".agentreveal.json"),
             entries: [],
             audit: [],
         };
@@ -875,8 +875,7 @@ export async function exportDesktopReport(input) {
             posture: postureState.posture,
             drift: postureState.drift,
         })
-        : JSON.stringify(withOutputContract("report.json", {
-            ...triaged.activeReport,
+        : JSON.stringify(buildJsonReport(triaged.activeReport, {
             acceptedTaskCount: triaged.acceptedTasks.length,
             ignoredFindingCount: triaged.ignoredFindings.length,
             posture: postureState.posture,

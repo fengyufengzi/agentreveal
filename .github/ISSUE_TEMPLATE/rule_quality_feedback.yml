@@ -1,5 +1,5 @@
 name: 规则质量反馈
-description: 只提交版本、ruleId、判断和处置结果；不接收配置、路径、端点、凭证、报告或自由文本
+description: 只提交 ruleId、判断和处置结果；不接收配置、路径、端点、凭证、报告或自由文本
 title: "[Rule feedback] "
 labels:
   - rule-feedback
@@ -7,14 +7,14 @@ body:
   - type: markdown
     attributes:
       value: |
-        每个 Issue 只反馈一条规则，并保留标题前缀。此表单不会自动读取或上传本机信息。不要附加完整配置、JSON/HTML 报告、诊断、截图、路径、端点、taskId、API Key、Token、私钥或其它自由文本。
+        此表单不会自动读取或上传本机信息。不要附加完整配置、JSON/HTML 报告、诊断、截图、路径、端点、taskId、API Key、Token 或私钥。
 
   - type: input
     id: product_version
     attributes:
-      label: 产品版本
-      description: 运行当前产品的 `--version` 获取，只填写版本号。
-      placeholder: 0.0.6-pilot.4
+      label: AgentReveal 版本
+      description: 运行 `agentreveal --version` 获取，只填写版本号。
+      placeholder: 0.0.7-pilot.1
     validations:
       required: true
 
