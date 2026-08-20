@@ -34,7 +34,7 @@ function claudeTask() {
 }
 
 function fixture() {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-migration-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-migration-"));
   const cwd = join(root, "project");
   const configDir = join(root, ".claude");
   mkdirSync(cwd);
@@ -100,7 +100,7 @@ test("Claude 迁移事务要求备份与预览匹配，删除明文并设置固�
     const local = JSON.parse(readFileSync(paths.local, "utf8"));
     assert.deepEqual(settings.env, { SAFE_FLAG: "1" });
     assert.deepEqual(local.env, { PROXY_TOKEN: "PROXY_MANAGED" });
-    assert.match(settings.apiKeyHelper, /AgentGuard\/CLAUDE_PLAINTEXT_TOKEN/);
+    assert.match(settings.apiKeyHelper, /AgentReveal\/CLAUDE_PLAINTEXT_TOKEN/);
     assert.equal(settings.apiKeyHelper, local.apiKeyHelper);
     assert.equal(statSync(paths.settings).mode & 0o777, 0o600);
     assert.equal(statSync(paths.local).mode & 0o777, 0o600);
@@ -213,7 +213,7 @@ test("Claude 迁移拒绝被篡改的备份", () => {
       configDir: paths.configDir,
     });
     writeFileSync(backup.backupId
-      ? join(paths.cwd, ".agentguard", "backups", backup.backupId, "files", "0-settings.json")
+      ? join(paths.cwd, ".agentreveal", "backups", backup.backupId, "files", "0-settings.json")
       : "",
     "tampered");
 
@@ -263,7 +263,7 @@ test("H4 Claude 迁移后验证只返回固定指引，并只删除完整且精�
       successEvidence: [
         "命令成功并显示预期认证状态；如果没有明确列出 helper 来源，仍以真实请求为准。",
         "完全退出并重新启动 Claude Code，完成一次最小请求。",
-        "确认实际请求成功且 Provider / base URL 与 AgentGuard 当前有效状态一致。",
+        "确认实际请求成功且 Provider / base URL 与 AgentReveal 当前有效状态一致。",
       ],
     });
     assert.deepEqual(
@@ -275,7 +275,7 @@ test("H4 Claude 迁移后验证只返回固定指引，并只删除完整且精�
     );
     const backupPath = join(
       paths.cwd,
-      ".agentguard",
+      ".agentreveal",
       "backups",
       backup.backupId
     );
@@ -307,7 +307,7 @@ test("H4 Claude 备份完整性失败时拒绝清理并保留原目录", () => {
     });
     const backupPath = join(
       paths.cwd,
-      ".agentguard",
+      ".agentreveal",
       "backups",
       backup.backupId
     );

@@ -99,7 +99,7 @@ function formatCorrelationSection(report: ScanReport): string[] {
 /** 生成完整 scan 文本报告。 */
 export function formatScan(report: ScanReport): string {
   const lines: string[] = [];
-  lines.push("AgentGuard Scan");
+  lines.push("AgentReveal Scan");
   lines.push("");
 
   for (const r of report.results) {

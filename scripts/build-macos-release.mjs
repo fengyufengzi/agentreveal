@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const stagingDir = mkdtempSync(join(tmpdir(), 'agentguard-macos-release-'));
+const stagingDir = mkdtempSync(join(tmpdir(), 'agentreveal-macos-release-'));
 
 function run(command, args) {
   const result = spawnSync(command, args, {
@@ -39,7 +39,7 @@ try {
 
   run(process.execPath, [
     join(repoRoot, 'scripts', 'verify-desktop-bundle.mjs'),
-    join(stagingDir, 'mac-arm64', 'AgentGuard.app'),
+    join(stagingDir, 'mac-arm64', 'AgentReveal.app'),
   ]);
   run(process.execPath, [join(repoRoot, 'scripts', 'verify-macos-release.mjs'), stagingDir]);
 

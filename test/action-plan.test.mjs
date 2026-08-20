@@ -211,6 +211,106 @@ test("buildActionTasks 不合并不同 endpoint、server 或 path", () => {
   assert.equal(countFamily("project.sensitive-file"), 2);
 });
 
+test("OpenCode 宽泛执行权限保留两条规则要求，但只形成一个新身份任务", () => {
+  const opencode = result("opencode", "OpenCode", [
+    {
+      ...finding("OPENCODE_BASH_UNRESTRICTED", "high"),
+      evidence: { bash: "allow" },
+    },
+    {
+      ...finding("OPENCODE_PERMISSION_WILDCARD", "medium"),
+      evidence: { bash: "allow", edit: "allow" },
+    },
+  ]);
+
+  const tasks = buildActionTasks(buildActionPlan({
+    results: [opencode],
+    allFindings: opencode.findings,
+    correlations: [],
+  }));
+
+  assert.equal(tasks.length, 1);
+  assert.equal(tasks[0].family, "permission.execution");
+  assert.equal(tasks[0].priority, "P0");
+  assert.equal(tasks[0].primary.finding.id, "OPENCODE_BASH_UNRESTRICTED");
+  assert.deepEqual(
+    tasks[0].requirements.map((requirement) => requirement.ruleId),
+    ["OPENCODE_BASH_UNRESTRICTED", "OPENCODE_PERMISSION_WILDCARD"]
+  );
+  assert.notEqual(
+    tasks[0].taskId,
+    "task-11d850220f7e",
+    "旧 Bash 单规则 acceptance 不得隐藏合并后的完整任务"
+  );
+  assert.notEqual(
+    tasks[0].taskId,
+    "task-674044b723f0",
+    "旧 wildcard 单规则 acceptance 不得隐藏合并后的完整任务"
+  );
+});
+
+test("同一 MCP server 合并完整要求，Claude 同名不同作用域仍保持隔离", () => {
+  const claude = result("claude-code", "Claude Code", [
+    {
+      ...finding("CLAUDE_MCP_STDIO", "info"),
+      evidence: { server: "docs", scope: "global", command: "synthetic-mcp" },
+    },
+    {
+      ...finding("CLAUDE_MCP_SECRET_ENV", "medium"),
+      evidence: { server: "docs", scope: "global", envKeys: ["API_TOKEN"] },
+    },
+    {
+      ...finding("CLAUDE_MCP_REMOTE", "medium"),
+      evidence: {
+        server: "docs",
+        scope: "project",
+        url: "https://mcp.example.com/v1",
+      },
+    },
+  ]);
+
+  const tasks = buildActionTasks(buildActionPlan({
+    results: [claude],
+    allFindings: claude.findings,
+    correlations: [],
+  }));
+
+  assert.equal(tasks.length, 2);
+  assert.deepEqual(
+    tasks.map((task) => task.requirements.map((requirement) => requirement.ruleId)),
+    [
+      ["CLAUDE_MCP_SECRET_ENV", "CLAUDE_MCP_STDIO"],
+      ["CLAUDE_MCP_REMOTE"],
+    ]
+  );
+});
+
+test("OpenClaw 同一网关的 bind 与 Funnel 暴露只形成一个行动任务", () => {
+  const openclaw = result("openclaw", "OpenClaw", [
+    {
+      ...finding("OPENCLAW_GATEWAY_EXPOSED_BIND", "high"),
+      evidence: { bind: "0.0.0.0", port: 18789 },
+    },
+    {
+      ...finding("OPENCLAW_TAILSCALE_EXPOSURE", "high"),
+      evidence: { mode: "funnel" },
+    },
+  ]);
+
+  const tasks = buildActionTasks(buildActionPlan({
+    results: [openclaw],
+    allFindings: openclaw.findings,
+    correlations: [],
+  }));
+
+  assert.equal(tasks.length, 1);
+  assert.equal(tasks[0].family, "openclaw.gateway-exposure");
+  assert.deepEqual(
+    tasks[0].requirements.map((requirement) => requirement.ruleId),
+    ["OPENCLAW_GATEWAY_EXPOSED_BIND", "OPENCLAW_TAILSCALE_EXPOSURE"]
+  );
+});
+
 test("buildActionTasks 按 source/agent 隔离，并正确选择最高等级及 primary", () => {
   const evidence = { path: "secrets/.env", kind: "env" };
   const codex = result("codex", "Codex", [

@@ -40,31 +40,31 @@ test("desktop: packaging keeps Electron entry out of npm package metadata", () =
     join(repoRoot, "scripts", "build-local-macos-app.mjs"),
     "utf8"
   );
-  assert.match(localBuild, /agentguard-local-preview/);
+  assert.match(localBuild, /agentreveal-local-preview/);
   assert.match(localBuild, /osacompile/);
   assert.match(localBuild, /Electron\.app/);
 });
 
 test("desktop: main process only exposes approved typed operations", () => {
   const main = readFileSync(join(repoRoot, "desktop", "main.cjs"), "utf8");
-  assert.match(main, /agentguard:scanMachine/);
-  assert.match(main, /agentguard:selectProject/);
-  assert.match(main, /agentguard:scanProject/);
-  assert.match(main, /agentguard:previewBaseline/);
-  assert.match(main, /agentguard:applyBaseline/);
-  assert.match(main, /agentguard:restoreBaseline/);
-  assert.match(main, /agentguard:backupClaudeRemediation/);
-  assert.match(main, /agentguard:applyClaudeMigration/);
-  assert.match(main, /agentguard:restoreClaudeRemediation/);
-  assert.match(main, /agentguard:cleanupClaudeCredentialBackup/);
-  assert.match(main, /agentguard:acceptRisk/);
-  assert.match(main, /agentguard:verifyRisk/);
-  assert.match(main, /agentguard:revokeRisk/);
-  assert.match(main, /agentguard:trustProvider/);
-  assert.match(main, /agentguard:removeProviderTrust/);
-  assert.match(main, /agentguard:ignoreRule/);
-  assert.match(main, /agentguard:removeRuleIgnore/);
-  assert.match(main, /agentguard:exportDiagnostics/);
+  assert.match(main, /agentreveal:scanMachine/);
+  assert.match(main, /agentreveal:selectProject/);
+  assert.match(main, /agentreveal:scanProject/);
+  assert.match(main, /agentreveal:previewBaseline/);
+  assert.match(main, /agentreveal:applyBaseline/);
+  assert.match(main, /agentreveal:restoreBaseline/);
+  assert.match(main, /agentreveal:backupClaudeRemediation/);
+  assert.match(main, /agentreveal:applyClaudeMigration/);
+  assert.match(main, /agentreveal:restoreClaudeRemediation/);
+  assert.match(main, /agentreveal:cleanupClaudeCredentialBackup/);
+  assert.match(main, /agentreveal:acceptRisk/);
+  assert.match(main, /agentreveal:verifyRisk/);
+  assert.match(main, /agentreveal:revokeRisk/);
+  assert.match(main, /agentreveal:trustProvider/);
+  assert.match(main, /agentreveal:removeProviderTrust/);
+  assert.match(main, /agentreveal:ignoreRule/);
+  assert.match(main, /agentreveal:removeRuleIgnore/);
+  assert.match(main, /agentreveal:exportDiagnostics/);
   assert.match(main, /createDiagnostics/);
   assert.match(main, /tracked/);
   assert.match(main, /approvedProjects/);
@@ -75,7 +75,7 @@ test("desktop: main process only exposes approved typed operations", () => {
   assert.doesNotMatch(main, /shell: true/);
   assert.match(main, /sandbox: true/);
   assert.match(main, /createApplicationMenuTemplate/);
-  assert.match(main, /agentguard:menuState/);
+  assert.match(main, /agentreveal:menuState/);
   assert.match(
     main,
     /path\.resolve\(__dirname, "\.\.", "dist", "desktop", "service\.js"\)/
@@ -92,32 +92,32 @@ test("desktop: renderer uses preload bridge", () => {
   const renderer = readFileSync(join(repoRoot, "desktop", "renderer.js"), "utf8");
   const preload = readFileSync(join(repoRoot, "desktop", "preload.cjs"), "utf8");
   assert.doesNotMatch(preload, /require\(["']\.\//);
-  assert.match(renderer, /window\.agentguard\.scanMachine/);
-  assert.match(renderer, /window\.agentguard\.selectProject/);
-  assert.match(renderer, /window\.agentguard\.scanProject/);
-  assert.match(renderer, /window\.agentguard\.exportReport/);
-  assert.match(renderer, /window\.agentguard\.acceptRisk/);
-  assert.match(renderer, /window\.agentguard\.verifyRisk/);
-  assert.match(renderer, /window\.agentguard\.revokeRisk/);
-  assert.match(renderer, /window\.agentguard\.trustProvider/);
+  assert.match(renderer, /window\.agentreveal\.scanMachine/);
+  assert.match(renderer, /window\.agentreveal\.selectProject/);
+  assert.match(renderer, /window\.agentreveal\.scanProject/);
+  assert.match(renderer, /window\.agentreveal\.exportReport/);
+  assert.match(renderer, /window\.agentreveal\.acceptRisk/);
+  assert.match(renderer, /window\.agentreveal\.verifyRisk/);
+  assert.match(renderer, /window\.agentreveal\.revokeRisk/);
+  assert.match(renderer, /window\.agentreveal\.trustProvider/);
   assert.match(renderer, /firstRun\?\.remediationGuides/);
   assert.match(renderer, /复制到 Terminal 依次执行/);
-  assert.match(renderer, /window\.agentguard\.removeProviderTrust/);
-  assert.match(renderer, /window\.agentguard\.ignoreRule/);
-  assert.match(renderer, /window\.agentguard\.removeRuleIgnore/);
-  assert.match(renderer, /window\.agentguard\.applyBaseline/);
-  assert.match(renderer, /window\.agentguard\.restoreBaseline/);
-  assert.match(renderer, /window\.agentguard\.backupClaudeRemediation/);
-  assert.match(renderer, /window\.agentguard\.applyClaudeMigration/);
-  assert.match(renderer, /window\.agentguard\.restoreClaudeRemediation/);
-  assert.match(renderer, /window\.agentguard\.cleanupClaudeCredentialBackup/);
-  assert.match(preload, /agentguard:backupClaudeRemediation/);
-  assert.match(preload, /agentguard:applyClaudeMigration/);
-  assert.match(preload, /agentguard:restoreClaudeRemediation/);
-  assert.match(preload, /agentguard:cleanupClaudeCredentialBackup/);
-  assert.match(renderer, /window\.agentguard\.exportDiagnostics/);
-  assert.match(renderer, /window\.agentguard\.onMenuCommand/);
-  assert.match(renderer, /window\.agentguard\.updateMenuState/);
+  assert.match(renderer, /window\.agentreveal\.removeProviderTrust/);
+  assert.match(renderer, /window\.agentreveal\.ignoreRule/);
+  assert.match(renderer, /window\.agentreveal\.removeRuleIgnore/);
+  assert.match(renderer, /window\.agentreveal\.applyBaseline/);
+  assert.match(renderer, /window\.agentreveal\.restoreBaseline/);
+  assert.match(renderer, /window\.agentreveal\.backupClaudeRemediation/);
+  assert.match(renderer, /window\.agentreveal\.applyClaudeMigration/);
+  assert.match(renderer, /window\.agentreveal\.restoreClaudeRemediation/);
+  assert.match(renderer, /window\.agentreveal\.cleanupClaudeCredentialBackup/);
+  assert.match(preload, /agentreveal:backupClaudeRemediation/);
+  assert.match(preload, /agentreveal:applyClaudeMigration/);
+  assert.match(preload, /agentreveal:restoreClaudeRemediation/);
+  assert.match(preload, /agentreveal:cleanupClaudeCredentialBackup/);
+  assert.match(renderer, /window\.agentreveal\.exportDiagnostics/);
+  assert.match(renderer, /window\.agentreveal\.onMenuCommand/);
+  assert.match(renderer, /window\.agentreveal\.updateMenuState/);
   assert.match(renderer, /handleNativeMenuCommand/);
   assert.match(renderer, /topTaskNavigation/);
   assert.match(renderer, /prioritizedTaskList/);
@@ -255,7 +255,7 @@ test("desktop: local launcher uses trusted Electron and release build requires n
   assert.match(notarizeHook, /stapler.*validate/s);
   assert.doesNotMatch(notarizeHook, /console\.(?:log|error).*PASSWORD/);
   assert.match(afterPack, /spawnSync\('xattr', \['-cr', appPath\]/);
-  assert.match(releaseBuild, /mkdtempSync\(join\(tmpdir\(\), 'agentguard-macos-release-'/);
+  assert.match(releaseBuild, /mkdtempSync\(join\(tmpdir\(\), 'agentreveal-macos-release-'/);
   assert.match(releaseBuild, /verify-macos-release\.mjs/);
   assert.match(bundleVerify, /const exitPromise/);
   assert.match(bundleVerify, /await exitPromise/);
@@ -277,9 +277,9 @@ test("desktop: release workflow builds matching CLI and signed DMG candidates wi
   assert.match(workflow, /github\.ref == 'refs\/heads\/main'/);
   assert.match(workflow, /release:verify-version/);
   assert.match(workflow, /npm pack --pack-destination release-candidate/);
-  assert.match(workflow, /wangmarsen-agentguard-\$\{\{ inputs\.version \}\}\.tgz/);
+  assert.match(workflow, /agentreveal-\$\{\{ inputs\.version \}\}\.tgz/);
   assert.match(workflow, /--tarball release-candidate/);
-  assert.match(workflow, /--dmg release\/AgentGuard/);
+  assert.match(workflow, /--dmg release\/AgentReveal/);
   assert.match(workflow, /SHA256SUMS/);
   assert.doesNotMatch(workflow, /npm publish|gh release create/);
 });
@@ -302,7 +302,7 @@ test("desktop: synthetic demo is reproducible and contains no live capture path"
     "utf8"
   );
   assert.match(builder, /capture-desktop-preview\.cjs/);
-  assert.match(builder, /agentguard-desktop-demo\.mp4/);
+  assert.match(builder, /agentreveal-desktop-demo\.mp4/);
   assert.match(builder, /-map_metadata/);
   assert.match(capture, /\/Users\/example\/Project/);
   assert.match(capture, /workspace-report-menu/);

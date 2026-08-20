@@ -43,10 +43,10 @@ import { buildFirstRunSummary } from "../dist/core/first-run/index.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "..");
-const binPath = join(repoRoot, "bin", "agentguard");
+const binPath = join(repoRoot, "bin", "agentreveal");
 
 test("desktop service: 项目目录必须存在且会解析为真实绝对路径", () => {
-  const directory = mkdtempSync(join(tmpdir(), "agentguard-desktop-"));
+  const directory = mkdtempSync(join(tmpdir(), "agentreveal-desktop-"));
   try {
     assert.equal(resolveDesktopProjectPath(directory), realpathSync.native(directory));
     assert.throws(() => resolveDesktopProjectPath(""), /请选择/);
@@ -60,11 +60,11 @@ test("desktop service: 项目目录必须存在且会解析为真实绝对路径
 });
 
 test("desktop service: 本机扫描使用固定 home scope 且不启用项目级策略", async () => {
-  const home = mkdtempSync(join(tmpdir(), "agentguard-desktop-machine-"));
+  const home = mkdtempSync(join(tmpdir(), "agentreveal-desktop-machine-"));
   try {
     mkdirSync(join(home, ".claude"), { recursive: true });
     writeFileSync(join(home, ".claude", "settings.json"), "{}\n");
-    writeFileSync(join(home, ".agentguard.json"), "{ broken project policy");
+    writeFileSync(join(home, ".agentreveal.json"), "{ broken project policy");
 
     const overview = await scanDesktopMachine(home);
     assert.equal(overview.scope.kind, "machine");
@@ -83,13 +83,13 @@ test("desktop service: 本机扫描使用固定 home scope 且不启用项目级
 });
 
 test("desktop service E4: 有效配置、可信状态与漂移通过同一 typed service 闭环", async () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-desktop-posture-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-desktop-posture-"));
   const previous = {
     HOME: process.env.HOME,
     XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME,
-    AGENTGUARD_POSTURE_SNAPSHOT_PATH:
-      process.env.AGENTGUARD_POSTURE_SNAPSHOT_PATH,
-    AGENTGUARD_POSTURE_KEY_PATH: process.env.AGENTGUARD_POSTURE_KEY_PATH,
+    AGENTREVEAL_POSTURE_SNAPSHOT_PATH:
+      process.env.AGENTREVEAL_POSTURE_SNAPSHOT_PATH,
+    AGENTREVEAL_POSTURE_KEY_PATH: process.env.AGENTREVEAL_POSTURE_KEY_PATH,
   };
   try {
     const home = join(root, "home");
@@ -109,8 +109,8 @@ test("desktop service E4: 有效配置、可信状态与漂移通过同一 typed
     );
     process.env.HOME = home;
     delete process.env.XDG_CONFIG_HOME;
-    process.env.AGENTGUARD_POSTURE_SNAPSHOT_PATH = snapshotPath;
-    process.env.AGENTGUARD_POSTURE_KEY_PATH = keyPath;
+    process.env.AGENTREVEAL_POSTURE_SNAPSHOT_PATH = snapshotPath;
+    process.env.AGENTREVEAL_POSTURE_KEY_PATH = keyPath;
 
     const initial = await scanDesktopProject(cwd);
     assert.ok(initial.posture?.agents.some(
@@ -182,7 +182,7 @@ test("desktop service E4: 有效配置、可信状态与漂移通过同一 typed
 });
 
 test("desktop service: 项目规则忽略候选来自 core，隐藏后可审计并撤销", async () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-desktop-ignore-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-desktop-ignore-"));
   const previousHome = process.env.HOME;
   const previousXdg = process.env.XDG_CONFIG_HOME;
   try {
@@ -223,7 +223,7 @@ test("desktop service: 项目规则忽略候选来自 core，隐藏后可审计�
       false
     );
     assert.equal(ignored.overview.ruleIgnores.auditEventCount, 1);
-    const raw = readFileSync(join(cwd, ".agentguard.json"), "utf8");
+    const raw = readFileSync(join(cwd, ".agentreveal.json"), "utf8");
     assert.equal(raw.includes("server.js"), false);
     assert.equal(raw.includes("evidence"), false);
 
@@ -249,14 +249,14 @@ test("desktop service: 项目规则忽略候选来自 core，隐藏后可审计�
 });
 
 test("desktop service: 损坏的项目策略不会让只读扫描失败或泄露原文", async () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-desktop-broken-policy-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-desktop-broken-policy-"));
   const previousHome = process.env.HOME;
   try {
     const home = join(root, "home");
     const cwd = join(root, "project");
     mkdirSync(home, { recursive: true });
     mkdirSync(cwd, { recursive: true });
-    writeFileSync(join(cwd, ".agentguard.json"), "{ broken SECRET_PLACEHOLDER");
+    writeFileSync(join(cwd, ".agentreveal.json"), "{ broken SECRET_PLACEHOLDER");
     process.env.HOME = home;
 
     const overview = await scanDesktopProject(cwd);
@@ -273,12 +273,12 @@ test("desktop service: 损坏的项目策略不会让只读扫描失败或泄露
 });
 
 test("desktop service: 同一项目的 CLI 与 Desktop 任务及项目忽略结果一致", async () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-desktop-parity-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-desktop-parity-"));
   const previous = {
     HOME: process.env.HOME,
     XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME,
-    AGENTGUARD_ACCEPTANCE_PATH: process.env.AGENTGUARD_ACCEPTANCE_PATH,
-    AGENTGUARD_TASK_SNAPSHOT_PATH: process.env.AGENTGUARD_TASK_SNAPSHOT_PATH,
+    AGENTREVEAL_ACCEPTANCE_PATH: process.env.AGENTREVEAL_ACCEPTANCE_PATH,
+    AGENTREVEAL_TASK_SNAPSHOT_PATH: process.env.AGENTREVEAL_TASK_SNAPSHOT_PATH,
   };
   try {
     const home = join(root, "home");
@@ -296,8 +296,8 @@ test("desktop service: 同一项目的 CLI 与 Desktop 任务及项目忽略结�
     );
     process.env.HOME = home;
     process.env.XDG_CONFIG_HOME = xdg;
-    process.env.AGENTGUARD_ACCEPTANCE_PATH = join(root, "acceptances.json");
-    process.env.AGENTGUARD_TASK_SNAPSHOT_PATH = join(root, "task-snapshots.json");
+    process.env.AGENTREVEAL_ACCEPTANCE_PATH = join(root, "acceptances.json");
+    process.env.AGENTREVEAL_TASK_SNAPSHOT_PATH = join(root, "task-snapshots.json");
 
     const cliSummary = () => {
       const result = spawnSync(process.execPath, [binPath, "--json"], {
@@ -320,7 +320,7 @@ test("desktop service: 同一项目的 CLI 与 Desktop 任务及项目忽略结�
     assert.equal(desktop.summary.ignoredFindingCount, cli.summary.ignoredFindingCount);
 
     writeFileSync(
-      join(cwd, ".agentguard.json"),
+      join(cwd, ".agentreveal.json"),
       JSON.stringify({
         ruleIgnores: [{
           ruleId: "OPENCODE_MCP_LOCAL",
@@ -430,7 +430,7 @@ test("desktop service: 直接复用 core 的 taskId、处置与配置地图", ()
 });
 
 test("desktop service: 信任候选由任务证据推导，且不会掩盖 HTTP 风险", async () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-desktop-trust-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-desktop-trust-"));
   const previousHome = process.env.HOME;
   const previousXdg = process.env.XDG_CONFIG_HOME;
   try {
@@ -487,7 +487,7 @@ test("desktop service: 信任候选由任务证据推导，且不会掩盖 HTTP 
       ),
       true
     );
-    const config = JSON.parse(readFileSync(join(cwd, ".agentguard.json"), "utf8"));
+    const config = JSON.parse(readFileSync(join(cwd, ".agentreveal.json"), "utf8"));
     assert.equal(config.providerTrustAudit.length, 2);
   } finally {
     if (previousHome === undefined) delete process.env.HOME;
@@ -499,7 +499,7 @@ test("desktop service: 信任候选由任务证据推导，且不会掩盖 HTTP 
 });
 
 test("desktop service: baseline 必须匹配预览、强制备份、复扫且安全恢复", async () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-desktop-baseline-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-desktop-baseline-"));
   const previousHome = process.env.HOME;
   const previousXdg = process.env.XDG_CONFIG_HOME;
   try {
@@ -543,8 +543,8 @@ test("desktop service: baseline 必须匹配预览、强制备份、复扫且安
       false
     );
     assert.match(
-      readFileSync(join(cwd, ".agentguard", "backups", ".gitignore"), "utf8"),
-      /AgentGuard backup safety/
+      readFileSync(join(cwd, ".agentreveal", "backups", ".gitignore"), "utf8"),
+      /AgentReveal backup safety/
     );
 
     const restored = await restoreDesktopBaseline({
@@ -593,7 +593,7 @@ test("desktop service: baseline 必须匹配预览、强制备份、复扫且安
 });
 
 test("desktop service: Claude 迁移备份只覆盖明文设置，恢复校验并发修改与备份完整性", async () => {
-  const home = mkdtempSync(join(tmpdir(), "agentguard-desktop-claude-backup-"));
+  const home = mkdtempSync(join(tmpdir(), "agentreveal-desktop-claude-backup-"));
   try {
     const configDir = join(home, ".claude");
     const settingsPath = join(configDir, "settings.json");
@@ -631,7 +631,7 @@ test("desktop service: Claude 迁移备份只覆盖明文设置，恢复校验�
     assert.equal(JSON.stringify(backup).includes("sk-ant-"), false);
     const backupRoot = join(
       home,
-      ".agentguard",
+      ".agentreveal",
       "backups",
       backup.backup.backupId
     );
@@ -648,7 +648,7 @@ test("desktop service: Claude 迁移备份只覆盖明文设置，恢复校验�
       JSON.stringify({
         env: { SAFE_FLAG: "1" },
         theme: "dark",
-        apiKeyHelper: "security find-generic-password -s AgentGuard/example -w",
+        apiKeyHelper: "security find-generic-password -s AgentReveal/example -w",
       }, null, 2) + "\n"
     );
     writeFileSync(
@@ -656,7 +656,7 @@ test("desktop service: Claude 迁移备份只覆盖明文设置，恢复校验�
       JSON.stringify({
         env: {},
         permissions: { defaultMode: "default" },
-        apiKeyHelper: "security find-generic-password -s AgentGuard/example -w",
+        apiKeyHelper: "security find-generic-password -s AgentReveal/example -w",
       }, null, 2) + "\n"
     );
     const preview = previewDesktopClaudeRestore({
@@ -714,7 +714,7 @@ test("desktop service: Claude 迁移备份只覆盖明文设置，恢复校验�
       readFileSync(
         join(
           home,
-          ".agentguard",
+          ".agentreveal",
           "backups",
           tampered.backup.backupId,
           "manifest.json"
@@ -737,7 +737,7 @@ test("desktop service: Claude 迁移备份只覆盖明文设置，恢复校验�
 });
 
 test("desktop service: Claude 迁移绑定任务、备份和指纹，应用后自动复扫并保留恢复入口", async () => {
-  const home = mkdtempSync(join(tmpdir(), "agentguard-desktop-claude-migrate-"));
+  const home = mkdtempSync(join(tmpdir(), "agentreveal-desktop-claude-migrate-"));
   try {
     const configDir = join(home, ".claude");
     const settingsPath = join(configDir, "settings.json");
@@ -816,7 +816,7 @@ test("desktop service: Claude 迁移绑定任务、备份和指纹，应用后�
 });
 
 test("desktop service H4: 真实鉴权确认前保留备份，配置漂移时拒绝清理，稳定后只删精确备份", async () => {
-  const home = mkdtempSync(join(tmpdir(), "agentguard-desktop-claude-cleanup-"));
+  const home = mkdtempSync(join(tmpdir(), "agentreveal-desktop-claude-cleanup-"));
   try {
     const configDir = join(home, ".claude");
     const settingsPath = join(configDir, "settings.json");
@@ -844,7 +844,7 @@ test("desktop service H4: 真实鉴权确认前保留备份，配置漂移时拒
     });
     const backupPath = join(
       home,
-      ".agentguard",
+      ".agentreveal",
       "backups",
       backup.backup.backupId
     );
@@ -869,7 +869,7 @@ test("desktop service H4: 真实鉴权确认前保留备份，配置漂移时拒
     assert.equal(migrated.transaction.phase, "verified");
     const stable = readFileSync(settingsPath, "utf8");
     const changed = JSON.parse(stable);
-    changed.apiKeyHelper = "security find-generic-password -s AgentGuard/other -w";
+    changed.apiKeyHelper = "security find-generic-password -s AgentReveal/other -w";
     writeFileSync(settingsPath, JSON.stringify(changed, null, 2) + "\n");
     await assert.rejects(
       cleanupDesktopClaudeCredentialBackup({

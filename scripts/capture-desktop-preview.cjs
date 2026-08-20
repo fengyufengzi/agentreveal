@@ -3,7 +3,7 @@ const { mkdirSync, writeFileSync } = require('node:fs');
 const { join, resolve } = require('node:path');
 const { tmpdir } = require('node:os');
 
-const outputDir = resolve(process.argv[2] || join(tmpdir(), 'agentguard-desktop-preview'));
+const outputDir = resolve(process.argv[2] || join(tmpdir(), 'agentreveal-desktop-preview'));
 
 app.disableHardwareAcceleration();
 app.commandLine.appendSwitch('disable-gpu');
@@ -25,7 +25,7 @@ function task({ id, priority, severity, title, rationale, nextStep, agent, agent
       action: {
         rationale,
         nextSteps: [nextStep],
-        verification: ['完成处置后重新运行 agentguard scan，确认该任务已消失或符合接受条件。'],
+        verification: ['完成处置后重新运行 agentreveal scan，确认该任务已消失或符合接受条件。'],
       },
     },
   };
@@ -171,7 +171,7 @@ const previewOverview = {
               readOnly: true,
             },
           }],
-          automation: { mode: 'guided', available: false, reason: 'AgentGuard 不改写 auth.json。' },
+          automation: { mode: 'guided', available: false, reason: 'AgentReveal 不改写 auth.json。' },
           constraints: ['auth.json 保持只读。'],
         }],
       },
@@ -199,10 +199,10 @@ const previewOverview = {
           targetState: '每个项目或 Provider 使用独立、最小权限且可单独撤销的新 Token。',
           steps: [
             { id: 'create', title: '创建独立新 Token', detail: '在上游控制台创建最小权限的新 Token。', kind: 'configure' },
-            { id: 'replace', title: '只在 CC Switch 原应用中替换', detail: 'AgentGuard 保持 SQLite 只读。', kind: 'configure' },
+            { id: 'replace', title: '只在 CC Switch 原应用中替换', detail: 'AgentReveal 保持 SQLite 只读。', kind: 'configure' },
             { id: 'rescan', title: '复扫并正确解释结果', detail: '共享规则应消失；SQLite 仍存真实新 Token 时明文规则可能继续存在，这不是复扫失败。', kind: 'verify' },
           ],
-          automation: { mode: 'guided', available: false, reason: 'AgentGuard 不写 CC Switch SQLite。' },
+          automation: { mode: 'guided', available: false, reason: 'AgentReveal 不写 CC Switch SQLite。' },
           constraints: ['不读取或写入 Provider Token。'],
         }],
       },
@@ -251,10 +251,10 @@ const previewOverview = {
       'task-demo-secret': {
         mode: 'guided',
         commands: [
-          { id: 'macos-keychain', kind: 'store', label: '将新凭证写入 macOS Keychain（命令会安全提示输入）', command: "security add-generic-password -U -a \"$USER\" -s 'AgentGuard/CLAUDE_PLAINTEXT_TOKEN_task-demo-secret' -w" },
+          { id: 'macos-keychain', kind: 'store', label: '将新凭证写入 macOS Keychain（命令会安全提示输入）', command: "security add-generic-password -U -a \"$USER\" -s 'AgentReveal/CLAUDE_PLAINTEXT_TOKEN_task-demo-secret' -w" },
           { id: 'macos-claude-keychain-helper', kind: 'configure', label: '删除 Claude Code 配置中的明文，并改用 Keychain helper', command: '使用 plutil 设置 apiKeyHelper，并删除 env.ANTHROPIC_AUTH_TOKEN / env.ANTHROPIC_API_KEY' },
-          { id: 'macos-keychain-check', kind: 'inspect', label: '确认 Keychain 项可读取，但不打印凭证', command: "security find-generic-password -a \"$USER\" -s 'AgentGuard/CLAUDE_PLAINTEXT_TOKEN_task-demo-secret' -w >/dev/null" },
-          { id: 'verify-scan', kind: 'verify', label: '重新扫描验证', command: 'agentguard scan' },
+          { id: 'macos-keychain-check', kind: 'inspect', label: '确认 Keychain 项可读取，但不打印凭证', command: "security find-generic-password -a \"$USER\" -s 'AgentReveal/CLAUDE_PLAINTEXT_TOKEN_task-demo-secret' -w >/dev/null" },
+          { id: 'verify-scan', kind: 'verify', label: '重新扫描验证', command: 'agentreveal scan' },
         ],
         notes: ['macOS 优先使用 Keychain；配置命令不会打印凭证。完成后请轮换原凭证。'],
       },

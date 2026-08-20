@@ -12,7 +12,7 @@ import { atomicWriteFile } from "../fs-safety.js";
 const ACCEPTANCE_SCHEMA_VERSION = 2;
 const LEGACY_SCHEMA_VERSION = 1;
 export function defaultAcceptancePath(home = homedir()) {
-    return join(home, ".agentguard", "acceptances.json");
+    return join(home, ".agentreveal", "acceptances.json");
 }
 export function canonicalProjectPath(cwd = process.cwd()) {
     const canonical = realpathSync.native(resolve(cwd)).normalize("NFC");
@@ -45,7 +45,7 @@ function pathUsesCaseInsensitiveLookup(path) {
 }
 export function projectScopeId(cwd = process.cwd()) {
     const digest = createHash("sha256")
-        .update(`agentguard-project-scope\0${canonicalProjectPath(cwd)}`, "utf8")
+        .update(`agentreveal-project-scope\0${canonicalProjectPath(cwd)}`, "utf8")
         .digest("hex");
     return `scope-${digest}`;
 }
@@ -58,7 +58,7 @@ function emptyDocument() {
 }
 function assertTaskId(taskId) {
     if (!/^task-[A-Za-z0-9_-]{6,128}$/.test(taskId)) {
-        throw new Error("无效的任务 ID。必须使用 AgentGuard 生成的稳定 taskId。");
+        throw new Error("无效的任务 ID。必须使用 AgentReveal 生成的稳定 taskId。");
     }
 }
 function assertScopeId(scopeId) {

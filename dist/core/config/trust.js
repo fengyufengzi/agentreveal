@@ -1,4 +1,4 @@
-/** 项目级 Provider 可信端点管理；写入 .agentguard.json 并保留追加式审计事件。 */
+/** 项目级 Provider 可信端点管理；写入 .agentreveal.json 并保留追加式审计事件。 */
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { isIP } from "node:net";
 import { join } from "node:path";
@@ -12,7 +12,7 @@ const TRUSTABLE_PROVIDER_RULES = new Set([
     "XAGENT_SHARED_ENDPOINT",
 ]);
 function configCandidates(cwd) {
-    return [join(cwd, ".agentguard.json"), join(cwd, "agentguard.config.json")];
+    return [join(cwd, ".agentreveal.json"), join(cwd, "agentreveal.config.json")];
 }
 function asObject(value, label) {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -95,7 +95,7 @@ function readDocument(cwd) {
         return {
             path,
             mode: statSync(path).mode & 0o777,
-            document: asObject(JSON.parse(readFileSync(path, "utf8")), "AgentGuard 配置"),
+            document: asObject(JSON.parse(readFileSync(path, "utf8")), "AgentReveal 配置"),
         };
     }
     catch (error) {

@@ -1,4 +1,4 @@
-# AgentGuard review protocol
+# AgentReveal review protocol
 
 本文件定义代码审查必须主动寻找的问题。审查结论应指出具体文件和可复现影响；不要只总结改动，也不要
 因为测试通过就忽略安全边界。

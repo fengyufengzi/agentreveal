@@ -28,7 +28,7 @@ import {
 } from "../dist/core/baseline/index.js";
 
 async function withOpenCode(config, fn) {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-apply-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-apply-"));
   try {
     const home = join(root, "home");
     const cwd = join(root, "project");
@@ -104,14 +104,14 @@ test("apply: 原子写入和 restore 均保留原配置权限", async () => {
 
       const manifestPath = join(
         ctx.cwd,
-        ".agentguard",
+        ".agentreveal",
         "backups",
         result.backupId,
         "manifest.json"
       );
       const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-      const backupIgnore = join(ctx.cwd, ".agentguard", "backups", ".gitignore");
-      assert.match(readFileSync(backupIgnore, "utf8"), /AgentGuard backup safety/);
+      const backupIgnore = join(ctx.cwd, ".agentreveal", "backups", ".gitignore");
+      assert.match(readFileSync(backupIgnore, "utf8"), /AgentReveal backup safety/);
       assert.equal(statSync(backupIgnore).mode & 0o777, 0o600);
       assert.equal(statSync(manifestPath).mode & 0o777, 0o600);
       assert.equal(statSync(manifest.files[0].backupPath).mode & 0o777, 0o600);
@@ -134,7 +134,7 @@ test("apply: 已确认预览变化后拒绝写入且不创建备份", async () =
       );
       assert.deepEqual(JSON.parse(readFileSync(configPath, "utf8")), changed);
       assert.equal(
-        existsSync(join(ctx.cwd, ".agentguard", "backups")),
+        existsSync(join(ctx.cwd, ".agentreveal", "backups")),
         false
       );
     }
@@ -145,16 +145,16 @@ test("backup: 已有忽略文件不能在保护规则后重新放行备份", asy
   await withOpenCode(
     { permission: { bash: "allow" } },
     async ({ ctx }) => {
-      const root = join(ctx.cwd, ".agentguard", "backups");
+      const root = join(ctx.cwd, ".agentreveal", "backups");
       mkdirSync(root, { recursive: true });
       writeFileSync(
         join(root, ".gitignore"),
-        "# AgentGuard backup safety\n*\n!.gitignore\n!accidental-export.json\n"
+        "# AgentReveal backup safety\n*\n!.gitignore\n!accidental-export.json\n"
       );
       await applyBaseline("balanced", ctx);
       assert.equal(
         readFileSync(join(root, ".gitignore"), "utf8").endsWith(
-          "# AgentGuard backup safety\n*\n!.gitignore\n"
+          "# AgentReveal backup safety\n*\n!.gitignore\n"
         ),
         true
       );
@@ -178,7 +178,7 @@ test("restore: 备份内容被篡改时拒绝恢复", async () => {
       const result = await applyBaseline("balanced", ctx);
       const manifestPath = join(
         ctx.cwd,
-        ".agentguard",
+        ".agentreveal",
         "backups",
         result.backupId,
         "manifest.json"

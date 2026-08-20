@@ -1,4 +1,4 @@
-# AgentGuard macOS UI review checklist
+# AgentReveal macOS UI review checklist
 
 Use this checklist to plan and verify a review. Select only applicable rows, but never skip privacy, primary workflow, or accessibility when changing interactive UI.
 
@@ -45,7 +45,7 @@ When a Figma source is available, compare:
 4. Color and spacing tokens rather than sampled one-off values.
 5. Default, hover, focus, disabled, loading, selected, error, and expanded variants.
 6. Keyboard and screen-reader behavior that static frames cannot express.
-7. macOS and AgentGuard safety differences that justify intentional divergence.
+7. macOS and AgentReveal safety differences that justify intentional divergence.
 
 Treat a Figma frame as incomplete when it omits an operational state. Fill the gap using product semantics and record the decision instead of guessing silently.
 

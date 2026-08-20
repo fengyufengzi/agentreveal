@@ -11,7 +11,7 @@ import { dirname, join } from "node:path";
 import { atomicCreateFile } from "../fs-safety.js";
 import type { HmacIdentity } from "./types.js";
 
-const KEY_PREFIX = "agentguard-state-key-v1:";
+const KEY_PREFIX = "agentreveal-state-key-v1:";
 const KEY_BYTES = 32;
 
 export interface PostureIdentityKeyOptions {
@@ -21,7 +21,7 @@ export interface PostureIdentityKeyOptions {
 }
 
 export function defaultPostureIdentityKeyPath(home = homedir()): string {
-  return join(home, ".agentguard", "state-key");
+  return join(home, ".agentreveal", "state-key");
 }
 
 function parseKey(text: string): Buffer {
@@ -122,7 +122,7 @@ export function postureHmacIdentity(
     throw new Error("有效配置身份上下文和值不能为空或包含 NUL。");
   }
   const digest = createHmac("sha256", key)
-    .update(`agentguard-posture-v1\0${normalizedContext}\0${normalizedValue}`, "utf8")
+    .update(`agentreveal-posture-v1\0${normalizedContext}\0${normalizedValue}`, "utf8")
     .digest("hex");
   return `hmac-sha256:${digest}`;
 }

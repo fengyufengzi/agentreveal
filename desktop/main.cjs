@@ -142,18 +142,18 @@ function credentialBackups(scopePath) {
 
 function reportDefaultPath(format) {
   const date = new Date().toISOString().slice(0, 10);
-  return path.join(app.getPath("documents"), `AgentGuard-${date}.${format}`);
+  return path.join(app.getPath("documents"), `AgentReveal-${date}.${format}`);
 }
 
 function diagnosticsDefaultPath() {
   const date = new Date().toISOString().slice(0, 10);
-  return path.join(app.getPath("documents"), `AgentGuard-diagnostics-${date}.json`);
+  return path.join(app.getPath("documents"), `AgentReveal-diagnostics-${date}.json`);
 }
 
 function sendRendererCommand(command) {
   if (!MENU_COMMANDS.has(command)) return false;
   if (!mainWindow || mainWindow.isDestroyed()) return false;
-  mainWindow.webContents.send("agentguard:menuCommand", command);
+  mainWindow.webContents.send("agentreveal:menuCommand", command);
   return true;
 }
 
@@ -201,7 +201,7 @@ function createWindow() {
     ...windowBounds,
     minWidth: 940,
     minHeight: 660,
-    title: "AgentGuard",
+    title: "AgentReveal",
     backgroundColor: nativeTheme.shouldUseDarkColors ? "#181b1a" : "#f3f5f4",
     titleBarStyle: "hiddenInset",
     webPreferences: {
@@ -237,7 +237,7 @@ function createWindow() {
   mainWindow = win;
 }
 
-ipcMain.on("agentguard:menuState", (event, value) => {
+ipcMain.on("agentreveal:menuState", (event, value) => {
   try {
     assertMainFrame(event);
   } catch {
@@ -248,7 +248,7 @@ ipcMain.on("agentguard:menuState", (event, value) => {
   applyApplicationMenuState(applicationMenu, state);
 });
 
-ipcMain.handle("agentguard:selectProject", async (event) => {
+ipcMain.handle("agentreveal:selectProject", async (event) => {
   assertMainFrame(event);
   return tracked("project.select", async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
@@ -266,7 +266,7 @@ ipcMain.handle("agentguard:selectProject", async (event) => {
   });
 });
 
-ipcMain.handle("agentguard:scanMachine", async (event) => {
+ipcMain.handle("agentreveal:scanMachine", async (event) => {
   assertMainFrame(event);
   return tracked("machine.scan", async () => {
     const service = await desktopService();
@@ -277,7 +277,7 @@ ipcMain.handle("agentguard:scanMachine", async (event) => {
   });
 });
 
-ipcMain.handle("agentguard:scanProject", async (event, projectPath) => {
+ipcMain.handle("agentreveal:scanProject", async (event, projectPath) => {
   assertMainFrame(event);
   assertApprovedProject(projectPath);
   return tracked("project.scan", async () => {
@@ -290,7 +290,7 @@ ipcMain.handle("agentguard:scanProject", async (event, projectPath) => {
 });
 
 ipcMain.handle(
-  "agentguard:previewPostureBaseline",
+  "agentreveal:previewPostureBaseline",
   async (event, projectPath) => {
     assertMainFrame(event);
     assertApprovedScope(projectPath);
@@ -305,7 +305,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "agentguard:savePostureBaseline",
+  "agentreveal:savePostureBaseline",
   async (
     event,
     projectPath,
@@ -361,7 +361,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "agentguard:removePostureBaseline",
+  "agentreveal:removePostureBaseline",
   async (event, projectPath, expectedStorageRevision) => {
     assertMainFrame(event);
     assertApprovedScope(projectPath);
@@ -400,7 +400,7 @@ ipcMain.handle(
   }
 );
 
-ipcMain.handle("agentguard:verifyPosture", async (event, projectPath) => {
+ipcMain.handle("agentreveal:verifyPosture", async (event, projectPath) => {
   assertMainFrame(event);
   assertApprovedScope(projectPath);
   return tracked("posture.verify", async () => {
@@ -413,7 +413,7 @@ ipcMain.handle("agentguard:verifyPosture", async (event, projectPath) => {
 });
 
 ipcMain.handle(
-  "agentguard:previewBaseline",
+  "agentreveal:previewBaseline",
   async (event, projectPath, profile) => {
     assertMainFrame(event);
     assertApprovedScope(projectPath);
@@ -428,7 +428,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "agentguard:applyBaseline",
+  "agentreveal:applyBaseline",
   async (event, projectPath, profile, expectedPlanFingerprint) => {
     assertMainFrame(event);
     assertApprovedScope(projectPath);
@@ -461,7 +461,7 @@ ipcMain.handle(
         title: "确认应用安全基线",
         message: `将应用 ${profile} baseline`,
         detail:
-          `${fileSummary}\n\n应用前会把完整原配置备份到项目 .agentguard/backups，` +
+          `${fileSummary}\n\n应用前会把完整原配置备份到项目 .agentreveal/backups，` +
           "备份目录带 Git 忽略保护且仅当前用户可读。完成后会立即重新扫描。",
         buttons: ["取消", "备份并应用"],
         defaultId: 0,
@@ -482,7 +482,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "agentguard:restoreBaseline",
+  "agentreveal:restoreBaseline",
   async (event, projectPath, backupId) => {
     assertMainFrame(event);
     assertApprovedScope(projectPath);
@@ -490,7 +490,7 @@ ipcMain.handle(
       throw new Error("无效的备份 ID。");
     }
     if (!projectBackups(projectPath).has(backupId)) {
-      throw new Error("只能恢复本次桌面会话中由 AgentGuard 创建的备份。");
+      throw new Error("只能恢复本次桌面会话中由 AgentReveal 创建的备份。");
     }
     return tracked("baseline.restore", async () => {
       const confirmation = await dialog.showMessageBox(mainWindow, {
@@ -498,7 +498,7 @@ ipcMain.handle(
         title: "确认恢复配置",
         message: "恢复应用 baseline 前的配置？",
         detail:
-          `备份 ${backupId} 将覆盖 AgentGuard 应用后的配置。` +
+          `备份 ${backupId} 将覆盖 AgentReveal 应用后的配置。` +
           "如果配置在应用后又被修改，恢复会自动拒绝，避免覆盖新内容。",
         buttons: ["取消", "确认恢复"],
         defaultId: 0,
@@ -519,7 +519,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "agentguard:backupClaudeRemediation",
+  "agentreveal:backupClaudeRemediation",
   async (event, projectPath, taskId) => {
     assertMainFrame(event);
     assertApprovedScope(projectPath);
@@ -530,8 +530,8 @@ ipcMain.handle(
         title: "备份 Claude Code 配置",
         message: "在执行凭证迁移前创建安全备份？",
         detail:
-          "AgentGuard 只备份实际包含明文凭证字段的 Claude 设置文件。" +
-          "备份保存在当前扫描范围的 .agentguard/backups，目录带 Git 忽略保护且仅当前用户可读；备份本身仍可能包含旧凭证，请在迁移完成后轮换旧凭证。",
+          "AgentReveal 只备份实际包含明文凭证字段的 Claude 设置文件。" +
+          "备份保存在当前扫描范围的 .agentreveal/backups，目录带 Git 忽略保护且仅当前用户可读；备份本身仍可能包含旧凭证，请在迁移完成后轮换旧凭证。",
         buttons: ["取消", "一键备份"],
         defaultId: 1,
         cancelId: 0,
@@ -555,7 +555,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "agentguard:applyClaudeMigration",
+  "agentreveal:applyClaudeMigration",
   async (event, projectPath, taskId, backupId, expectedFingerprint) => {
     assertMainFrame(event);
     assertApprovedScope(projectPath);
@@ -583,8 +583,8 @@ ipcMain.handle(
         title: "应用 Claude Code 安全迁移",
         message: "已在 Terminal 确认 Keychain 项可读取？",
         detail:
-          "继续后，AgentGuard 将重新校验配置与备份，删除 ANTHROPIC_AUTH_TOKEN / ANTHROPIC_API_KEY 明文字段，写入固定 apiKeyHelper，并立即复扫。" +
-          "AgentGuard 不会读取 Keychain 或凭证明文；如果写入或复扫失败，会自动回滚，迁移前备份仍可一键恢复。",
+          "继续后，AgentReveal 将重新校验配置与备份，删除 ANTHROPIC_AUTH_TOKEN / ANTHROPIC_API_KEY 明文字段，写入固定 apiKeyHelper，并立即复扫。" +
+          "AgentReveal 不会读取 Keychain 或凭证明文；如果写入或复扫失败，会自动回滚，迁移前备份仍可一键恢复。",
         buttons: ["取消", "已确认，应用并复扫"],
         defaultId: 0,
         cancelId: 0,
@@ -606,7 +606,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "agentguard:cleanupClaudeCredentialBackup",
+  "agentreveal:cleanupClaudeCredentialBackup",
   async (event, projectPath, taskId, backupId) => {
     assertMainFrame(event);
     assertApprovedScope(projectPath);
@@ -652,7 +652,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "agentguard:restoreClaudeRemediation",
+  "agentreveal:restoreClaudeRemediation",
   async (event, projectPath, backupId) => {
     assertMainFrame(event);
     assertApprovedScope(projectPath);
@@ -660,7 +660,7 @@ ipcMain.handle(
       throw new Error("无效的备份 ID。");
     }
     if (!credentialBackups(projectPath).has(backupId)) {
-      throw new Error("只能恢复本次桌面会话中由 AgentGuard 创建的 Claude 配置备份。");
+      throw new Error("只能恢复本次桌面会话中由 AgentReveal 创建的 Claude 配置备份。");
     }
     return tracked("credential.restore", async () => {
       const service = await desktopService();
@@ -674,7 +674,7 @@ ipcMain.handle(
         message: "恢复到凭证迁移前的配置？",
         detail:
           `将恢复 ${preview.files} 个设置文件，其中 ${preview.changedFiles} 个自备份后发生过变化。` +
-          "恢复会重新带回备份中的明文凭证字段；确认前若配置再次变化，AgentGuard 会拒绝覆盖。恢复完成后会立即复扫。",
+          "恢复会重新带回备份中的明文凭证字段；确认前若配置再次变化，AgentReveal 会拒绝覆盖。恢复完成后会立即复扫。",
         buttons: ["取消", "确认恢复"],
         defaultId: 0,
         cancelId: 0,
@@ -694,7 +694,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "agentguard:acceptRisk",
+  "agentreveal:acceptRisk",
   async (event, projectPath, taskId, reason, expiresAt) => {
     assertMainFrame(event);
     assertApprovedProject(projectPath);
@@ -717,7 +717,7 @@ ipcMain.handle(
   }
 );
 
-ipcMain.handle("agentguard:verifyRisk", async (event, projectPath, taskId) => {
+ipcMain.handle("agentreveal:verifyRisk", async (event, projectPath, taskId) => {
   assertMainFrame(event);
   assertApprovedScope(projectPath);
   assertTaskId(taskId);
@@ -731,7 +731,7 @@ ipcMain.handle("agentguard:verifyRisk", async (event, projectPath, taskId) => {
   });
 });
 
-ipcMain.handle("agentguard:revokeRisk", async (event, projectPath, taskId) => {
+ipcMain.handle("agentreveal:revokeRisk", async (event, projectPath, taskId) => {
   assertMainFrame(event);
   assertApprovedProject(projectPath);
   assertTaskId(taskId);
@@ -742,7 +742,7 @@ ipcMain.handle("agentguard:revokeRisk", async (event, projectPath, taskId) => {
 });
 
 ipcMain.handle(
-  "agentguard:trustProvider",
+  "agentreveal:trustProvider",
   async (event, projectPath, taskId, kind, reason) => {
     assertMainFrame(event);
     assertApprovedProject(projectPath);
@@ -761,7 +761,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "agentguard:removeProviderTrust",
+  "agentreveal:removeProviderTrust",
   async (event, projectPath, endpoint, kind, reason) => {
     assertMainFrame(event);
     assertApprovedProject(projectPath);
@@ -787,7 +787,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "agentguard:ignoreRule",
+  "agentreveal:ignoreRule",
   async (event, projectPath, taskId, ruleId, reason, expiresAt) => {
     assertMainFrame(event);
     assertApprovedProject(projectPath);
@@ -814,7 +814,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
-  "agentguard:removeRuleIgnore",
+  "agentreveal:removeRuleIgnore",
   async (event, projectPath, ruleId, agent, reason) => {
     assertMainFrame(event);
     assertApprovedProject(projectPath);
@@ -833,7 +833,7 @@ ipcMain.handle(
   }
 );
 
-ipcMain.handle("agentguard:exportReport", async (event, projectPath, format) => {
+ipcMain.handle("agentreveal:exportReport", async (event, projectPath, format) => {
   assertMainFrame(event);
   assertApprovedScope(projectPath);
   if (format !== "html" && format !== "json") {
@@ -862,10 +862,10 @@ ipcMain.handle("agentguard:exportReport", async (event, projectPath, format) => 
   });
 });
 
-ipcMain.handle("agentguard:openReport", async (event, reportPath) => {
+ipcMain.handle("agentreveal:openReport", async (event, reportPath) => {
   assertMainFrame(event);
   if (typeof reportPath !== "string" || !generatedReports.has(reportPath)) {
-    throw new Error("只能打开本次会话中由 AgentGuard 导出的报告。");
+    throw new Error("只能打开本次会话中由 AgentReveal 导出的报告。");
   }
   return tracked("report.open", async () => {
     const error = await shell.openPath(reportPath);
@@ -873,13 +873,13 @@ ipcMain.handle("agentguard:openReport", async (event, reportPath) => {
   });
 });
 
-ipcMain.handle("agentguard:exportDiagnostics", async (event) => {
+ipcMain.handle("agentreveal:exportDiagnostics", async (event) => {
   assertMainFrame(event);
   return tracked("diagnostics.export", async () => {
     const result = await dialog.showSaveDialog(mainWindow, {
       title: "导出脱敏诊断信息",
       defaultPath: diagnosticsDefaultPath(),
-      filters: [{ name: "AgentGuard 诊断 JSON", extensions: ["json"] }],
+      filters: [{ name: "AgentReveal 诊断 JSON", extensions: ["json"] }],
     });
     if (result.canceled || !result.filePath) return { canceled: true };
     const exported = diagnostics().exportTo(result.filePath, {

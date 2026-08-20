@@ -1,6 +1,6 @@
 ---
 name: add-security-rule
-description: Add, split, merge, or change an AgentGuard security rule with complete severity, priority, grouping, remediation, verification, acceptance, documentation, and privacy semantics. Use whenever finding IDs or rule behavior changes, including new adapter findings and cross-Agent rules.
+description: Add, split, merge, or change an AgentReveal security rule with complete severity, priority, grouping, remediation, verification, acceptance, documentation, and privacy semantics. Use whenever finding IDs or rule behavior changes, including new adapter findings and cross-Agent rules.
 ---
 
 # Add or change a security rule

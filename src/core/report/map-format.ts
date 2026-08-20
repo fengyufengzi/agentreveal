@@ -52,7 +52,7 @@ const COLUMNS: Col[] = [
 /** 生成完整 map 文本报告。 */
 export function formatMap(map: ConfigMap): string {
   const lines: string[] = [];
-  lines.push("AgentGuard 配置地图");
+  lines.push("AgentReveal 配置地图");
   lines.push("");
 
   // 计算每列宽度

@@ -101,10 +101,10 @@ function task(taskId = "task-aaaaaaaaaaaa") {
 }
 
 function fixture(now = "2026-07-15T00:00:00.000Z") {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-acceptance-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-acceptance-"));
   const cwd = join(root, "project");
   mkdirSync(cwd, { recursive: true });
-  const path = join(root, "nested", ".agentguard", "acceptances.json");
+  const path = join(root, "nested", ".agentreveal", "acceptances.json");
   let clock = new Date(now);
   const store = new AcceptanceStore({
     path,
@@ -272,12 +272,12 @@ test("损坏或未知版本的文件会明确报错，accept 不得覆盖原始�
 test("defaultAcceptancePath 使用用户目录下的固定审计文件", () => {
   assert.equal(
     defaultAcceptancePath("/Users/example"),
-    "/Users/example/.agentguard/acceptances.json"
+    "/Users/example/.agentreveal/acceptances.json"
   );
 });
 
 test("项目作用域: 同 taskId 在两个项目中互不隐藏", () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-acceptance-scope-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-acceptance-scope-"));
   try {
     const projectA = join(root, "project-a");
     const projectB = join(root, "project-b");
@@ -305,7 +305,7 @@ test("项目作用域: 同 taskId 在两个项目中互不隐藏", () => {
 });
 
 test("项目作用域: 真实路径、相对路径、尾斜杠和符号链接归一化", () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-acceptance-path-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-acceptance-path-"));
   try {
     const project = join(root, "project");
     const alias = join(root, "alias");
@@ -323,7 +323,7 @@ test("项目作用域: 真实路径、相对路径、尾斜杠和符号链接归
 });
 
 test("项目作用域: 大小写按当前文件系统的真实路径语义处理", () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-acceptance-case-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-acceptance-case-"));
   try {
     const upper = join(root, "CaseProject");
     const lower = join(root, "caseproject");

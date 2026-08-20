@@ -1,6 +1,6 @@
 ---
 name: 🐛 Bug 报告
-about: AgentGuard 运行出错、结果异常、命令崩溃
+about: AgentReveal 运行出错、结果异常、命令崩溃
 title: "[Bug] "
 labels: ["bug", "needs-triage"]
 assignees: []
@@ -12,7 +12,7 @@ assignees: []
 
 ## 复现步骤
 
-<!-- 必填，请提供从 `agentguard` 全新安装到触发问题的完整步骤 -->
+<!-- 必填，请提供从 `agentreveal` 全新安装到触发问题的完整步骤 -->
 
 1.
 2.
@@ -23,7 +23,7 @@ assignees: []
 <!-- 命令输出、错误信息、截图 -->
 
 ```bash
-$ agentguard doctor
+$ agentreveal doctor
 ... (粘贴完整输出)
 ```
 
@@ -33,9 +33,9 @@ $ agentguard doctor
 
 ## 环境信息
 
-<!-- 请运行 `agentguard doctor --json` 并粘贴输出，或手动填写 -->
+<!-- 请运行 `agentreveal doctor --json` 并粘贴输出，或手动填写 -->
 
-- **AgentGuard 版本**:
+- **AgentReveal 版本**:
 - **Node.js 版本** (`node -v`):
 - **操作系统** (macOS / Linux / Windows + 版本):
 - **涉及的 Agent**:

@@ -1,4 +1,4 @@
-/** AgentGuard CLI 入口。骨架阶段：doctor 已接真实 discovery，其余命令为占位。 */
+/** AgentReveal CLI 入口。骨架阶段：doctor 已接真实 discovery，其余命令为占位。 */
 import { writeFileSync } from "node:fs";
 import { Command } from "commander";
 import { buildContext, discoverAll } from "./core/discovery/index.js";
@@ -17,6 +17,7 @@ import { formatScan } from "./core/report/scan-format.js";
 import { formatMap } from "./core/report/map-format.js";
 import { formatBaseline } from "./core/report/baseline-format.js";
 import { renderHtmlReport } from "./core/report/html-report.js";
+import { buildJsonReport } from "./core/report/json-report.js";
 import type { ScanReport } from "./core/scan/index.js";
 import { buildFirstRunSummary } from "./core/first-run/index.js";
 import { withOutputContract, type OutputCommand } from "./core/output-contract.js";
@@ -57,6 +58,9 @@ import {
 } from "./core/posture/index.js";
 import { formatPosture } from "./core/report/posture-format.js";
 import { formatDrift } from "./core/report/drift-format.js";
+import { buildRuleFeedback } from "./core/feedback/index.js";
+import { buildModelSafeScan } from "./core/integration/model-safe-scan.js";
+import { PRODUCT_VERSION } from "./version.js";
 
 const program = new Command();
 const invocationArgs = process.argv.slice(2);
@@ -68,19 +72,19 @@ function printJson(command: OutputCommand, payload: object): void {
 }
 
 function acceptanceStore(): AcceptanceStore {
-  const path = process.env.AGENTGUARD_ACCEPTANCE_PATH;
+  const path = process.env.AGENTREVEAL_ACCEPTANCE_PATH;
   return new AcceptanceStore(path ? { path } : {});
 }
 
 function taskSnapshotStore(): TaskSnapshotStore {
-  const path = process.env.AGENTGUARD_TASK_SNAPSHOT_PATH;
+  const path = process.env.AGENTREVEAL_TASK_SNAPSHOT_PATH;
   return new TaskSnapshotStore(path ? { path } : {});
 }
 
 function postureSnapshotStore(cwd = process.cwd()): PostureSnapshotStore {
-  const path = process.env.AGENTGUARD_POSTURE_SNAPSHOT_PATH;
-  const keyPath = process.env.AGENTGUARD_POSTURE_KEY_PATH;
-  const acceptancePath = process.env.AGENTGUARD_ACCEPTANCE_PATH;
+  const path = process.env.AGENTREVEAL_POSTURE_SNAPSHOT_PATH;
+  const keyPath = process.env.AGENTREVEAL_POSTURE_KEY_PATH;
+  const acceptancePath = process.env.AGENTREVEAL_ACCEPTANCE_PATH;
   return new PostureSnapshotStore({
     cwd,
     ...(path ? { path } : {}),
@@ -109,10 +113,10 @@ async function currentClaudeConfigDir(): Promise<string> {
 }
 
 program
-  .name("agentguard")
+  .name("agentreveal")
   .description("面向多 Agent、多模型、多 Provider 的 AI Coding Agent 安全配置中心")
-  .version("0.0.6-pilot.4")
-  .addHelpText("after", "\nBare JSON: agentguard --json");
+  .version(PRODUCT_VERSION)
+  .addHelpText("after", "\nBare JSON: agentreveal --json");
 
 program
   .command("doctor")
@@ -127,6 +131,28 @@ program
     }
   });
 
+program
+  .command("feedback")
+  .description("生成最小脱敏规则反馈 JSON；只输出到本机，不自动上传")
+  .requiredOption("--rule <ruleId>", "扫描结果中的稳定规则 ID")
+  .requiredOption(
+    "--judgment <judgment>",
+    "expected | false-positive | unclear"
+  )
+  .requiredOption(
+    "--outcome <outcome>",
+    "not-attempted | resolved | mitigated | still-present | accepted | ignored | abandoned"
+  )
+  .action((opts: { rule: string; judgment: string; outcome: string }) => {
+    const feedback = buildRuleFeedback({
+      productVersion: PRODUCT_VERSION,
+      ruleId: opts.rule,
+      judgment: opts.judgment,
+      actionOutcome: opts.outcome,
+    });
+    console.log(JSON.stringify(feedback, null, 2));
+  });
+
 const hasHighRisk = (report: ScanReport): boolean =>
   [...report.allFindings, ...report.correlations].some(
     (f) => f.severity === "critical" || f.severity === "high"
@@ -138,7 +164,7 @@ program.action(async () => {
       (command) => command.name() === invocationArgs[0]
     );
     if (knownCommand) return;
-    console.error(`未知命令 "${invocationArgs[0]}"。运行 agentguard --help 查看可用命令。`);
+    console.error(`未知命令 "${invocationArgs[0]}"。运行 agentreveal --help 查看可用命令。`);
     process.exitCode = 1;
     return;
   }
@@ -206,17 +232,39 @@ program
       console.log(`\n${formatDrift(postureState.drift)}`);
       if (triaged.acceptedTasks.length > 0) {
         console.log(
-          `\n已隐藏 ${triaged.acceptedTasks.length} 个已接受风险任务；运行 agentguard risk list 查看。`
+          `\n已隐藏 ${triaged.acceptedTasks.length} 个已接受风险任务；运行 agentreveal risk list 查看。`
         );
       }
       if (triaged.ignoredFindings.length > 0) {
         console.log(
-          `\n已隐藏 ${triaged.ignoredFindings.length} 条项目规则发现；运行 agentguard ignore list 查看。`
+          `\n已隐藏 ${triaged.ignoredFindings.length} 条项目规则发现；运行 agentreveal ignore list 查看。`
         );
       }
     }
     // 有高危及以上风险时以非零码退出，便于 CI 集成（含跨 Agent 关联项）。
     if (hasHighRisk(report)) process.exitCode = 2;
+  });
+
+const integrationCommand = program
+  .command("integration")
+  .description("为受控集成生成最小、只读的机器输出");
+
+integrationCommand
+  .command("scan")
+  .description("扫描并输出不含路径、端点、证据、taskId 或命令的模型安全摘要")
+  .option("--format <format>", "输出格式；当前仅支持 model-json", "model-json")
+  .action(async (opts: { format: string }) => {
+    if (opts.format !== "model-json") {
+      throw new Error("integration scan 当前仅支持 --format model-json。");
+    }
+    const scanReport = await scanAll(buildContext());
+    const triaged = triageReport(scanReport);
+    const summary = buildModelSafeScan(triaged.activeReport, {
+      acceptedTaskCount: triaged.acceptedTasks.length,
+      ignoredFindingCount: triaged.ignoredFindings.length,
+    });
+    console.log(JSON.stringify(summary, null, 2));
+    if (hasHighRisk(triaged.activeReport)) process.exitCode = 2;
   });
 
 const driftCommand = program
@@ -285,7 +333,7 @@ driftCommand
                 ? `删除预览：将删除当前项目 ${preview.previousCapturedAt} 的可信状态。`
                 : "删除预览：当前项目没有可信状态。"
             );
-            console.log("确认删除：agentguard drift baseline --remove --confirm");
+            console.log("确认删除：agentreveal drift baseline --remove --confirm");
           }
           process.exitCode = 1;
           return;
@@ -333,8 +381,8 @@ driftCommand
           );
           console.log(
             preview.mutation === "create"
-              ? "确认创建：agentguard drift baseline --confirm"
-              : "确认替换：agentguard drift baseline --replace --confirm"
+              ? "确认创建：agentreveal drift baseline --confirm"
+              : "确认替换：agentreveal drift baseline --replace --confirm"
           );
         }
         process.exitCode = 1;
@@ -352,7 +400,7 @@ driftCommand
         console.log(
           `${result.mutation === "create" ? "已创建" : "已替换"}当前项目可信状态：${result.agentCount} 个 Agent。`
         );
-        console.log("后续运行 agentguard 或 agentguard drift 查看变化。");
+        console.log("后续运行 agentreveal 或 agentreveal drift 查看变化。");
       }
     }
   );
@@ -417,7 +465,7 @@ trust
       } else {
         console.log(`已标记 ${entry?.endpoint ?? endpoint} 为 ${kind}。`);
         console.log(`配置：${state.configPath}`);
-        console.log("重新运行 agentguard scan 验证；HTTP、明文密钥和权限风险仍会独立显示。");
+        console.log("重新运行 agentreveal scan 验证；HTTP、明文密钥和权限风险仍会独立显示。");
       }
     }
   );
@@ -467,7 +515,7 @@ trust
         });
       } else {
         console.log(`已撤销 ${state.audit.at(-1)?.endpoint ?? endpoint} 的 ${kind} 信任。`);
-        console.log("重新运行 agentguard scan 后，相关未知端点风险会重新进入待办。");
+        console.log("重新运行 agentreveal scan 后，相关未知端点风险会重新进入待办。");
       }
     }
   );
@@ -521,7 +569,7 @@ ignore
       console.log(`已在当前项目忽略 ${candidate.agent}/${candidate.ruleId}。`);
       console.log(`原因：${entry?.reason ?? opts.reason}`);
       console.log(entry?.expiresAt ? `到期：${entry.expiresAt}` : "有效期：长期（建议定期复审）");
-      console.log("该规则即使 evidence/task ID 变化仍会隐藏；运行 agentguard ignore remove 可撤销。");
+      console.log("该规则即使 evidence/task ID 变化仍会隐藏；运行 agentreveal ignore remove 可撤销。");
     }
   });
 
@@ -573,7 +621,7 @@ ignore
       });
     } else {
       console.log(`已撤销 ${opts.agent}/${ruleId} 的项目忽略。`);
-      console.log("重新运行 agentguard scan 后，相关发现会重新进入待办。");
+      console.log("重新运行 agentreveal scan 后，相关发现会重新进入待办。");
     }
   });
 
@@ -660,7 +708,7 @@ risk
           ? `到期时间：${record.expiresAt}`
           : "有效期：长期有效（建议环境变化后重新审核）"
       );
-      console.log("重新运行 agentguard scan 或 agentguard report --format html 即可生效。");
+      console.log("重新运行 agentreveal scan 或 agentreveal report --format html 即可生效。");
     }
   );
 
@@ -770,7 +818,7 @@ risk
     const record = store.revoke(taskId);
     console.log(`已撤销 ${record.taskId} 的风险接受记录。`);
     console.log(`作用域：当前项目 (${store.scopeId.slice(6, 18)})`);
-    console.log("重新运行 agentguard scan 或 agentguard report --format html 即可生效。");
+    console.log("重新运行 agentreveal scan 或 agentreveal report --format html 即可生效。");
   });
 
 program
@@ -802,7 +850,7 @@ program
 
 program
   .command("backup")
-  .description("备份当前 OpenCode 配置到项目 .agentguard/backups")
+  .description("备份当前 OpenCode 配置到项目 .agentreveal/backups")
   .option("--json", "以 JSON 输出，便于自动化")
   .action(async (opts: { json?: boolean }) => {
     const result = await backupOpenCodeConfig();
@@ -843,7 +891,7 @@ credential
     console.log(`Claude 迁移前备份完成：${result.backupId}（${result.files} 个文件）`);
     console.log("现在可以执行报告中的 Keychain 与 apiKeyHelper 迁移命令。");
     console.log(
-      `如迁移后启动或鉴权异常，先预览恢复：agentguard credential restore ${result.backupId}`
+      `如迁移后启动或鉴权异常，先预览恢复：agentreveal credential restore ${result.backupId}`
     );
   });
 
@@ -873,7 +921,7 @@ credential
           );
           console.log("恢复会重新带回旧明文字段，仅在迁移后启动或鉴权异常时使用。");
           console.log(
-            `确认写入：agentguard credential restore ${backupId} --confirm ${preview.fingerprint}`
+            `确认写入：agentreveal credential restore ${backupId} --confirm ${preview.fingerprint}`
           );
         }
         process.exitCode = 1;
@@ -889,7 +937,7 @@ credential
       } else {
         console.log(`Claude 配置已恢复：${result.backupId}（${result.files} 个文件）`);
         console.log("旧明文凭证字段已重新出现；排除故障后仍需轮换并重新迁移。");
-        console.log("运行 agentguard scan 重新验证风险状态。");
+        console.log("运行 agentreveal scan 重新验证风险状态。");
       }
     }
   );
@@ -980,8 +1028,7 @@ program
     const content =
       format === "json"
         ? JSON.stringify(
-            withOutputContract("report.json", {
-              ...triaged.activeReport,
+            buildJsonReport(triaged.activeReport, {
               acceptedTaskCount: triaged.acceptedTasks.length,
               ignoredFindingCount: triaged.ignoredFindings.length,
               posture: postureState.posture,
@@ -999,7 +1046,7 @@ program
 
     // 默认输出路径按格式取扩展名；-o - 走标准输出。
     const output =
-      opts.output ?? `agentguard-report.${format === "json" ? "json" : "html"}`;
+      opts.output ?? `agentreveal-report.${format === "json" ? "json" : "html"}`;
 
     if (output === "-") {
       console.log(content);
@@ -1033,6 +1080,6 @@ program
 const parseArgv = bareJson ? process.argv.slice(0, 2) : process.argv;
 program.parseAsync(parseArgv).catch((err: unknown) => {
   const message = err instanceof Error ? err.message : String(err);
-  console.error(`AgentGuard 执行失败：${message}`);
+  console.error(`AgentReveal 执行失败：${message}`);
   process.exitCode = 1;
 });

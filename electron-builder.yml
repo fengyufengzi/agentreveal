@@ -1,5 +1,5 @@
-appId: com.agentguard.desktop
-productName: AgentGuard
+appId: app.reveal.desktop
+productName: AgentReveal
 directories:
   output: release
 afterPack: scripts/after-pack.cjs
@@ -22,6 +22,6 @@ mac:
   hardenedRuntime: false
   notarize: false
 dmg:
-  artifactName: AgentGuard-${version}-${arch}.${ext}
+  artifactName: AgentReveal-${version}-${arch}.${ext}
   sign: false
 compression: maximum

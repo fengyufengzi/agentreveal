@@ -59,7 +59,7 @@ assignees: []
 
 ## 需要覆盖的能力
 
-<!-- 这个 Agent 需要 AgentGuard 支持哪些能力？勾选 -->
+<!-- 这个 Agent 需要 AgentReveal 支持哪些能力？勾选 -->
 
 - [ ] Agent 发现（config path 扫描）
 - [ ] Provider 识别
@@ -71,7 +71,7 @@ assignees: []
 
 ## 优先级建议
 
-<!-- 你认为这个 Agent 对 AgentGuard 价值有多大？ -->
+<!-- 你认为这个 Agent 对 AgentReveal 价值有多大？ -->
 
 - [ ] 🔴 P0 — 大量用户使用，必须支持
 - [ ] 🟡 P1 — 重要用户群

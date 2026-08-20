@@ -60,8 +60,8 @@ module.exports = async function notarizeMacos(context) {
     context.appOutDir,
     `${context.packager.appInfo.productFilename}.app`
   );
-  const workRoot = mkdtempSync(join(tmpdir(), "agentguard-notary-"));
-  const archivePath = join(workRoot, "AgentGuard.zip");
+  const workRoot = mkdtempSync(join(tmpdir(), "agentreveal-notary-"));
+  const archivePath = join(workRoot, "AgentReveal.zip");
   try {
     run("codesign", [
       "--verify",

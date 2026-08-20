@@ -35,8 +35,8 @@ test("baseline finding 生成 dry-run、带备份 apply 和复扫命令", () => 
     guide.commands.map((item) => item.id),
     ["baseline-preview", "baseline-apply", "verify-scan"]
   );
-  assert.ok(commands(guide).includes("agentguard baseline --profile safe --dry-run"));
-  assert.ok(commands(guide).includes("agentguard apply --profile safe --backup"));
+  assert.ok(commands(guide).includes("agentreveal baseline --profile safe --dry-run"));
+  assert.ok(commands(guide).includes("agentreveal apply --profile safe --backup"));
   assert.equal(
     guide.commands.find((item) => item.id === "baseline-apply").completesRemediation,
     true
@@ -95,7 +95,7 @@ test(
   "macOS Claude 配置命令只删除两个明文字段，保留其它配置且不输出凭证",
   { skip: process.platform !== "darwin" },
   () => {
-    const configDir = mkdtempSync(join(tmpdir(), "agentguard-claude-remediation-"));
+    const configDir = mkdtempSync(join(tmpdir(), "agentreveal-claude-remediation-"));
     const settings = join(configDir, "settings.json");
     const localSettings = join(configDir, "settings.local.json");
     const authToken = "sk-ant-example-plaintext-placeholder";
@@ -136,7 +136,7 @@ test(
       assert.deepEqual(updatedLocal.env, {});
       assert.deepEqual(updatedLocal.permissions, { defaultMode: "default" });
       assert.match(updated.apiKeyHelper, /security find-generic-password/);
-      assert.match(updatedLocal.apiKeyHelper, /AgentGuard\/CLAUDE_PLAINTEXT_TOKEN/);
+      assert.match(updatedLocal.apiKeyHelper, /AgentReveal\/CLAUDE_PLAINTEXT_TOKEN/);
       assert.equal(statSync(settings).mode & 0o777, 0o600);
       assert.equal(statSync(localSettings).mode & 0o777, 0o600);
       assert.doesNotMatch(readFileSync(settings, "utf8"), new RegExp(authToken));
@@ -158,8 +158,8 @@ test("Linux 明文凭证引导使用 Secret Service 或进程级安全注入", (
   assert.equal(guide.mode, "guided");
   assert.ok(output.includes("secret-tool store"));
   assert.ok(output.includes("secret-tool lookup"));
-  assert.ok(output.includes('printf \'%s\' "$AGENTGUARD_INPUT"'));
-  assert.ok(output.includes("unset AGENTGUARD_INPUT"));
+  assert.ok(output.includes('printf \'%s\' "$AGENTREVEAL_INPUT"'));
+  assert.ok(output.includes("unset AGENTREVEAL_INPUT"));
   assert.ok(output.includes("export GEMINI_API_KEY"));
   assert.ok(guide.notes.some((note) => note.includes("Secret Service")));
   assert.ok(!output.includes("echo sk-"));
@@ -172,7 +172,7 @@ test("未知规则 ID 即使含敏感片段也不会进入生成命令", () => {
     { platform: "linux" }
   );
   assert.ok(!commands(guide).includes(secret));
-  assert.ok(commands(guide).includes("AgentGuard FINDING"));
+  assert.ok(commands(guide).includes("AgentReveal FINDING"));
 });
 
 test("Windows 提供用户 DPAPI 凭证方案，不持久化用户环境变量", () => {
@@ -231,7 +231,7 @@ test(
   "CC Switch 权限命令只收紧目标目录、数据库和备份，不改文件内容",
   { skip: process.platform === "win32" },
   () => {
-    const home = mkdtempSync(join(tmpdir(), "agentguard-cc-switch-remediation-"));
+    const home = mkdtempSync(join(tmpdir(), "agentreveal-cc-switch-remediation-"));
     const configDir = join(home, ".cc-switch");
     const backupDir = join(configDir, "backups");
     const database = join(configDir, "cc-switch.db");
@@ -311,7 +311,7 @@ test("混合 baseline/manual 的 ActionTask 降级为 guided", () => {
 
   const guide = buildRemediationGuide(task, { platform: "darwin" });
   assert.equal(guide.mode, "guided");
-  assert.ok(!commands(guide).includes("agentguard apply"));
+  assert.ok(!commands(guide).includes("agentreveal apply"));
   assert.deepEqual(guide.ruleIds.sort(), [
     "CODEX_INSECURE_HTTP",
     "OPENCODE_BASH_UNRESTRICTED",
@@ -344,7 +344,7 @@ test("ActionTask 的安全存储名称包含稳定 taskId，避免同规则多�
   const guide = buildRemediationGuide(task, { platform: "darwin" });
   assert.ok(
     commands(guide).includes(
-      "agentguard credential backup task-123456789abc"
+      "agentreveal credential backup task-123456789abc"
     )
   );
   assert.ok(commands(guide).includes("CLAUDE_PLAINTEXT_TOKEN_task-123456789abc"));

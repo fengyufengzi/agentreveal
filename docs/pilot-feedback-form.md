@@ -1,7 +1,7 @@
-# AgentGuard 试用反馈表
+# AgentReveal 试用反馈表
 
 > 填写预计 5–10 分钟。请复制本文件后填写，并命名为
-> `AgentGuard_Pilot_Feedback_你的编号.md`。
+> `AgentReveal_Pilot_Feedback_你的编号.md`。
 
 安全提醒：不要粘贴完整配置、完整报告、API Key、Token、私钥或未脱敏的内部域名。风险请优先
 使用规则 ID 描述；必须提及端点时请用 `example.com` 等内容替代。
@@ -30,15 +30,15 @@ CLI cohort：
 
 | 命令 | 是否成功 | 输出是否看懂 | 价值评分（1–5） | 备注 |
 |---|---|---|---:|---|
-| `agentguard doctor` | 是 / 否 | 是 / 部分 / 否 |  |  |
-| `agentguard scan` | 是 / 否 | 是 / 部分 / 否 |  |  |
-| `agentguard map` | 是 / 否 | 是 / 部分 / 否 |  |  |
-| `agentguard report --format html` | 是 / 否 | 是 / 部分 / 否 |  |  |
+| `agentreveal doctor` | 是 / 否 | 是 / 部分 / 否 |  |  |
+| `agentreveal scan` | 是 / 否 | 是 / 部分 / 否 |  |  |
+| `agentreveal map` | 是 / 否 | 是 / 部分 / 否 |  |  |
+| `agentreveal report --format html` | 是 / 否 | 是 / 部分 / 否 |  |  |
 | `baseline --dry-run`（如执行） | 是 / 否 / 未执行 | 是 / 部分 / 否 |  |  |
 | 报告中的本机修复命令（如执行） | 是 / 否 / 未执行 | 是 / 部分 / 否 |  |  |
-| `agentguard risk accept/list/revoke`（如执行） | 是 / 否 / 未执行 | 是 / 部分 / 否 |  |  |
-| `agentguard trust add/list/remove`（如执行） | 是 / 否 / 未执行 | 是 / 部分 / 否 |  |  |
-| `agentguard ignore add/list/remove`（如执行） | 是 / 否 / 未执行 | 是 / 部分 / 否 |  |  |
+| `agentreveal risk accept/list/revoke`（如执行） | 是 / 否 / 未执行 | 是 / 部分 / 否 |  |  |
+| `agentreveal trust add/list/remove`（如执行） | 是 / 否 / 未执行 | 是 / 部分 / 否 |  |  |
+| `agentreveal ignore add/list/remove`（如执行） | 是 / 否 / 未执行 | 是 / 部分 / 否 |  |  |
 
 macOS Desktop 非 CLI cohort：
 
@@ -56,6 +56,9 @@ macOS Desktop 非 CLI cohort：
 - 是否愿意在确认内容后把诊断 JSON 与本反馈表一并提供：是 / 否 / 未执行
 
 ## 3. 扫描结果
+
+单条规则的 Q3 准确性反馈请优先使用 [`rule-feedback.md`](rule-feedback.md) 的最小模板。下面的完整 Pilot
+表只用于安装和产品体验研究，不要把 task ID、诊断或其它环境信息复制到规则质量反馈。
 
 - 有效发现数量：____
 - 误报或不认可数量：____
@@ -115,7 +118,7 @@ macOS Desktop 非 CLI cohort：
 - 你是否愿意再次使用：是 / 否 / 不确定
 - 你是否愿意在团队中试用：是 / 否 / 不确定
 - 推荐给另一位多 Agent 用户的可能性（0–10）：____
-- 什么情况下你会再次运行 AgentGuard？
+- 什么情况下你会再次运行 AgentReveal？
 
 - 本次最大的阻碍是什么？
 
@@ -125,7 +128,7 @@ macOS Desktop 非 CLI cohort：
 
 ## 6. 安全与可靠性确认
 
-- 是否看到 AgentGuard 输出完整密钥或其他不应暴露的信息：是 / 否
+- 是否看到 AgentReveal 输出完整密钥或其他不应暴露的信息：是 / 否
 - 是否发生配置损坏：是 / 否 / 未执行自动整改
 - 是否发生备份或恢复失败：是 / 否 / 未执行
 - 桌面 baseline 是否先看到了 diff 和原生确认框：是 / 否 / 未执行桌面整改

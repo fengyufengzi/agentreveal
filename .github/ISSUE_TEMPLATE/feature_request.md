@@ -1,6 +1,6 @@
 ---
 name: 💡 功能建议
-about: 对 AgentGuard 的功能增强、改进、新能力建议
+about: 对 AgentReveal 的功能增强、改进、新能力建议
 title: "[Feature] "
 labels: ["enhancement", "needs-triage"]
 assignees: []
@@ -20,7 +20,7 @@ assignees: []
 
 例如：
 ```bash
-agentguard <command> --flag
+agentreveal <command> --flag
 ```
 
 ## 备选方案

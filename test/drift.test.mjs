@@ -7,8 +7,7 @@ import {
   readFileSync,
   rmSync,
   statSync,
-  writeFileSync,
-} from "node:fs";
+  writeFileSync,} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -296,7 +295,7 @@ test("drift compare: 接受到期与项目忽略到期恢复为稳定变化事�
 });
 
 test("drift policy: 从项目接受与忽略存储读取最小化策略状态", () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-drift-policy-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-drift-policy-"));
   try {
     const project = join(root, "project");
     const acceptancePath = join(root, "state", "acceptances.json");
@@ -346,7 +345,7 @@ test("drift policy: 从项目接受与忽略存储读取最小化策略状态", 
 });
 
 test("posture store E3: 预览确认、观察记录和最小化审计不泄露身份", () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-drift-store-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-drift-store-"));
   try {
     const path = join(root, "state", "posture-snapshots.json");
     const keyPath = join(root, "state", "state-key");
@@ -415,7 +414,7 @@ test("posture store E3: 预览确认、观察记录和最小化审计不泄露�
 });
 
 test("posture store E3: 状态变化、文件并发变化和进程锁都拒绝写入", () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-drift-concurrent-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-drift-concurrent-"));
   try {
     const path = join(root, "state", "posture-snapshots.json");
     const keyPath = join(root, "state", "state-key");
@@ -474,7 +473,7 @@ test("posture store E3: 状态变化、文件并发变化和进程锁都拒绝�
 });
 
 test("posture store E3: 损坏观察字段或过宽权限不会覆盖原文件", () => {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-drift-invalid-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-drift-invalid-"));
   try {
     const path = join(root, "state", "posture-snapshots.json");
     const keyPath = join(root, "state", "state-key");
@@ -500,4 +499,56 @@ test("posture store E3: 损坏观察字段或过宽权限不会覆盖原文件",
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+import { formatDrift } from "../dist/core/report/drift-format.js";
+
+test("drift format: 输出含分类标签（冲突/能力扩大/已解决项回归等）", () => {
+  const out = formatDrift({
+    status: "changed",
+    activeEventCount: 3,
+    resolvedEventCount: 1,
+    baselineCapturedAt: "2026-08-05T00:00:00Z",
+    events: [
+      {
+        eventId: "drift-test-1",
+        agentId: "claude-code",
+        kind: "auth-source-changed",
+        change: "changed",
+        priority: "P1",
+        severity: "high",
+        currentSummary: "认证来源与上次可信状态不同。",
+        previousCategory: "user[active]",
+        action: ["确认当前实际生效的认证来源"],
+        verification: ["复扫确认认证来源唯一"],
+      },
+      {
+        eventId: "drift-test-2",
+        agentId: "codex",
+        kind: "permission-changed",
+        change: "changed",
+        priority: "P0",
+        severity: "high",
+        currentSummary: "权限能力扩大或变得不确定。",
+        action: ["复核权限扩大"],
+        verification: ["复扫确认"],
+      },
+    ],
+  });
+  assert.ok(out.includes("冲突"), "terminal 必须含'冲突'分类标签");
+  assert.ok(out.includes("能力扩大"), "terminal 必须含'能力扩大'分类标签");
+  assert.ok(out.includes("解读："), "terminal 必须含每条事件的'解读'行");
+  assert.ok(out.includes("上次：user[active]"), "terminal 必须显示 previousCategory");
+  assert.ok(out.includes("内部 kind=auth-source-changed change=changed"), "terminal 仍保留 enum 以兼容");
+});
+
+test("drift format: 状态 no-baseline 不渲染分类卡", () => {
+  const out = formatDrift({
+    status: "no-baseline",
+    activeEventCount: 0,
+    resolvedEventCount: 0,
+    events: [],
+  });
+  assert.ok(out.includes("尚未保存可信状态"));
+  assert.ok(!out.includes("冲突"));
 });

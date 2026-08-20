@@ -59,7 +59,7 @@ function claudePlan(state) {
                 ? [{
                         id: "backup-plaintext-settings",
                         title: "先创建受保护的配置备份",
-                        detail: "使用 AgentGuard 已有 Claude 凭证迁移备份边界；备份只覆盖实际含明文字段的设置文件。",
+                        detail: "使用 AgentReveal 已有 Claude 凭证迁移备份边界；备份只覆盖实际含明文字段的设置文件。",
                         kind: "backup",
                     }]
                 : []),
@@ -72,7 +72,7 @@ function claudePlan(state) {
             {
                 id: "verify-claude-auth",
                 title: "重新启动并复扫",
-                detail: "重新启动 Claude Code，完成一次最小请求，再用 AgentGuard 复扫确认认证状态不再冲突且路由符合预期。",
+                detail: "重新启动 Claude Code，完成一次最小请求，再用 AgentReveal 复扫确认认证状态不再冲突且路由符合预期。",
                 kind: "verify",
             },
         ],
@@ -81,7 +81,7 @@ function claudePlan(state) {
                 ? "guided-with-existing-backup"
                 : "guided",
             available: false,
-            reason: "选择保留 OAuth、API Key、helper 或代理凭证属于用户身份决策；AgentGuard 只复用现有备份和引导边界，不自动删除或轮换凭证。",
+            reason: "选择保留 OAuth、API Key、helper 或代理凭证属于用户身份决策；AgentReveal 只复用现有备份和引导边界，不自动删除或轮换凭证。",
         },
         constraints: [
             "不自动轮换、撤销或打印上游凭证。",
@@ -140,21 +140,21 @@ function codexPlan(state) {
                 ? [{
                         id: "remove-overridden-codex-auth",
                         title: "清理被覆盖的 Codex 认证来源",
-                        detail: `在 Codex 官方登录流程或对应 Provider 配置中清理不再使用的 ${overridden.join("、")}；不要直接让 AgentGuard 改写 auth.json。`,
+                        detail: `在 Codex 官方登录流程或对应 Provider 配置中清理不再使用的 ${overridden.join("、")}；不要直接让 AgentReveal 改写 auth.json。`,
                         kind: "configure",
                     }]
                 : []),
             {
                 id: "verify-codex-route",
                 title: "重新启动并复扫",
-                detail: "完全退出并重新启动 Codex，完成一次最小请求，再用 AgentGuard 复扫确认 Provider、认证来源和真实请求链路一致。",
+                detail: "完全退出并重新启动 Codex，完成一次最小请求，再用 AgentReveal 复扫确认 Provider、认证来源和真实请求链路一致。",
                 kind: "verify",
             },
         ],
         automation: {
             mode: "guided",
             available: false,
-            reason: "Codex 登录态与 auth.json 由 Codex 管理；AgentGuard 不直接改写或删除认证文件。",
+            reason: "Codex 登录态与 auth.json 由 Codex 管理；AgentReveal 不直接改写或删除认证文件。",
         },
         constraints: [
             "不自动修改 auth.json、OAuth 登录态或 Provider 凭证。",
@@ -201,7 +201,7 @@ function ccSwitchTokenRotationPlan(state) {
             {
                 id: "replace-token-in-cc-switch",
                 title: "只在 CC Switch 原应用中替换",
-                detail: "把新 Token 填入对应 Provider 的 API Key / Token 字段并保存。AgentGuard 不写 CC Switch SQLite，也不会生成含凭证的命令。",
+                detail: "把新 Token 填入对应 Provider 的 API Key / Token 字段并保存。AgentReveal 不写 CC Switch SQLite，也不会生成含凭证的命令。",
                 kind: "configure",
             },
             {
@@ -218,7 +218,7 @@ function ccSwitchTokenRotationPlan(state) {
             },
             {
                 id: "rescan-cc-switch-token-status",
-                title: "回到 AgentGuard 复扫并正确解释结果",
+                title: "回到 AgentReveal 复扫并正确解释结果",
                 detail: `${hasShared ? "拆分为独立 Token 后，CCSWITCH_SHARED_KEY 应消失。" : ""}` +
                     `${hasPlaintext ? "CCSWITCH_PLAINTEXT_KEY 可能仍存在，因为轮换降低了旧 Token 暴露风险，但 CC Switch SQLite 仍保存真实新 Token；这不是复扫失败。" : ""}`,
                 kind: "verify",
@@ -227,7 +227,7 @@ function ccSwitchTokenRotationPlan(state) {
         automation: {
             mode: "guided",
             available: false,
-            reason: "Token 创建、替换、真实请求验证与撤销跨越上游控制台和 CC Switch 原应用；AgentGuard 保持数据库只读。",
+            reason: "Token 创建、替换、真实请求验证与撤销跨越上游控制台和 CC Switch 原应用；AgentReveal 保持数据库只读。",
         },
         constraints: [
             "不读取、打印、复制或写入 CC Switch Provider Token。",
@@ -272,7 +272,7 @@ function ccSwitchPlan(state) {
             {
                 id: "change-in-cc-switch",
                 title: "只在 CC Switch 原应用中切换",
-                detail: "如需切换 Provider、关闭代理或切回官方，请在 CC Switch 原应用中操作；AgentGuard 保持数据库只读。",
+                detail: "如需切换 Provider、关闭代理或切回官方，请在 CC Switch 原应用中操作；AgentReveal 保持数据库只读。",
                 kind: "configure",
             },
             {
@@ -285,7 +285,7 @@ function ccSwitchPlan(state) {
         automation: {
             mode: "guided",
             available: false,
-            reason: "CC Switch 状态位于应用数据库；AgentGuard 不写 SQLite，也不绕过 CC Switch 自己的事务和界面。",
+            reason: "CC Switch 状态位于应用数据库；AgentReveal 不写 SQLite，也不绕过 CC Switch 自己的事务和界面。",
         },
         constraints: [
             "不自动修改 CC Switch SQLite、备份库或代理开关。",

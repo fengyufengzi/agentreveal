@@ -1,18 +1,18 @@
 ---
 name: review-macos-ui
-description: Review and iteratively improve the AgentGuard macOS Desktop interface using the current product direction, synthetic visual states, optional Figma source designs, real-app inspection, accessibility semantics, and repository validation. Use for requests to audit, redesign, polish, compare, or continue a UI/UX iteration involving desktop/index.html, desktop/renderer.js, desktop/styles.css, macOS menus, dialogs, loading/error/empty states, keyboard focus, VoiceOver structure, responsive layouts, or visual regression.
+description: Review and iteratively improve the AgentReveal macOS Desktop interface using the current product direction, synthetic visual states, optional Figma source designs, real-app inspection, accessibility semantics, and repository validation. Use for requests to audit, redesign, polish, compare, or continue a UI/UX iteration involving desktop/index.html, desktop/renderer.js, desktop/styles.css, macOS menus, dialogs, loading/error/empty states, keyboard focus, VoiceOver structure, responsive layouts, or visual regression.
 ---
 
 # Review macOS UI
 
-Improve AgentGuard's macOS experience without changing its security semantics or creating a second product model. Treat the running application and current code as implementation truth; treat Figma as a design reference when one is supplied.
+Improve AgentReveal's macOS experience without changing its security semantics or creating a second product model. Treat the running application and current code as implementation truth; treat Figma as a design reference when one is supplied.
 
 Always read [references/review-checklist.md](references/review-checklist.md) completely before reviewing or changing the UI.
 
 ## 1. Establish scope and authority
 
 1. Run `git status --short` and preserve existing changes.
-2. Read `AGENTS.md`, `docs/README.md`, `docs/PRODUCT_DIRECTION.md`, the Desktop sections of `docs/product-capabilities.md`, and Accepted Desktop ADRs.
+2. Read `AGENTS.md`, `docs/DOCUMENT_STATUS.md`, `docs/PRODUCT_DIRECTION.md`, the Desktop sections of `docs/product-capabilities.md`, and Accepted Desktop ADRs.
 3. Inspect the relevant renderer, markup, styles, preview fixtures, and tests. Do not infer current behavior from old screenshots or plans.
 4. Classify the request:
    - **Review/report:** inspect and report evidence; do not edit files.
@@ -33,7 +33,7 @@ Use the smallest evidence set that covers the requested states:
 - Generate screenshots outside the repository:
 
 ```bash
-preview_dir=$(mktemp -d /tmp/agentguard-ui-review.XXXXXX)
+preview_dir=$(mktemp -d /tmp/agentreveal-ui-review.XXXXXX)
 npm run desktop:preview:capture -- "$preview_dir"
 ```
 
@@ -44,7 +44,7 @@ Never use live Agent configuration, endpoints, credentials, project names, or lo
 
 ## 3. Choose findings before changes
 
-Rank UI findings without reusing AgentGuard security priorities:
+Rank UI findings without reusing AgentReveal security priorities:
 
 - **阻断:** the user cannot complete or understand the primary workflow, focus is lost, content is inaccessible, or a UI claim is unsafe.
 - **重要:** hierarchy, state feedback, discoverability, native behavior, or responsive layout materially slows the workflow.
@@ -104,7 +104,7 @@ For Desktop presentation-only changes, run at minimum:
 ```bash
 node --check desktop/renderer.js
 node --test test/desktop-accessibility.test.mjs test/desktop-smoke.test.mjs
-npm run desktop:preview:capture -- "$(mktemp -d /tmp/agentguard-ui-review.XXXXXX)"
+npm run desktop:preview:capture -- "$(mktemp -d /tmp/agentreveal-ui-review.XXXXXX)"
 git diff --check
 ```
 

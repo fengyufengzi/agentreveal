@@ -20,7 +20,7 @@ function value(v: unknown): string {
 
 export function formatBaseline(plan: BaselinePlan): string {
   const lines: string[] = [];
-  lines.push(`AgentGuard Baseline dry-run (${plan.profile})`);
+  lines.push(`AgentReveal Baseline dry-run (${plan.profile})`);
   lines.push("");
 
   if (plan.warnings.length > 0) {

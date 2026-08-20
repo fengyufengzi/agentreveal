@@ -1,4 +1,4 @@
-# AgentGuard macOS Desktop Pilot 试用说明
+# AgentReveal macOS Desktop Pilot 试用说明
 
 > 状态：非 CLI Desktop cohort 模板。只有收到已通过 Developer ID 签名、Apple 公证与 Gatekeeper 验证的
 > Apple Silicon DMG 后才能开始；当前未签名开发包不得发给试用者。
@@ -18,8 +18,8 @@
 ## 2. 安装与首次启动
 
 1. 打开受邀下载的 DMG；
-2. 把 AgentGuard 拖到 Applications；
-3. 从 Applications 启动 AgentGuard；
+2. 把 AgentReveal 拖到 Applications；
+3. 从 Applications 启动 AgentReveal；
 4. 确认系统没有要求绕过 Gatekeeper，也没有提示应用损坏；
 5. 阅读首次页的本地运行、默认只读和零上传说明。
 
@@ -64,6 +64,7 @@
 
 填写 [`pilot-feedback-form.md`](pilot-feedback-form.md) 时选择“macOS Desktop（非 CLI）”入口。反馈只写规则 ID、
 任务状态和简短现象，不粘贴完整配置、报告、内部端点、API Key、Token、私钥或包含真实路径的截图。
+若只反馈单条规则准确性，改用 [`rule-feedback.md`](rule-feedback.md) 的最小字段，不提交 task ID、诊断或截图。
 
 以下任一情况都属于阻断问题：
 
@@ -75,9 +76,9 @@
 
 ## 6. 卸载
 
-1. 完全退出 AgentGuard；
-2. 从 Applications 把 AgentGuard 移到废纸篓；
+1. 完全退出 AgentReveal；
+2. 从 Applications 把 AgentReveal 移到废纸篓；
 3. 弹出 DMG。
 
-卸载应用不会自动删除已经导出的报告、`~/.agentguard` 审计状态、项目策略或整改备份。需要清理时由邀请人
+卸载应用不会自动删除已经导出的报告、`~/.agentreveal` 审计状态、项目策略或整改备份。需要清理时由邀请人
 参照 [`install-upgrade-uninstall.md`](install-upgrade-uninstall.md) 协助确认准确范围，不要求试用者执行陌生命令。

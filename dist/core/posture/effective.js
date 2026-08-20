@@ -1,6 +1,6 @@
 import { adapters } from "../../adapters/index.js";
 import { buildContext } from "../discovery/index.js";
-import { loadAgentGuardConfig } from "../config/index.js";
+import { loadAgentRevealConfig } from "../config/index.js";
 function normalizedEndpoint(value) {
     if (!value)
         return undefined;
@@ -62,7 +62,7 @@ function incompleteInspection(adapter, discovery) {
  * E1 只提供 typed core；E2 才把结果加入用户可见输出。
  */
 export async function inspectEffectiveStates(ctx = buildContext()) {
-    const config = loadAgentGuardConfig(ctx.cwd);
+    const config = loadAgentRevealConfig(ctx.cwd);
     const inspectionContext = {
         ...ctx,
         providerPolicy: {

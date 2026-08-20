@@ -39,23 +39,23 @@ test("desktop preload: sandboxed runtime exposes the complete typed bridge", () 
     },
   });
 
-  assert.equal(exposed.name, "agentguard");
+  assert.equal(exposed.name, "agentreveal");
   assert.equal(typeof exposed.bridge.selectProject, "function");
   assert.equal(typeof exposed.bridge.backupClaudeRemediation, "function");
   assert.equal(typeof exposed.bridge.applyClaudeMigration, "function");
   assert.equal(typeof exposed.bridge.cleanupClaudeCredentialBackup, "function");
   assert.equal(typeof exposed.bridge.updateMenuState, "function");
   exposed.bridge.selectProject();
-  assert.deepEqual(invocations.at(-1), ["agentguard:selectProject"]);
+  assert.deepEqual(invocations.at(-1), ["agentreveal:selectProject"]);
   exposed.bridge.updateMenuState({ hasOverview: false, hasReport: false, working: false });
   assert.deepEqual(sends.at(-1), [
-    "agentguard:menuState",
+    "agentreveal:menuState",
     { hasOverview: false, hasReport: false, working: false },
   ]);
 
   const commands = [];
   exposed.bridge.onMenuCommand((command) => commands.push(command));
-  const menuListener = listeners.get("agentguard:menuCommand");
+  const menuListener = listeners.get("agentreveal:menuCommand");
   for (const command of MENU_COMMANDS) menuListener({}, command);
   menuListener({}, "arbitrary-command");
   assert.deepEqual(commands, [...MENU_COMMANDS]);

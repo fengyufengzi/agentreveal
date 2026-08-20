@@ -71,8 +71,8 @@ import {
   type FirstRunSummaryV1,
 } from "../core/first-run/index.js";
 import type { ConfigMap } from "../core/map/index.js";
-import { withOutputContract } from "../core/output-contract.js";
 import { renderHtmlReport } from "../core/report/html-report.js";
+import { buildJsonReport } from "../core/report/json-report.js";
 import { scanAll, type ScanReport } from "../core/scan/index.js";
 import {
   PostureSnapshotStore,
@@ -371,12 +371,12 @@ export function buildDesktopOverview(
   triaged: TriagedReport,
   generatedAt = new Date().toISOString(),
   trustState: ProviderTrustState = {
-    configPath: resolve(cwd, ".agentguard.json"),
+    configPath: resolve(cwd, ".agentreveal.json"),
     entries: [],
     audit: [],
   },
   ruleIgnoreState: RuleIgnoreState = {
-    configPath: resolve(cwd, ".agentguard.json"),
+    configPath: resolve(cwd, ".agentreveal.json"),
     entries: [],
     audit: [],
   },
@@ -476,11 +476,11 @@ function desktopPostureStore(
   home: string
 ): PostureSnapshotStore {
   const path =
-    process.env.AGENTGUARD_POSTURE_SNAPSHOT_PATH ??
+    process.env.AGENTREVEAL_POSTURE_SNAPSHOT_PATH ??
     defaultPostureSnapshotPath(home);
   const keyPath =
-    process.env.AGENTGUARD_POSTURE_KEY_PATH ?? join(dirname(path), "state-key");
-  const acceptancePath = process.env.AGENTGUARD_ACCEPTANCE_PATH;
+    process.env.AGENTREVEAL_POSTURE_KEY_PATH ?? join(dirname(path), "state-key");
+  const acceptancePath = process.env.AGENTREVEAL_ACCEPTANCE_PATH;
   return new PostureSnapshotStore({
     cwd,
     path,
@@ -514,8 +514,8 @@ async function desktopOverview(
       cwd,
       triaged,
       new Date().toISOString(),
-      { configPath: resolve(cwd, ".agentguard.json"), entries: [], audit: [] },
-      { configPath: resolve(cwd, ".agentguard.json"), entries: [], audit: [] },
+      { configPath: resolve(cwd, ".agentreveal.json"), entries: [], audit: [] },
+      { configPath: resolve(cwd, ".agentreveal.json"), entries: [], audit: [] },
       scopeKind,
       postureState.posture,
       postureState.drift
@@ -526,7 +526,7 @@ async function desktopOverview(
     trustState = listProviderTrust(cwd);
   } catch {
     trustState = {
-      configPath: resolve(cwd, ".agentguard.json"),
+      configPath: resolve(cwd, ".agentreveal.json"),
       entries: [],
       audit: [],
     };
@@ -536,7 +536,7 @@ async function desktopOverview(
     ruleIgnoreState = listRuleIgnores(cwd);
   } catch {
     ruleIgnoreState = {
-      configPath: resolve(cwd, ".agentguard.json"),
+      configPath: resolve(cwd, ".agentreveal.json"),
       entries: [],
       audit: [],
     };
@@ -1428,8 +1428,7 @@ export async function exportDesktopReport(input: {
           drift: postureState.drift,
         })
       : JSON.stringify(
-          withOutputContract("report.json", {
-            ...triaged.activeReport,
+          buildJsonReport(triaged.activeReport, {
             acceptedTaskCount: triaged.acceptedTasks.length,
             ignoredFindingCount: triaged.ignoredFindings.length,
             posture: postureState.posture,

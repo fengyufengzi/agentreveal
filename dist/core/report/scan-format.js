@@ -88,7 +88,7 @@ function formatCorrelationSection(report) {
 /** 生成完整 scan 文本报告。 */
 export function formatScan(report) {
     const lines = [];
-    lines.push("AgentGuard Scan");
+    lines.push("AgentReveal Scan");
     lines.push("");
     for (const r of report.results) {
         for (const line of formatAgentSection(r))

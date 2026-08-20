@@ -9,7 +9,7 @@ function formatLine(d) {
 /** 生成完整 doctor 文本报告。 */
 export function formatDoctor(found) {
     const lines = [];
-    lines.push("AgentGuard Doctor");
+    lines.push("AgentReveal Doctor");
     lines.push("");
     lines.push("Detected agents:");
     for (const d of found) {
@@ -30,7 +30,7 @@ export function formatDoctor(found) {
     lines.push("");
     lines.push(`Summary: ${foundCount}/${found.length} agents configured.`);
     lines.push("");
-    lines.push("Next: 运行 agentguard scan 做深度风险扫描，或 agentguard map 看配置地图。");
+    lines.push("Next: 运行 agentreveal scan 做深度风险扫描，或 agentreveal map 看配置地图。");
     return lines.join("\n");
 }
 //# sourceMappingURL=doctor-format.js.map

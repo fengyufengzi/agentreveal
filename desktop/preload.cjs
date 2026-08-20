@@ -13,13 +13,13 @@ const MENU_COMMANDS = new Set([
   "export-diagnostics",
 ]);
 
-contextBridge.exposeInMainWorld("agentguard", {
-  scanMachine: () => ipcRenderer.invoke("agentguard:scanMachine"),
-  selectProject: () => ipcRenderer.invoke("agentguard:selectProject"),
+contextBridge.exposeInMainWorld("agentreveal", {
+  scanMachine: () => ipcRenderer.invoke("agentreveal:scanMachine"),
+  selectProject: () => ipcRenderer.invoke("agentreveal:selectProject"),
   scanProject: (projectPath) =>
-    ipcRenderer.invoke("agentguard:scanProject", projectPath),
+    ipcRenderer.invoke("agentreveal:scanProject", projectPath),
   previewPostureBaseline: (projectPath) =>
-    ipcRenderer.invoke("agentguard:previewPostureBaseline", projectPath),
+    ipcRenderer.invoke("agentreveal:previewPostureBaseline", projectPath),
   savePostureBaseline: (
     projectPath,
     expectedCurrentFingerprint,
@@ -27,7 +27,7 @@ contextBridge.exposeInMainWorld("agentguard", {
     replace
   ) =>
     ipcRenderer.invoke(
-      "agentguard:savePostureBaseline",
+      "agentreveal:savePostureBaseline",
       projectPath,
       expectedCurrentFingerprint,
       expectedStorageRevision,
@@ -35,30 +35,30 @@ contextBridge.exposeInMainWorld("agentguard", {
     ),
   removePostureBaseline: (projectPath, expectedStorageRevision) =>
     ipcRenderer.invoke(
-      "agentguard:removePostureBaseline",
+      "agentreveal:removePostureBaseline",
       projectPath,
       expectedStorageRevision
     ),
   verifyPosture: (projectPath) =>
-    ipcRenderer.invoke("agentguard:verifyPosture", projectPath),
+    ipcRenderer.invoke("agentreveal:verifyPosture", projectPath),
   previewBaseline: (projectPath, profile) =>
-    ipcRenderer.invoke("agentguard:previewBaseline", projectPath, profile),
+    ipcRenderer.invoke("agentreveal:previewBaseline", projectPath, profile),
   applyBaseline: (projectPath, profile, expectedPlanFingerprint) =>
     ipcRenderer.invoke(
-      "agentguard:applyBaseline",
+      "agentreveal:applyBaseline",
       projectPath,
       profile,
       expectedPlanFingerprint
     ),
   restoreBaseline: (projectPath, backupId) =>
     ipcRenderer.invoke(
-      "agentguard:restoreBaseline",
+      "agentreveal:restoreBaseline",
       projectPath,
       backupId
     ),
   backupClaudeRemediation: (projectPath, taskId) =>
     ipcRenderer.invoke(
-      "agentguard:backupClaudeRemediation",
+      "agentreveal:backupClaudeRemediation",
       projectPath,
       taskId
     ),
@@ -69,7 +69,7 @@ contextBridge.exposeInMainWorld("agentguard", {
     expectedFingerprint
   ) =>
     ipcRenderer.invoke(
-      "agentguard:applyClaudeMigration",
+      "agentreveal:applyClaudeMigration",
       projectPath,
       taskId,
       backupId,
@@ -77,32 +77,32 @@ contextBridge.exposeInMainWorld("agentguard", {
     ),
   restoreClaudeRemediation: (projectPath, backupId) =>
     ipcRenderer.invoke(
-      "agentguard:restoreClaudeRemediation",
+      "agentreveal:restoreClaudeRemediation",
       projectPath,
       backupId
     ),
   cleanupClaudeCredentialBackup: (projectPath, taskId, backupId) =>
     ipcRenderer.invoke(
-      "agentguard:cleanupClaudeCredentialBackup",
+      "agentreveal:cleanupClaudeCredentialBackup",
       projectPath,
       taskId,
       backupId
     ),
   acceptRisk: (projectPath, taskId, reason, expiresAt) =>
     ipcRenderer.invoke(
-      "agentguard:acceptRisk",
+      "agentreveal:acceptRisk",
       projectPath,
       taskId,
       reason,
       expiresAt
     ),
   verifyRisk: (projectPath, taskId) =>
-    ipcRenderer.invoke("agentguard:verifyRisk", projectPath, taskId),
+    ipcRenderer.invoke("agentreveal:verifyRisk", projectPath, taskId),
   revokeRisk: (projectPath, taskId) =>
-    ipcRenderer.invoke("agentguard:revokeRisk", projectPath, taskId),
+    ipcRenderer.invoke("agentreveal:revokeRisk", projectPath, taskId),
   trustProvider: (projectPath, taskId, kind, reason) =>
     ipcRenderer.invoke(
-      "agentguard:trustProvider",
+      "agentreveal:trustProvider",
       projectPath,
       taskId,
       kind,
@@ -110,7 +110,7 @@ contextBridge.exposeInMainWorld("agentguard", {
     ),
   removeProviderTrust: (projectPath, endpoint, kind, reason) =>
     ipcRenderer.invoke(
-      "agentguard:removeProviderTrust",
+      "agentreveal:removeProviderTrust",
       projectPath,
       endpoint,
       kind,
@@ -118,7 +118,7 @@ contextBridge.exposeInMainWorld("agentguard", {
     ),
   ignoreRule: (projectPath, taskId, ruleId, reason, expiresAt) =>
     ipcRenderer.invoke(
-      "agentguard:ignoreRule",
+      "agentreveal:ignoreRule",
       projectPath,
       taskId,
       ruleId,
@@ -127,23 +127,23 @@ contextBridge.exposeInMainWorld("agentguard", {
     ),
   removeRuleIgnore: (projectPath, ruleId, agent, reason) =>
     ipcRenderer.invoke(
-      "agentguard:removeRuleIgnore",
+      "agentreveal:removeRuleIgnore",
       projectPath,
       ruleId,
       agent,
       reason
     ),
   exportReport: (projectPath, format) =>
-    ipcRenderer.invoke("agentguard:exportReport", projectPath, format),
+    ipcRenderer.invoke("agentreveal:exportReport", projectPath, format),
   exportDiagnostics: () =>
-    ipcRenderer.invoke("agentguard:exportDiagnostics"),
+    ipcRenderer.invoke("agentreveal:exportDiagnostics"),
   openReport: (reportPath) =>
-    ipcRenderer.invoke("agentguard:openReport", reportPath),
+    ipcRenderer.invoke("agentreveal:openReport", reportPath),
   updateMenuState: (state) =>
-    ipcRenderer.send("agentguard:menuState", state),
+    ipcRenderer.send("agentreveal:menuState", state),
   onMenuCommand: (callback) => {
     if (typeof callback !== "function") return;
-    ipcRenderer.on("agentguard:menuCommand", (_event, command) => {
+    ipcRenderer.on("agentreveal:menuCommand", (_event, command) => {
       if (MENU_COMMANDS.has(command)) callback(command);
     });
   },

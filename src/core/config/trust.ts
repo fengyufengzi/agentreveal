@@ -1,4 +1,4 @@
-/** 项目级 Provider 可信端点管理；写入 .agentguard.json 并保留追加式审计事件。 */
+/** 项目级 Provider 可信端点管理；写入 .agentreveal.json 并保留追加式审计事件。 */
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { isIP } from "node:net";
 import { join } from "node:path";
@@ -34,7 +34,7 @@ const TRUSTABLE_PROVIDER_RULES = new Set([
 ]);
 
 function configCandidates(cwd: string): string[] {
-  return [join(cwd, ".agentguard.json"), join(cwd, "agentguard.config.json")];
+  return [join(cwd, ".agentreveal.json"), join(cwd, "agentreveal.config.json")];
 }
 
 function asObject(value: unknown, label: string): Record<string, unknown> {
@@ -121,7 +121,7 @@ function readDocument(cwd: string): {
     return {
       path,
       mode: statSync(path).mode & 0o777,
-      document: asObject(JSON.parse(readFileSync(path, "utf8")), "AgentGuard 配置"),
+      document: asObject(JSON.parse(readFileSync(path, "utf8")), "AgentReveal 配置"),
     };
   } catch (error) {
     throw new Error(

@@ -46,7 +46,7 @@ export interface TaskSnapshotStoreOptions {
 }
 
 export function defaultTaskSnapshotPath(home = homedir()): string {
-  return join(home, ".agentguard", "task-snapshots.json");
+  return join(home, ".agentreveal", "task-snapshots.json");
 }
 
 function emptyDocument(): SnapshotDocument {

@@ -84,7 +84,7 @@ interface LegacyAcceptanceDocument {
 }
 
 export interface AcceptanceStoreOptions {
-  /** 默认 ~/.agentguard/acceptances.json；测试和嵌入场景可注入。 */
+  /** 默认 ~/.agentreveal/acceptances.json；测试和嵌入场景可注入。 */
   path?: string;
   /** 默认 process.cwd()；仅用于计算不可逆的当前项目 scopeId。 */
   cwd?: string;
@@ -108,7 +108,7 @@ export interface ListAcceptanceOptions {
 }
 
 export function defaultAcceptancePath(home = homedir()): string {
-  return join(home, ".agentguard", "acceptances.json");
+  return join(home, ".agentreveal", "acceptances.json");
 }
 
 export function canonicalProjectPath(cwd = process.cwd()): string {
@@ -142,7 +142,7 @@ function pathUsesCaseInsensitiveLookup(path: string): boolean {
 
 export function projectScopeId(cwd = process.cwd()): string {
   const digest = createHash("sha256")
-    .update(`agentguard-project-scope\0${canonicalProjectPath(cwd)}`, "utf8")
+    .update(`agentreveal-project-scope\0${canonicalProjectPath(cwd)}`, "utf8")
     .digest("hex");
   return `scope-${digest}`;
 }
@@ -157,7 +157,7 @@ function emptyDocument(): AcceptanceDocument {
 
 function assertTaskId(taskId: string): void {
   if (!/^task-[A-Za-z0-9_-]{6,128}$/.test(taskId)) {
-    throw new Error("无效的任务 ID。必须使用 AgentGuard 生成的稳定 taskId。");
+    throw new Error("无效的任务 ID。必须使用 AgentReveal 生成的稳定 taskId。");
   }
 }
 

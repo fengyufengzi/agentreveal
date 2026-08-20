@@ -1,0 +1,5 @@
+# AgentReveal is a server-side command provider. It does not add model tools,
+# MCP servers, browser code, or automatic background scanning.
+- insert:
+    - id: agentreveal-command
+      name: agentreveal/dsh

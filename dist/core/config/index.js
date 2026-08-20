@@ -1,9 +1,9 @@
 /**
- * AgentGuard 项目配置读取。
+ * AgentReveal 项目配置读取。
  *
  * 当前只支持 Provider trust policy，配置文件为当前工作目录下：
- * - .agentguard.json
- * - agentguard.config.json
+ * - .agentreveal.json
+ * - agentreveal.config.json
  */
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
@@ -31,10 +31,10 @@ function readPolicy(raw) {
         ],
     };
 }
-export function loadAgentGuardConfig(cwd) {
+export function loadAgentRevealConfig(cwd) {
     const candidates = [
-        join(cwd, ".agentguard.json"),
-        join(cwd, "agentguard.config.json"),
+        join(cwd, ".agentreveal.json"),
+        join(cwd, "agentreveal.config.json"),
     ];
     const configPath = candidates.find((p) => existsSync(p));
     if (!configPath) {

@@ -3,10 +3,10 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, } from "node:
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { atomicCreateFile } from "../fs-safety.js";
-const KEY_PREFIX = "agentguard-state-key-v1:";
+const KEY_PREFIX = "agentreveal-state-key-v1:";
 const KEY_BYTES = 32;
 export function defaultPostureIdentityKeyPath(home = homedir()) {
-    return join(home, ".agentguard", "state-key");
+    return join(home, ".agentreveal", "state-key");
 }
 function parseKey(text) {
     const trimmed = text.trim();
@@ -88,7 +88,7 @@ export function postureHmacIdentity(key, context, value) {
         throw new Error("有效配置身份上下文和值不能为空或包含 NUL。");
     }
     const digest = createHmac("sha256", key)
-        .update(`agentguard-posture-v1\0${normalizedContext}\0${normalizedValue}`, "utf8")
+        .update(`agentreveal-posture-v1\0${normalizedContext}\0${normalizedValue}`, "utf8")
         .digest("hex");
     return `hmac-sha256:${digest}`;
 }

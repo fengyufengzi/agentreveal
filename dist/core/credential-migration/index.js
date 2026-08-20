@@ -99,7 +99,7 @@ export function claudePostMigrationVerification() {
         successEvidence: [
             "命令成功并显示预期认证状态；如果没有明确列出 helper 来源，仍以真实请求为准。",
             "完全退出并重新启动 Claude Code，完成一次最小请求。",
-            "确认实际请求成功且 Provider / base URL 与 AgentGuard 当前有效状态一致。",
+            "确认实际请求成功且 Provider / base URL 与 AgentReveal 当前有效状态一致。",
         ],
     };
 }

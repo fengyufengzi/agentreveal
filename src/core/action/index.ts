@@ -116,7 +116,7 @@ const DEEPSCAN_FAILED_ACTION: FindingAction = {
   rationale: "深度扫描未完成，当前结果可能遗漏该 Agent 的配置风险。",
   nextSteps: [
     "查看安全失败原因，并确认相关配置文件仍然存在且当前用户可读。",
-    "修复配置格式、文件权限或兼容性问题后重新运行 agentguard scan。",
+    "修复配置格式、文件权限或兼容性问题后重新运行 agentreveal scan。",
   ],
   verification: [
     "重新扫描后不再出现 DEEPSCAN_FAILED。",
@@ -143,7 +143,7 @@ function fallbackAction(id: string): FindingAction {
 
 /**
  * 附加统一行动元数据，并从 fixMode 推导旧版 fixable 字段。
- * baseline 是目前唯一可由 AgentGuard apply 执行的修复方式。
+ * baseline 是目前唯一可由 AgentReveal apply 执行的修复方式。
  */
 export function enrichFinding(finding: RiskFinding): EnrichedFinding {
   const action =

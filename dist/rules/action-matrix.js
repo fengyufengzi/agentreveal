@@ -2,7 +2,7 @@ function action(input) {
     const { family, evidenceKeys = [], ...rest } = input;
     return { ...rest, group: { family, evidenceKeys } };
 }
-const verifyRescan = ["完成处置后重新运行 agentguard scan，确认该 finding 已消失或符合接受条件。"];
+const verifyRescan = ["完成处置后重新运行 agentreveal scan，确认该 finding 已消失或符合接受条件。"];
 const verifyMcp = ["核对 MCP 的真实来源、权限和启动方式后重新扫描，并确认没有意外配置。"];
 const verifyParse = ["修复配置格式或读取条件后重新扫描，确认该 Agent 的发现数量和配置内容恢复正常。"];
 /**
@@ -39,7 +39,7 @@ export const ACTION_MATRIX = {
     CLAUDE_PLAINTEXT_TOKEN: action({
         disposition: "fix", priority: "P0", confidence: "high", fixMode: "guided",
         rationale: "settings 文件中的真实凭证泄露会直接导致有效凭证泄露；已知代理接管占位符不属于此规则。",
-        nextSteps: ["先用 Desktop 一键备份或运行 agentguard credential backup <task-id>，再把新凭证存入系统安全存储，从 settings.json/settings.local.json 删除明文字段，改用可信 apiKeyHelper，并轮换旧凭证。"],
+        nextSteps: ["先用 Desktop 一键备份或运行 agentreveal credential backup <task-id>，再把新凭证存入系统安全存储，从 settings.json/settings.local.json 删除明文字段，改用可信 apiKeyHelper，并轮换旧凭证。"],
         verification: verifyRescan,
         acceptWhen: "仅短期、最小权限、短有效期凭证可作为限时例外。",
         family: "secret.plaintext", evidenceKeys: [],
@@ -93,7 +93,7 @@ export const ACTION_MATRIX = {
         nextSteps: ["核对 MCP 所有者、TLS、认证、数据范围和保留政策。"],
         verification: verifyMcp,
         acceptWhen: "经批准的 HTTPS MCP，且数据与工具权限最小化。",
-        family: "mcp.server", evidenceKeys: ["server", "scope", "url"],
+        family: "mcp.server", evidenceKeys: ["server", "scope"],
     }),
     CLAUDE_MCP_STDIO: action({
         disposition: "observe", priority: "P3", confidence: "high", fixMode: "none",
@@ -101,7 +101,7 @@ export const ACTION_MATRIX = {
         nextSteps: ["核对可执行文件来源、真实路径、版本锁定、参数和写权限。"],
         verification: verifyMcp,
         acceptWhen: "来源可信、版本固定且程序不可被非授权用户替换。",
-        family: "mcp.server", evidenceKeys: ["server", "scope", "command"],
+        family: "mcp.server", evidenceKeys: ["server", "scope"],
     }),
     CLAUDE_MCP_SECRET_ENV: action({
         disposition: "review", priority: "P1", confidence: "low", fixMode: "guided",
@@ -109,7 +109,7 @@ export const ACTION_MATRIX = {
         nextSteps: ["人工确认值类型；若为明文则改用安全注入并轮换凭证。"],
         verification: ["确认配置中不再保存明文值；必要时记录为引用型误报。"],
         acceptWhen: "值只是安全引用/占位符，或凭证是经批准的短期例外。",
-        family: "mcp.server", evidenceKeys: ["server"],
+        family: "mcp.server", evidenceKeys: ["server", "scope"],
     }),
     CLAUDE_PARSE_FAILED: action({
         disposition: "review", priority: "P1", confidence: "high", fixMode: "guided",
@@ -148,7 +148,7 @@ export const ACTION_MATRIX = {
         nextSteps: ["核对端点所有者、TLS、认证、权限和数据保留政策。"],
         verification: verifyMcp,
         acceptWhen: "经批准的 HTTPS MCP，且数据与工具权限最小化。",
-        family: "mcp.server", evidenceKeys: ["server", "url"],
+        family: "mcp.server", evidenceKeys: ["server"],
     }),
     CODEX_MCP_STDIO: action({
         disposition: "observe", priority: "P3", confidence: "high", fixMode: "none",
@@ -156,7 +156,7 @@ export const ACTION_MATRIX = {
         nextSteps: ["核对命令真实路径、包来源、版本、参数和写权限。"],
         verification: verifyMcp,
         acceptWhen: "来源可信、版本固定且命令不可被非授权用户替换。",
-        family: "mcp.server", evidenceKeys: ["server", "command"],
+        family: "mcp.server", evidenceKeys: ["server"],
     }),
     CODEX_MCP_SECRET_ENV: action({
         disposition: "review", priority: "P1", confidence: "low", fixMode: "guided",
@@ -192,7 +192,7 @@ export const ACTION_MATRIX = {
     CCSWITCH_SCHEMA_UNKNOWN: action({
         disposition: "review", priority: "P2", confidence: "high", fixMode: "manual",
         rationale: "数据库可读取但 schema 未验证，扫描结果可能不完整。",
-        nextSteps: ["记录 schema 版本，升级 AgentGuard，必要时人工抽查 Provider 和代理数量。"],
+        nextSteps: ["记录 schema 版本，升级 AgentReveal，必要时人工抽查 Provider 和代理数量。"],
         verification: ["使用支持该 schema 的版本复扫，并确认解析结果完整。"],
         acceptWhen: "已人工确认关键字段仍被完整解析。",
         family: "coverage.schema", evidenceKeys: ["schemaVersion"],
@@ -298,7 +298,9 @@ export const ACTION_MATRIX = {
         verification: verifyRescan,
         acceptWhen: "仅无真实凭证和数据的一次性隔离沙箱可限时接受。",
         baselineProfiles: { safe: "resolve", balanced: "resolve" },
-        family: "permission.execution", evidenceKeys: ["bash"],
+        // 两条 OpenCode 权限规则来自同一份有效 permission 配置。使用新的空证据身份
+        // 会把它们合并为一个任务，同时让旧的单规则 acceptance 安全失效并要求重审。
+        family: "permission.execution", evidenceKeys: [],
     }),
     OPENCODE_PERMISSION_WILDCARD: action({
         disposition: "fix", priority: "P1", confidence: "high", fixMode: "baseline",
@@ -307,7 +309,7 @@ export const ACTION_MATRIX = {
         verification: verifyRescan,
         acceptWhen: "仅一次性隔离环境可限时接受。",
         baselineProfiles: { safe: "resolve", balanced: "mitigate" },
-        family: "permission.execution", evidenceKeys: ["bash", "edit"],
+        family: "permission.execution", evidenceKeys: [],
     }),
     OPENCODE_SHARE_AUTO: action({
         disposition: "fix", priority: "P1", confidence: "high", fixMode: "baseline",
@@ -332,7 +334,7 @@ export const ACTION_MATRIX = {
         nextSteps: ["核对端点所有者、TLS、认证、权限和数据保留政策。"],
         verification: verifyMcp,
         acceptWhen: "经批准的 HTTPS MCP，且数据与工具权限最小化。",
-        family: "mcp.server", evidenceKeys: ["server", "url"],
+        family: "mcp.server", evidenceKeys: ["server"],
     }),
     OPENCODE_MCP_LOCAL: action({
         disposition: "observe", priority: "P3", confidence: "high", fixMode: "none",
@@ -340,7 +342,7 @@ export const ACTION_MATRIX = {
         nextSteps: ["核对命令真实路径、包来源、版本、参数和写权限。"],
         verification: verifyMcp,
         acceptWhen: "来源可信、版本固定且命令不可被非授权用户替换。",
-        family: "mcp.server", evidenceKeys: ["server", "command"],
+        family: "mcp.server", evidenceKeys: ["server"],
     }),
     OPENCODE_MCP_SECRET_ENV: action({
         disposition: "review", priority: "P1", confidence: "low", fixMode: "guided",
@@ -380,7 +382,7 @@ export const ACTION_MATRIX = {
         nextSteps: ["核对端点所有者、TLS、认证、权限和数据保留政策。"],
         verification: verifyMcp,
         acceptWhen: "经批准的 HTTPS MCP，且数据与工具权限最小化。",
-        family: "mcp.server", evidenceKeys: ["server", "url"],
+        family: "mcp.server", evidenceKeys: ["server"],
     }),
     GEMINI_MCP_STDIO: action({
         disposition: "observe", priority: "P3", confidence: "high", fixMode: "none",
@@ -388,7 +390,7 @@ export const ACTION_MATRIX = {
         nextSteps: ["核对命令真实路径、包来源、版本、参数和写权限。"],
         verification: verifyMcp,
         acceptWhen: "来源可信、版本固定且命令不可被非授权用户替换。",
-        family: "mcp.server", evidenceKeys: ["server", "command"],
+        family: "mcp.server", evidenceKeys: ["server"],
     }),
     GEMINI_MCP_SECRET_ENV: action({
         disposition: "review", priority: "P1", confidence: "low", fixMode: "guided",
@@ -449,7 +451,7 @@ export const ACTION_MATRIX = {
         verification: verifyRescan,
         acceptWhen: "远程访问是明确需求，且已有强鉴权、网络 ACL 和监控。",
         baselineProfiles: { safe: "resolve", balanced: "resolve" },
-        family: "openclaw.gateway-exposure", evidenceKeys: ["bind", "port"],
+        family: "openclaw.gateway-exposure", evidenceKeys: [],
     }),
     OPENCLAW_TAILSCALE_EXPOSURE: action({
         disposition: "fix", priority: "P0", confidence: "high", fixMode: "baseline",
@@ -458,7 +460,7 @@ export const ACTION_MATRIX = {
         verification: verifyRescan,
         acceptWhen: "公开服务是明确需求，且已有强鉴权、最小权限和持续监控。",
         baselineProfiles: { safe: "resolve", balanced: "resolve" },
-        family: "openclaw.gateway-exposure", evidenceKeys: ["mode"],
+        family: "openclaw.gateway-exposure", evidenceKeys: [],
     }),
     OPENCLAW_AGENT_WORKSPACE_OVERLAP: action({
         disposition: "review", priority: "P2", confidence: "high", fixMode: "manual",

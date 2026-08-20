@@ -7,13 +7,13 @@ import { spawnSync } from "node:child_process";
 
 const repoRoot = resolve(import.meta.dirname, "..");
 const output = resolve(
-  process.argv[2] ?? join(repoRoot, "docs", "assets", "agentguard-desktop-demo.mp4")
+  process.argv[2] ?? join(repoRoot, "docs", "assets", "agentreveal-desktop-demo.mp4")
 );
 const poster = resolve(
   dirname(output),
   `${basename(output, extname(output))}-poster.png`
 );
-const frameDir = mkdtempSync(join(tmpdir(), "agentguard-desktop-demo-"));
+const frameDir = mkdtempSync(join(tmpdir(), "agentreveal-desktop-demo-"));
 const sceneNames = [
   "welcome",
   "workspace-top",

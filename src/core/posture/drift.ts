@@ -51,7 +51,7 @@ function stableEventId(
   subject: string
 ): string {
   const digest = createHash("sha256")
-    .update(`agentguard-drift-v1\0${agentId}\0${kind}\0${subject}`, "utf8")
+    .update(`agentreveal-drift-v1\0${agentId}\0${kind}\0${subject}`, "utf8")
     .digest("hex")
     .slice(0, 24);
   return `drift-${digest}`;

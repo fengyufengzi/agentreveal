@@ -1,11 +1,11 @@
-# AgentGuard macOS 签名与公证
+# AgentReveal macOS 签名与公证
 
 > 状态：发布骨架已就绪；只有 Apple Developer Program 审核通过、Developer ID 证书和公证凭据均可用后，
 > 才能完成真实发布验证。任何凭据都不得提交到 Git。
 
 ## 1. 本地开发包
 
-`desktop:pack` 只用于本机源码验证：它在系统临时目录 `agentguard-local-preview` 生成可双击的开发启动器，
+`desktop:pack` 只用于本机源码验证：它在系统临时目录 `agentreveal-local-preview` 生成可双击的开发启动器，
 通过当前仓库中已经受系统信任的 Electron 开发运行时加载代码，不上传 Apple，也不能脱离源码目录分发：
 
 ```bash
@@ -41,7 +41,7 @@ Keychain profile 已缺失。脚本不会输出凭据值。
 ```bash
 npm run desktop:release
 npm run desktop:release:verify
-npm run release:scan-assets -- --dmg release/AgentGuard-<version>-arm64.dmg
+npm run release:scan-assets -- --dmg release/AgentReveal-<version>-arm64.dmg
 ```
 
 第一条命令会先检查 macOS、Xcode、Developer ID 证书和完整公证凭据，然后启用 Hardened Runtime、

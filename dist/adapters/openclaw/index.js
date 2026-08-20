@@ -85,7 +85,7 @@ export const openclawAdapter = {
                     format: "JSON",
                     category: "config",
                     reason: parsed.reason,
-                    recommendation: "运行 `openclaw doctor` 验证配置，再重新运行 agentguard scan。",
+                    recommendation: "运行 `openclaw doctor` 验证配置，再重新运行 agentreveal scan。",
                 })];
         }
         return buildOpenClawFindings({

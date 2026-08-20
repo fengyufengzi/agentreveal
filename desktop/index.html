@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
-  <title>AgentGuard</title>
+  <title>AgentReveal</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
@@ -13,7 +13,7 @@
     <div class="brand">
       <img class="brand-icon" src="./icon.png" alt="">
       <div>
-        <h1>AgentGuard</h1>
+        <h1>AgentReveal</h1>
         <p>AI Agent 本地安全中心</p>
       </div>
     </div>
@@ -115,7 +115,7 @@
         变更原因
         <textarea id="trustReason" maxlength="500" rows="4" required placeholder="说明端点所有者、用途和核实依据；不要填写密钥"></textarea>
       </label>
-      <p class="field-help">将写入项目的 .agentguard.json，原因可能进入版本控制。此操作只消除“未知端点”提示，不会隐藏 HTTP、明文密钥或危险权限风险。</p>
+      <p class="field-help">将写入项目的 .agentreveal.json，原因可能进入版本控制。此操作只消除“未知端点”提示，不会隐藏 HTTP、明文密钥或危险权限风险。</p>
       <div class="dialog-actions">
         <button id="trustDismissBtn" type="button" class="ghost">取消</button>
         <button id="trustSubmitBtn" type="submit">确认信任</button>
@@ -141,7 +141,7 @@
         可选到期日期
         <input id="ignoreExpires" type="date">
       </label>
-      <p class="field-help">将写入项目的 .agentguard.json 并保留追加式审计，原因可能进入版本控制。P0/P1、强制修复、明文密钥、危险权限、扫描盲区和 Provider 端点分类不能通过此功能隐藏。</p>
+      <p class="field-help">将写入项目的 .agentreveal.json 并保留追加式审计，原因可能进入版本控制。P0/P1、强制修复、明文密钥、危险权限、扫描盲区和 Provider 端点分类不能通过此功能隐藏。</p>
       <div class="dialog-actions">
         <button id="ignoreDismissBtn" type="button" class="ghost">取消</button>
         <button id="ignoreSubmitBtn" type="submit">确认忽略</button>

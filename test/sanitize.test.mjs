@@ -64,9 +64,9 @@ test('sanitize: 拒绝跟踪环境文件、密钥、日志、备份、本机报�
     '.env',
     'certs/developer-id.p12',
     'logs/desktop.log',
-    '.agentguard/backups/config.backup',
-    'reports/agentguard-report.html',
-    'release/AgentGuard.dmg',
+    '.agentreveal/backups/config.backup',
+    'reports/agentreveal-report.html',
+    'release/AgentReveal.dmg',
   ];
 
   assert.deepEqual(

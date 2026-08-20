@@ -1,6 +1,6 @@
 ---
 name: Pilot 试用反馈
-about: 提交 AgentGuard 真实环境试用结果、误报和重复使用意愿
+about: 提交 AgentReveal 真实环境试用结果、误报和重复使用意愿
 title: "[Pilot] "
 labels: pilot-feedback
 assignees: ""

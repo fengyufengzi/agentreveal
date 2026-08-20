@@ -6,7 +6,7 @@
       "category": "security-rule",
       "expectedMode": "implement",
       "timeboxMinutes": 45,
-      "prompt": "OpenCode 的 Provider 配置可能在 headers 中直接保存访问凭证。请让 AgentGuard 报告这种情况；报告只能显示 header 名称，不能显示值，并完成测试与必要文档。",
+      "prompt": "OpenCode 的 Provider 配置可能在 headers 中直接保存访问凭证。请让 AgentReveal 报告这种情况；报告只能显示 header 名称，不能显示值，并完成测试与必要文档。",
       "requiredChecks": ["npm run check"],
       "evaluationCriteria": [
         "找到并遵循规则、Adapter 和隐私贡献流程",

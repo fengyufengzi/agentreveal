@@ -62,7 +62,7 @@ export interface ActionTaskRequirement {
 }
 /**
  * 附加统一行动元数据，并从 fixMode 推导旧版 fixable 字段。
- * baseline 是目前唯一可由 AgentGuard apply 执行的修复方式。
+ * baseline 是目前唯一可由 AgentReveal apply 执行的修复方式。
  */
 export declare function enrichFinding(finding: RiskFinding): EnrichedFinding;
 /**

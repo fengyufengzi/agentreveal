@@ -28,7 +28,7 @@ const PROVIDER_TYPES = [
     "unknown",
 ];
 export function defaultPostureSnapshotPath(home = homedir()) {
-    return join(home, ".agentguard", "posture-snapshots.json");
+    return join(home, ".agentreveal", "posture-snapshots.json");
 }
 function uniqueSorted(values) {
     return [...new Set(values)].sort((left, right) => left.localeCompare(right));
@@ -585,7 +585,7 @@ export class PostureSnapshotStore {
         }
         const lockPath = `${this.path}.lock`;
         try {
-            atomicCreateFile(lockPath, "agentguard-posture-lock-v1\n", 0o600);
+            atomicCreateFile(lockPath, "agentreveal-posture-lock-v1\n", 0o600);
         }
         catch (error) {
             if (error.code === "EEXIST") {

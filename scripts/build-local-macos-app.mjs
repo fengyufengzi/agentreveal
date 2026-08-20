@@ -8,8 +8,8 @@ import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const outputRoot = resolve(tmpdir(), "agentguard-local-preview");
-const launcherPath = join(outputRoot, "AgentGuard Preview.app");
+const outputRoot = resolve(tmpdir(), "agentreveal-local-preview");
+const launcherPath = join(outputRoot, "AgentReveal Preview.app");
 const electronApp = join(repoRoot, "node_modules", "electron", "dist", "Electron.app");
 const mainEntry = join(repoRoot, "desktop", "main.cjs");
 

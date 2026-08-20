@@ -145,12 +145,12 @@ const forbiddenArtifactRules = [
   {
     id: 'TRACKED_BACKUP',
     description: '发现不应由 Git 或发布包跟踪的配置备份',
-    pattern: /^(?:backups?)(?:\/|$)|(?:^|\/)\.agentguard\/backups(?:\/|$)|\.(?:bak|backup)$/iu,
+    pattern: /^(?:backups?)(?:\/|$)|(?:^|\/)\.agentreveal\/backups(?:\/|$)|\.(?:bak|backup)$/iu,
   },
   {
     id: 'TRACKED_LOCAL_REPORT',
     description: '发现不应由 Git 或发布包跟踪的本机扫描或诊断报告',
-    pattern: /(?:^|\/)reports\/|(?:^|\/)agentguard-(?:report|diagnostics?)(?:[-.][^/]*)?\.(?:html|json|txt)$/iu,
+    pattern: /(?:^|\/)reports\/|(?:^|\/)agentreveal-(?:report|diagnostics?)(?:[-.][^/]*)?\.(?:html|json|txt)$/iu,
   },
   {
     id: 'TRACKED_RELEASE_ARCHIVE',
@@ -262,7 +262,7 @@ export function scanRepository({ root = repositoryRoot(), files = trackedFiles(r
 export function scanHistory(root = repositoryRoot()) {
   const history = execFileSync(
     'git',
-    ['log', '--all', '-p', '--no-color', '--format=AGENTGUARD_COMMIT:%H'],
+    ['log', '--all', '-p', '--no-color', '--format=AGENTREVEAL_COMMIT:%H'],
     { cwd: root, encoding: 'utf8', maxBuffer: 128 * 1024 * 1024 },
   );
 
@@ -277,9 +277,9 @@ export function scanHistory(root = repositoryRoot()) {
   };
 
   for (const line of history.split('\n')) {
-    if (line.startsWith('AGENTGUARD_COMMIT:')) {
+    if (line.startsWith('AGENTREVEAL_COMMIT:')) {
       flush();
-      commit = line.slice('AGENTGUARD_COMMIT:'.length, 'AGENTGUARD_COMMIT:'.length + 12);
+      commit = line.slice('AGENTREVEAL_COMMIT:'.length, 'AGENTREVEAL_COMMIT:'.length + 12);
     } else {
       block.push(line);
     }

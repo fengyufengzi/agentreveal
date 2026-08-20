@@ -19,7 +19,7 @@ const {
 } = require("../desktop/diagnostics.cjs");
 
 function withDirectory(fn) {
-  const root = mkdtempSync(join(tmpdir(), "agentguard-diagnostics-"));
+  const root = mkdtempSync(join(tmpdir(), "agentreveal-diagnostics-"));
   return Promise.resolve(fn(root)).finally(() => {
     rmSync(root, { recursive: true, force: true });
   });
@@ -83,8 +83,8 @@ test("desktop diagnostics: 日志 0600、目录 0700、轮换且忽略损坏行"
       diagnostics.record("project.scan", index % 2 ? "success" : "started");
     }
     const logDir = join(root, "logs");
-    const logPath = join(logDir, "agentguard-events.jsonl");
-    const rotatedPath = join(logDir, "agentguard-events.1.jsonl");
+    const logPath = join(logDir, "agentreveal-events.jsonl");
+    const rotatedPath = join(logDir, "agentreveal-events.1.jsonl");
     assert.equal(statSync(logDir).mode & 0o777, 0o700);
     assert.equal(statSync(logPath).mode & 0o777, 0o600);
     assert.equal(existsSync(rotatedPath), true);

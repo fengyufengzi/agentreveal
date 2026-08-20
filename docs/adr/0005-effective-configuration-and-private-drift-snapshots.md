@@ -1,6 +1,6 @@
 # ADR-0005：有效配置与隐私保护的漂移快照
 
-- Status: Accepted
+- Status: Superseded by ADR-0006 (2026-08-05)
 - Date: 2026-07-23
 
 ## 背景

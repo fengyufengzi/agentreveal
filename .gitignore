@@ -47,11 +47,11 @@ Thumbs.db
 coverage/
 .nyc_output/
 
-# AgentGuard 自身产物
+# AgentReveal 自身产物
 reports/
-agentguard-report.html
-agentguard-report.json
-.agentguard/backups/
+agentreveal-report.html
+agentreveal-report.json
+.agentreveal/backups/
 *.backup
 backups/
 

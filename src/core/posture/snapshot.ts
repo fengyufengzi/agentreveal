@@ -87,7 +87,7 @@ export interface PostureSnapshotStoreOptions {
 }
 
 export function defaultPostureSnapshotPath(home = homedir()): string {
-  return join(home, ".agentguard", "posture-snapshots.json");
+  return join(home, ".agentreveal", "posture-snapshots.json");
 }
 
 function uniqueSorted<T extends string>(values: readonly T[]): T[] {
@@ -828,7 +828,7 @@ export class PostureSnapshotStore {
     }
     const lockPath = `${this.path}.lock`;
     try {
-      atomicCreateFile(lockPath, "agentguard-posture-lock-v1\n", 0o600);
+      atomicCreateFile(lockPath, "agentreveal-posture-lock-v1\n", 0o600);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "EEXIST") {
         throw new Error("可信快照正在被另一个进程修改，请稍后重试。");
